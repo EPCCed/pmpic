@@ -45,47 +45,12 @@ module grids_mod
           pdiff,& !< Difference between pressure levels (Pa)
           prefrcp,&
           rprefrcp,&
-          czb,&   !< (rho(k-1)/rhon(k))/(dz(k)*dzn(k)) use for diffusion onto p level from below
-          cza,&   !< (rho(k)/rhon(k))/(dz(k)*dzn(k+1)) use for diffusion onto p level from above
           czg,&   !< CZB-CZA for tridiagonal solver in POISSON
           czh,&   !< CZB*CZA for tridiagonal solver in POISSON      
-          tzc1,&  !< 0.25*rdz(k)*rho(k-1)/rhon(k) for advection onto p-level from below
-          tzc2,&  !< 0.25*rdz(k)*rho(k)/rhon(k) for advection onto p-level from above
-          tzd1,&  !< 0.25*rdzn(k+1)*rhon(k)/rho(k) for advection onto w-level from below
-          tzd2,&  !< 0.25*rdzn(k+1)*rhon(k+1)/rho(k) for advection onto w-level from above 
-          w_subs,& !< Subsidence velocity
-          olubar,& !< Current U mean
-          savolubar,&          
-          olvbar,& !< Current V mean
-          savolvbar,&
-          olthbar,& !< Current theta mean
-          olzubar,& !< Previous timestep U mean
-          olzvbar,& !< Previous timestep V mean
-          olzthbar,& !< Previous theta mean
-          dmpco,& !< Damping coefficient on pressure levels
-          dmpcoz,& !< Damping coefficient on w-levels
-          tstarpr,& ! Temperature about which Taylor Expansion
-          qsat,&
-          dqsatdt,&
-          qsatfac,&
-          rneutml,&
-          rneutml_sq,&
-          buoy_co, &
-          theta_rand, &!< profile of amplitude of theta perturbations
-          theta_force, & !<profile of forcing term for theta
-          u_force, & !<profile of forcing term for u
-          v_force, & !<profile of forcing term for v
-	  w_rand     !<profile of amplitude of w perturbations
+          w_subs !< Subsidence velocity
 
 
-
-     real(kind=DEFAULT_PRECISION), dimension(:,:), allocatable :: q_init !< Initial profile of q variables
-     real(kind=DEFAULT_PRECISION), dimension(:,:), allocatable :: q_rand !< Initial profile of amplitude of q perturbations
-     real(kind=DEFAULT_PRECISION), dimension(:,:), allocatable :: q_force !< Profiles of forcing terms for q variables
-
-     real(kind=DEFAULT_PRECISION), dimension(:,:), allocatable :: olqbar,olzqbar     
      real(kind=DEFAULT_PRECISION), dimension(:), allocatable :: hgd
-     real(kind=DEFAULT_PRECISION) :: czn, zlogm, zlogth, vk_on_zlogm
      integer, dimension(:), allocatable :: kgd
      integer :: kdmpmin
   end type vertical_grid_configuration_type

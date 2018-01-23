@@ -67,7 +67,7 @@ contains
     end if    
     call load_model_configuration(state, state%options_database)
 
-    state%io_server_enabled=determine_if_io_server_enabled(state%options_database)
+    !state%io_server_enabled=determine_if_io_server_enabled(state%options_database)
     
     call init_data_defn()
     ! Set up the logging with comm world PIDs initially for logging from the configuration parsing
@@ -76,23 +76,23 @@ contains
     
     call log_set_logging_level(options_get_integer(state%options_database, "logging"))
 
-    if (state%io_server_enabled) then
-      call mpi_comm_size(MPI_COMM_WORLD, size, ierr)
-      if (size==1) call log_log(LOG_ERROR, &
-           "Run with 1 process, With IO server enabled then the minimum process size is 2 (1 for IO, 1 for MONC)")
-      call get_io_configuration(state%options_database, io_server_config_file, io_server_placement_period)
-      call split_communicator_into_monc_and_io(io_server_placement_period, state%parallel%monc_communicator, &
-           state%parallel%io_communicator, i_am_monc_process, state%parallel%corresponding_io_server_process)
+    !if (state%io_server_enabled) then
+    !  call mpi_comm_size(MPI_COMM_WORLD, size, ierr)
+    !  if (size==1) call log_log(LOG_ERROR, &
+    !       "Run with 1 process, With IO server enabled then the minimum process size is 2 (1 for IO, 1 for MONC)")
+    !  call get_io_configuration(state%options_database, io_server_config_file, io_server_placement_period)
+    !  call split_communicator_into_monc_and_io(io_server_placement_period, state%parallel%monc_communicator, &
+    !       state%parallel%io_communicator, i_am_monc_process, state%parallel%corresponding_io_server_process)
       !if (.not. i_am_monc_process) then        
       !  call io_server_run(state%options_database, state%parallel%io_communicator, provided_threading, &
       !       size, state%continuation_run, io_server_config_file)
-      !else  
-        call monc_run(component_descriptions, state)
+     ! !else  
+     !   call monc_run(component_descriptions, state)
       !end if
-    else
+    !else
       state%parallel%monc_communicator=MPI_COMM_WORLD
       call monc_run(component_descriptions, state)
-    end if
+    !end if
 
     call mpi_finalize(ierr)
   end subroutine monc_core_bootstrap

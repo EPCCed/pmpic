@@ -1,1 +1,1 @@
-call add_component(component_descriptions, drybl_get_descriptor())
+call add_component(component_descriptions, basic_plume_get_descriptor())

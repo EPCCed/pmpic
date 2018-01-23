@@ -37,31 +37,6 @@ contains
   !> Produces debugging information on each timestep
   subroutine timestep_callback(current_state)
     type(model_state_type), target, intent(inout) :: current_state
-
-    integer :: i, j, k
-    character :: halo_classifier
-
-    if (.not. current_state%first_timestep_column) return
-!!$    if (.not. current_state%last_timestep_column) return
-!!$    do i=1,current_state%local_grid%size(X_INDEX) + current_state%local_grid%halo_size(X_INDEX)*2
-!!$      do j=1,current_state%local_grid%size(Y_INDEX) + current_state%local_grid%halo_size(Y_INDEX)*2
-!!$        do k=1,current_state%local_grid%size(Z_INDEX) + current_state%local_grid%halo_size(Z_INDEX)*2
-!!$          haloClassifier = merge('H', 'D', i .le. current_state%local_grid%halo_size(X_INDEX) .or. &
-!!$               i .gt. current_state%local_grid%size(X_INDEX) + current_state%local_grid%halo_size(X_INDEX) .or. &
-!!$               j .le. current_state%local_grid%halo_size(Y_INDEX) .or. &
-!!$               j .gt. current_state%local_grid%size(Y_INDEX) + current_state%local_grid%halo_size(Y_INDEX) .or. &
-!!$               k .le. current_state%local_grid%halo_size(Z_INDEX) .or. &
-!!$               k .gt. current_state%local_grid%size(Z_INDEX) + current_state%local_grid%halo_size(Z_INDEX))
-!!$          call log_log(LOG_DEBUG, "Ts: "//trim(conv_to_string(current_state%timestep))//"("//trim(conv_to_string(k))//","//&
-!!$               trim(conv_to_string(j))//"," //trim(conv_to_string(i))//") q="&
-!!$               //trim(conv_to_string(current_state%q(1)%data(k,j,i)))//" zq="//trim(conv_to_string(current_state%zq(1)%data(k,j,i)))&
-!!$               //"("//haloClassifier//")")
-!!$        end do        
-!!$      end do      
-!!$    end do
-    do i=1,3
-      write(*,*) current_state%parallel%my_rank, size(current_state%u%data, i), lbound(current_state%u%data, i), &
-           ubound(current_state%u%data, i)
-    end do    
+   
   end subroutine timestep_callback  
 end module debugger_mod

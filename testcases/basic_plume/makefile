@@ -1,4 +1,4 @@
-SRCSF = src/drybl.F90
+SRCSF = src/basic_plume.F90
 
 BUILDDIR=build
 NETCDF_DIR?=/usr
