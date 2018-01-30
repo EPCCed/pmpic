@@ -1,0 +1,29 @@
+!Entry point to the program
+
+Program main
+  use global_mod
+  use grid_mod
+  use parcel_mod
+  use initialise_mod
+
+  implicit none
+
+
+  !setup computational domain
+
+  xmin=-3.d0
+  xmax=3.d0
+  ymin=-3.d0
+  ymax=3.d0
+  zmin=0.d0
+  zmax=3.d0
+
+  nxbase=128
+  nybase=128
+  nzbase=64
+
+  call initialise_parcels(structure=.TRUE.)
+
+  call finalize_parcels(structure=.TRUE.)
+
+end program

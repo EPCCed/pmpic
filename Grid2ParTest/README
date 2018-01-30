@@ -1,0 +1,6 @@
+Directory to test grid2parcel and parcel2grid operations using both array- and
+structure-based descriptions for parcels to determine which description gives
+the best performance.
+
+Files:
+grid.F90 - Module which describes the grids
