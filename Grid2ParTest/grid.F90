@@ -40,7 +40,7 @@ contains
     end subroutine
 
     !finalises the gridded variable (deallocates the data)
-    subroutine Finalize_grid(grid)
+    subroutine Finalise_grid(grid)
         implicit none
         type(gridded_variable), intent(inout) :: grid
 

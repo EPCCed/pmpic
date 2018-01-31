@@ -11,6 +11,7 @@ module initialise_mod
 
 contains
 
+!allocates memory for parcels and sets up their initial positions
     subroutine initialise_parcels(structure)
         implicit none
         logical, intent(in) :: structure
@@ -102,7 +103,11 @@ contains
 
     end subroutine
 
-    subroutine finalize_parcels(structure)
+
+
+
+!deallcoates parcels
+    subroutine finalise_parcels(structure)
         implicit none
         logical, intent(in) :: structure
 
@@ -116,11 +121,49 @@ contains
     end subroutine
 
 
-    subroutine set_grid(grid)
+!sets up a grid variable
+    subroutine set_grid(grid,type)
         implicit none
         type(gridded_variable), intent(inout) :: grid
+        integer, intent(in) :: type !flag to set the contents of the grid:
+        ! 0 - uniform value
+        ! 1 - gradient in x
+        ! 2 - gradient in y
+        ! 3 - gradient in z
+        integer :: i,j,k
 
-        grid%data(:,:,:) = 2.d0
+        print *, "Setting up grid with type=",type
+
+
+        if (type .eq. 0) then
+
+            grid%data(:,:,:) = 2.d0
+
+        else if (type .eq. 1) then
+
+            do i=1,grid%nx
+                grid%data(i,:,:) = i*grid%dx
+            enddo
+
+        else if (type .eq. 2) then
+
+            do j=1,grid%ny
+                grid%data(:,j,:) = j*grid%dy
+            enddo
+
+        else if (type .eq. 3) then
+
+            do k=1,grid%nz
+                grid%data(:,:,k) = k*grid%dz
+            enddo
+
+        else
+
+            STOP "INVALID type value"
+
+        endif
+
+
 
     end subroutine
 
