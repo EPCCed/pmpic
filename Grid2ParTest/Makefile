@@ -1,5 +1,5 @@
-FC=gfortran
-FFLAGS= -O2 -Wall -fbounds-check
+FC=mpif90
+FFLAGS= -O2 -Wall -fbounds-check -fopenmp
 
 FFILES=Main.f90 grid.o parcel.o initialise.o global.o
 

@@ -15,6 +15,12 @@ contains
         implicit none
         logical, intent(in) :: structure
 
+        double precision :: dx, dy, dz
+        double precision :: ipos, jpos, kpos
+        integer :: i, j, k, num
+        double precision :: t2, t1
+
+        t1=MPI_Wtime()
         if (structure) then
             allocate(parcels(maxparcels))
         else
@@ -25,11 +31,74 @@ contains
             allocate(vvel(maxparcels))
             allocate(wvel(maxparcels))
         endif
+        t2=MPI_Wtime()
+
+        Print *, "Allocation time=",t2-t1
+
+        !not a necessary step, but marks all parcels as inactive (empty)
+        ! if (structure) then
+        !     t1=MPI_Wtime()
+        !     do i=1,maxparcels
+        !         parcels(i)%active=.false.
+        !     enddo
+        !     t2=MPI_Wtime()
+        !     print *, "Parcel structure initialisation time=",t2-t1
+        ! endif
 
         !assume we have 2 parcels in each direction in a cell, so 8 per cell
         nparcels=8*nxbase*nybase*nzbase
 
         print *, "There will be ",nparcels," parcels"
+
+        !Now place initial parcels:
+
+        !spacing of the parcels
+        dx=(xmax-xmin)/nxbase/2.
+        dy=(ymax-ymin)/nybase/2.
+        dz=(zmax-zmin)/nzbase/2.
+
+
+
+        t1=MPI_Wtime()
+
+!$OMP PARALLEL DO PRIVATE(i,j,k,kpos,jpos,ipos,num)
+        do k=1,nzbase*2
+            kpos=0.25*dz + (k-1)*dz
+            do j=1,nybase*2
+                jpos=0.25*dy + (j-1)*dy
+
+                do i=1,nxbase*2
+                    !calculate parcel number
+                    num=(nxbase*2*nybase*2)*(k-1) + (j-1)*nxbase*2 + i
+
+                    ipos=0.25*dx + (i-1)*dx
+
+                    if (structure) then
+
+                        !set the parcel's position
+                        parcels(num)%x = ipos
+                        parcels(num)%y = jpos
+                        parcels(num)%z = kpos
+
+                        !set that parcel to be active
+                        parcels(num)%active=.true.
+
+                    else
+                        xpos(num) = ipos
+                        ypos(num) = jpos
+                        zpos(num) = kpos
+                    endif
+
+                enddo
+            enddo
+        enddo
+!$OMP END PARALLEL DO
+
+        t2=MPI_Wtime()
+
+        print *, "Setup time", t2-t1
+
+        !print *, " Set up", num, "parcels"
 
     end subroutine
 

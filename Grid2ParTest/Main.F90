@@ -22,8 +22,19 @@ Program main
   nybase=128
   nzbase=64
 
+!create some parcels using parcel structures and time their creation
+  print *, "Structures:"
   call initialise_parcels(structure=.TRUE.)
 
   call finalize_parcels(structure=.TRUE.)
+
+  PRINT *, ""
+
+  !create some parcels using arrays and time their creation
+  PRINT *, "Arrays:"
+
+  call initialise_parcels(structure=.FALSE.)
+
+  call finalize_parcels(structure=.FALSE.)
 
 end program

@@ -1,6 +1,8 @@
 !module containing global variables etc
 module global_mod
 
+    use MPI
+
     implicit none
 
     !parameters for the computational domain:
