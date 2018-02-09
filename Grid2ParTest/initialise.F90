@@ -31,6 +31,15 @@ contains
             allocate(uvel(maxparcels))
             allocate(vvel(maxparcels))
             allocate(wvel(maxparcels))
+            allocate(bl(maxparcels))
+            allocate(thetal(maxparcels))
+            allocate(q(maxparcels))
+            allocate(volume(maxparcels))
+            allocate(active(maxparcels))
+            allocate(dummyvars(10,maxparcels))
+            allocate(rvort(maxparcels))
+            allocate(svort(maxparcels))
+            allocate(tvort(maxparcels))
         endif
         t2=MPI_Wtime()
 
@@ -80,6 +89,11 @@ contains
                         parcels(num)%x = ipos
                         parcels(num)%y = jpos
                         parcels(num)%z = kpos
+                        parcels(num)%volume = 1.d0
+
+                        parcels(num)%r = 1.d0
+                        parcels(num)%s = -1.d0
+                        parcels(num)%t = 0.d0
 
                         !set that parcel to be active
                         parcels(num)%active=.true.
@@ -88,6 +102,12 @@ contains
                         xpos(num) = ipos
                         ypos(num) = jpos
                         zpos(num) = kpos
+                        volume(num) = 1.d0
+                        rvort(num)= 1.d0
+                        svort(num)= -1.d0
+                        tvort(num)= 0.d0
+                        active(num) = .true.
+
                     endif
 
                 enddo
@@ -116,6 +136,9 @@ contains
         else
             deallocate(xpos, ypos, zpos)
             deallocate(uvel, vvel, wvel)
+            deallocate(bl,thetal,q,volume)
+            deallocate(active)
+            deallocate(dummyvars)
         endif
         print *, "Deallocating parcels"
     end subroutine

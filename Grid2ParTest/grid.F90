@@ -17,6 +17,7 @@ module grid_mod
     end type gridded_variable
 
     type(gridded_variable) :: ugrid, vgrid, wgrid, pgrid
+    type(gridded_variable) :: rgrid, sgrid, tgrid
 
 contains
 
@@ -44,16 +45,19 @@ contains
         implicit none
         type(gridded_variable), intent(inout) :: grid
 
+        print *, "Deallocating grid"
+
         deallocate(grid%data)
 
     end subroutine
 
 
     !from a set of coordinates (x,y,z) returns the lower left grid indices (i,j,k)
-    subroutine Get_Grid_Coords(grid,x,y,z,i,j,k)
+    subroutine Get_Grid_Coords(grid,x,y,z,i,j,k, delx, dely, delz)
         type(gridded_variable), intent(in) :: grid
         double precision, intent(in) :: x,y,z
         integer, intent(out) :: i,j,k
+        double precision, intent(out) :: delx, dely, delz
 
         !transformed x,y,z coordinates
         double precision :: xp, yp, zp
@@ -62,9 +66,14 @@ contains
         yp=y-ymin
         zp=z-zmin
 
-        i=floor(xp/grid%dx)
-        j=floor(yp/grid%dy)
-        k=floor(zp/grid%dz)
+        i=floor(xp/grid%dx)+1
+        j=floor(yp/grid%dy)+1
+        k=floor(zp/grid%dz)+1
+
+        delx = (xp - (i * grid%dx))/grid%dx
+        dely = (yp - (j * grid%dy))/grid%dy
+        delz = (zp - (k * grid%dz))/grid%dz
+
 
     end subroutine
 

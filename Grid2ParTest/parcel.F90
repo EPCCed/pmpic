@@ -21,5 +21,10 @@ module parcel_mod
     !old array descriptions
     double precision, allocatable, dimension(:) :: xpos, ypos, zpos
     double precision, allocatable, dimension(:) :: uvel, vvel, wvel
+    double precision, allocatable, dimension(:) :: rvort, svort, tvort
+    double precision, allocatable, dimension(:) :: bl, thetal, q,volume
+    logical, allocatable, dimension(:) :: active
+    double precision, allocatable, dimension(:,:) :: dummyvars
+
 
 end module

@@ -1,21 +1,23 @@
 FC=mpif90
 FFLAGS= -O2 -Wall -fbounds-check -fopenmp
 
-FFILES=Main.f90 grid.o parcel.o initialise.o global.o
+FFILES=main.o grid.o parcel.o initialise.o global.o interpolation.o
 
-%.mod: %.F90
+%.o: %.F90
 	$(FC) $(FFLAGS) -c $<
 
-main : Main.f90 global.mod initialise.mod global.mod parcel.mod grid.mod
+main : $(FFILES)
 	$(FC) $(FFLAGS) $(FFILES) -o main
 
-global.mod : global.F90
+main.o: main.F90 global.o grid.o parcel.o initialise.o interpolation.o
 
-grid.mod : grid.F90 global.mod
+grid.o : grid.F90 global.o
 
-parcel.mod : parcel.F90 global.mod
+parcel.o : parcel.F90 global.o
 
-initialise.mod : initialise.F90 global.mod parcel.mod grid.mod
+initialise.o : initialise.F90 global.o parcel.o grid.o
+
+interpolation.o : global.o parcel.o grid.o
 
 
 clean:
