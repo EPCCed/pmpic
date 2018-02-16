@@ -10,6 +10,7 @@ Program main
   implicit none
 
   integer :: i
+  integer, parameter :: numits=20
 
 
   !setup computational domain
@@ -61,14 +62,14 @@ print*, ""
 
 !create some parcels using parcel structures and time their creation
   print *, "Structures:"
-  call initialise_parcels(structure=.TRUE.,shuffle=.false.)
+  call initialise_parcels(structure=.TRUE.,shuffle=.True.)
 
   !interpolate grid2par
 
   tp2g=0.d0
   tg2p=0.d0
 
-  do i=1,15
+  do i=1,numits
       call grid2par(grid=ugrid, structure=.true., variable=VEL_X)
       call grid2par(grid=vgrid, structure=.true., variable=VEL_Y)
       call grid2par(grid=wgrid, structure=.true., variable=VEL_Z)
@@ -77,8 +78,8 @@ print*, ""
       call par2grid(grid=tgrid, structure=.true.,variable=VORT_Z)
   enddo
 
-  print *, "mean grid2par time=",tg2p/15./3.
-  print *, "mean par2grid time=",tp2g/15./3.
+  print *, "mean grid2par time=",tg2p/numits/3.
+  print *, "mean par2grid time=",tp2g/numits/3.
 
 
   call finalise_parcels(structure=.TRUE.)
@@ -88,12 +89,12 @@ print*, ""
   !create some parcels using arrays and time their creation
   PRINT *, "Arrays:"
 
-  call initialise_parcels(structure=.FALSE., shuffle=.false.)
+  call initialise_parcels(structure=.FALSE., shuffle=.true.)
 
   tp2g=0.d0
   tg2p=0.d0
 
-  do i=1,15
+  do i=1,numits
       call grid2par(grid=ugrid, structure=.false., variable=VEL_X)
       call grid2par(grid=vgrid, structure=.false., variable=VEL_Y)
       call grid2par(grid=wgrid, structure=.false., variable=VEL_Z)
@@ -102,8 +103,8 @@ print*, ""
       call par2grid(grid=tgrid, structure=.false.,variable=VORT_Z)
   enddo
 
-  print *, "mean grid2par time=",tg2p/15./3.
-  print *, "mean par2grid time=",tp2g/15./3.
+  print *, "mean grid2par time=",numits/15./3.
+  print *, "mean par2grid time=",numits/15./3.
 
   call finalise_parcels(structure=.FALSE.)
 
