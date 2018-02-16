@@ -2,6 +2,7 @@
 module global_mod
 
     use MPI
+    use OMP_LIB
 
     implicit none
 
@@ -13,6 +14,8 @@ module global_mod
 
     ! size of the domain in units
     double precision :: xmin, xmax, ymin, ymax, zmin, zmax
+
+    double precision :: tp2g, tg2p
 
 contains
 

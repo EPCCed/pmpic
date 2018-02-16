@@ -9,6 +9,8 @@ Program main
 
   implicit none
 
+  integer :: i
+
 
   !setup computational domain
 
@@ -22,6 +24,13 @@ Program main
   nxbase=128
   nybase=128
   nzbase=64
+
+!$OMP parallel
+!$OMP MASTER
+  print *, "OMP_NUM_THREADS=",OMP_GET_NUM_THREADS()
+  print *, ""
+!$OMP END MASTER
+!$OMP END PARALLEL
 
 
   print*, "Setting up grids:"
@@ -48,20 +57,29 @@ Program main
   call initialise_grid(sgrid,nxbase,nybase,nzbase)
   call initialise_grid(tgrid,nxbase,nybase,nzbase)
 
-
+print*, ""
 
 !create some parcels using parcel structures and time their creation
   print *, "Structures:"
-  call initialise_parcels(structure=.TRUE.)
+  call initialise_parcels(structure=.TRUE.,shuffle=.false.)
 
   !interpolate grid2par
 
-  call grid2par(grid=ugrid, structure=.true., variable=VEL_X)
-  call grid2par(grid=vgrid, structure=.true., variable=VEL_Y)
-  call grid2par(grid=wgrid, structure=.true., variable=VEL_Z)
-  call par2grid(grid=rgrid, structure=.true.,variable=VORT_X)
-  call par2grid(grid=sgrid, structure=.true.,variable=VORT_Y)
-  call par2grid(grid=tgrid, structure=.true.,variable=VORT_Z)
+  tp2g=0.d0
+  tg2p=0.d0
+
+  do i=1,15
+      call grid2par(grid=ugrid, structure=.true., variable=VEL_X)
+      call grid2par(grid=vgrid, structure=.true., variable=VEL_Y)
+      call grid2par(grid=wgrid, structure=.true., variable=VEL_Z)
+      call par2grid(grid=rgrid, structure=.true.,variable=VORT_X)
+      call par2grid(grid=sgrid, structure=.true.,variable=VORT_Y)
+      call par2grid(grid=tgrid, structure=.true.,variable=VORT_Z)
+  enddo
+
+  print *, "mean grid2par time=",tg2p/15./3.
+  print *, "mean par2grid time=",tp2g/15./3.
+
 
   call finalise_parcels(structure=.TRUE.)
 
@@ -70,14 +88,22 @@ Program main
   !create some parcels using arrays and time their creation
   PRINT *, "Arrays:"
 
-  call initialise_parcels(structure=.FALSE.)
+  call initialise_parcels(structure=.FALSE., shuffle=.false.)
 
-  call grid2par(grid=ugrid, structure=.false., variable=VEL_X)
-  call grid2par(grid=vgrid, structure=.false., variable=VEL_Y)
-  call grid2par(grid=wgrid, structure=.false., variable=VEL_Z)
-  call par2grid(grid=rgrid, structure=.false.,variable=VORT_X)
-  call par2grid(grid=sgrid, structure=.false.,variable=VORT_Y)
-  call par2grid(grid=tgrid, structure=.false.,variable=VORT_Z)
+  tp2g=0.d0
+  tg2p=0.d0
+
+  do i=1,15
+      call grid2par(grid=ugrid, structure=.false., variable=VEL_X)
+      call grid2par(grid=vgrid, structure=.false., variable=VEL_Y)
+      call grid2par(grid=wgrid, structure=.false., variable=VEL_Z)
+      call par2grid(grid=rgrid, structure=.false.,variable=VORT_X)
+      call par2grid(grid=sgrid, structure=.false.,variable=VORT_Y)
+      call par2grid(grid=tgrid, structure=.false.,variable=VORT_Z)
+  enddo
+
+  print *, "mean grid2par time=",tg2p/15./3.
+  print *, "mean par2grid time=",tp2g/15./3.
 
   call finalise_parcels(structure=.FALSE.)
 

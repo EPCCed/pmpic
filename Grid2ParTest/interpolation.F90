@@ -104,7 +104,9 @@ contains
 
         t2=MPI_Wtime()
 
-        print*, "grid2par time=", t2-t1
+        tg2p = tg2p + t2-t1
+
+        !print*, "grid2par time=", t2-t1
 
     end subroutine
 
@@ -262,7 +264,9 @@ contains
 
         t2=MPI_Wtime()
 
-        print *, "par2grid time=", t2-t1
+        tp2g = tp2g+t2-t1
+
+        !print *, "par2grid time=", t2-t1
 
         deallocate(weights)
 

@@ -12,9 +12,10 @@ module initialise_mod
 contains
 
 !allocates memory for parcels and sets up their initial positions
-    subroutine initialise_parcels(structure)
+    subroutine initialise_parcels(structure, shuffle)
         implicit none
         logical, intent(in) :: structure
+        logical, intent(in) :: shuffle
 
         double precision :: dx, dy, dz
         double precision :: ipos, jpos, kpos
@@ -119,6 +120,15 @@ contains
 
         print *, "Setup time", t2-t1
 
+        if (shuffle) then
+            print *, "Shuffling parcels:"
+            t1=MPI_Wtime()
+            call shuffle_parcels(nparcels,structure)
+            t2=MPI_Wtime()
+            print *, "Shuffling time=",t2-t1
+        endif
+
+
         !print *, " Set up", num, "parcels"
 
     end subroutine
@@ -189,5 +199,49 @@ contains
 
 
     end subroutine
+
+
+
+
+
+    subroutine shuffle_parcels(n,structure)
+  ! performs a Fisher-Yates shuffle (aka Knuth shuffle) of the indices
+  ! This may be either beneficial or bad for shared-balance parallelism in some
+  ! instances, as it can help prevent processors accessing the same grid variables
+  ! multiple times in sequence
+        integer, intent(in) :: n
+        logical, intent(in) :: structure
+        integer :: shuffle_index, rand_target
+        double precision :: temp_var
+        type(parcel) :: temp_par
+        real :: random_out
+
+
+        do shuffle_index = n, 2, -1
+            call random_number(random_out)
+            rand_target = int(random_out * shuffle_index) + 1
+
+            if (structure) then
+                temp_par = parcels(rand_target)
+                parcels(rand_target)=parcels(shuffle_index)
+                parcels(shuffle_index) = temp_par
+            else
+                temp_var=xpos(rand_target)
+                xpos(rand_target)=xpos(shuffle_index)
+                xpos(shuffle_index) = temp_var
+
+                temp_var=ypos(rand_target)
+                ypos(rand_target)=ypos(shuffle_index)
+                ypos(shuffle_index) = temp_var
+
+                temp_var=zpos(rand_target)
+                zpos(rand_target)=zpos(shuffle_index)
+                zpos(shuffle_index) = temp_var
+            endif
+
+        end do
+
+    end subroutine
+
 
 end module
