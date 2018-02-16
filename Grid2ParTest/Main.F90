@@ -103,8 +103,8 @@ print*, ""
       call par2grid(grid=tgrid, structure=.false.,variable=VORT_Z)
   enddo
 
-  print *, "mean grid2par time=",numits/15./3.
-  print *, "mean par2grid time=",numits/15./3.
+  print *, "mean grid2par time=",tg2p/numits/3.
+  print *, "mean par2grid time=",tp2g/numits/3.
 
   call finalise_parcels(structure=.FALSE.)
 
