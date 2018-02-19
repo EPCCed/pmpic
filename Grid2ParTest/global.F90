@@ -17,6 +17,8 @@ module global_mod
 
     double precision :: tp2g, tg2p
 
+    integer :: ierror
+
 contains
 
 

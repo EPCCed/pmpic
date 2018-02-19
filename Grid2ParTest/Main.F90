@@ -12,7 +12,8 @@ Program main
   integer :: i
   integer, parameter :: numits=20
 
-
+  call MPI_Init(ierror)
+  
   !setup computational domain
 
   xmin=-3.d0
@@ -95,11 +96,17 @@ print*, ""
   tg2p=0.d0
 
   do i=1,numits
+      !print *, "g2p1"
       call grid2par(grid=ugrid, structure=.false., variable=VEL_X)
+      !print *, "g2p2"
       call grid2par(grid=vgrid, structure=.false., variable=VEL_Y)
+      !print *, "g2p3"
       call grid2par(grid=wgrid, structure=.false., variable=VEL_Z)
+      !print *, "p2g1"
       call par2grid(grid=rgrid, structure=.false.,variable=VORT_X)
+      !print *, "p2g2"
       call par2grid(grid=sgrid, structure=.false.,variable=VORT_Y)
+      !print *, "p2g3"
       call par2grid(grid=tgrid, structure=.false.,variable=VORT_Z)
   enddo
 
@@ -122,5 +129,7 @@ print*, ""
   call Finalise_grid(rgrid)
   call Finalise_grid(sgrid)
   call Finalise_grid(tgrid)
+
+  call MPI_Finalize(ierror)
 
 end program

@@ -1,7 +1,10 @@
 FC=mpif90
 FFLAGS= -O2 -Wall -fbounds-check -fopenmp
 
-FFILES=main.o grid.o parcel.o initialise.o global.o interpolation.o
+FC=ftn
+FFLAGS=-h omp -g
+
+FFILES=Main.o grid.o parcel.o initialise.o global.o interpolation.o
 
 %.o: %.F90
 	$(FC) $(FFLAGS) -c $<
@@ -9,7 +12,7 @@ FFILES=main.o grid.o parcel.o initialise.o global.o interpolation.o
 main : $(FFILES)
 	$(FC) $(FFLAGS) $(FFILES) -o main
 
-main.o: main.F90 global.o grid.o parcel.o initialise.o interpolation.o
+Main.o: Main.F90 global.o grid.o parcel.o initialise.o interpolation.o
 
 grid.o : grid.F90 global.o
 

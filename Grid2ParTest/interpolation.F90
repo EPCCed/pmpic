@@ -36,7 +36,7 @@ contains
         !loop over each parcel
 !$OMP PARALLEL DO DEFAULT(PRIVATE) &
 !$OMP             FIRSTPRIVATE(structure,variable) &
-!$OMP             SHARED(grid,parcels,xpos, ypos, zpos, uvel, vvel, wvel) &
+!$OMP             SHARED(grid,parcels,xpos, ypos, zpos, uvel, vvel, wvel,nparcels) &
 !$OMP             schedule(guided)
         do n=1, nparcels
 
@@ -143,7 +143,7 @@ contains
         !loop over each parcel and add its contribtion to the grid
 
 !$OMP PARALLEL DO DEFAULT(PRIVATE) &
-!$OMP             shared(parcels, structure, volume, grid, rvort, svort,tvort, variable)&
+!$OMP             shared(parcels, structure, volume, grid, rvort, svort,tvort, variable,nparcels)&
 !$OMP             SCHEDULE(GUIDED)&
 !$OMP             reduction(+:weights,data)
         do n=1,nparcels

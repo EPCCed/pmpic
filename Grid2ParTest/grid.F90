@@ -74,6 +74,28 @@ contains
         dely = (yp - (j * grid%dy))/grid%dy
         delz = (zp - (k * grid%dz))/grid%dz
 
+        if ((i .gt. grid%nx-1) .or. (i .lt. 1)) then
+           print *,"out of bounds!",i,j,k,grid%nx,grid%ny,grid%nz
+           print *, xmin, xmax, x
+           print *, ymin, ymax, y
+           print *, zmin, zmax, z
+           stop
+        endif
+        if ((j .gt. grid%ny-1) .or. (j .lt. 1)) then
+           print *,"out of bounds!",i,j,k,grid%nx,grid%ny,grid%nz
+           print *, xmin, xmax, x
+           print *, ymin, ymax, y
+           print *, zmin, zmax, z
+           stop
+        endif
+        if ((k .gt. grid%nz-1) .or. (k .lt. 1)) then
+           print *,"out of bounds!",i,j,k,grid%nx,grid%ny,grid%nz
+           print *, xmin, xmax, x
+           print *, ymin, ymax, y
+           print *, zmin, zmax, z
+           stop
+        endif
+
 
     end subroutine
 
