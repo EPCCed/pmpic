@@ -151,6 +151,7 @@ contains
 
 !$OMP PARALLEL DO DEFAULT(PRIVATE) &
 !$OMP             shared(parcels, structure, volume, grid, rvort, svort,tvort, variable,nparcels)&
+!$OMP             shared(xpos,ypos,zpos)&
 !$OMP             SCHEDULE(GUIDED)&
 !$OMP             reduction(+:weights,data)
         do n=1,nparcels
