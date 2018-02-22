@@ -34,9 +34,9 @@ contains
         grid%ny=ny
         grid%nz=nz
 
-        grid%dx=dble(nx/(xmax-xmin))
-        grid%dy=dble(ny/(ymax-ymin))
-        grid%dz=dble(nz/(zmax-zmin))
+        grid%dx=(xmax-xmin)/dble((nx-1))
+        grid%dy=(ymax-ymin)/dble((ny-1))
+        grid%dz=(zmax-zmin)/dble((nz-1))
 
     end subroutine
 
@@ -70,9 +70,16 @@ contains
         j=floor(yp/grid%dy)+1
         k=floor(zp/grid%dz)+1
 
-        delx = (xp - (i * grid%dx))/grid%dx
-        dely = (yp - (j * grid%dy))/grid%dy
-        delz = (zp - (k * grid%dz))/grid%dz
+        delx = (xp - ((i-1) * grid%dx)) /grid%dx
+        dely = (yp - ((j-1) * grid%dy)) /grid%dy
+        delz = (zp - ((k-1) * grid%dz)) /grid%dz
+
+        ! print *, "Get_Grid_Coords"
+        ! print *, x, y, z
+        ! print *, xp, yp, zp
+        ! print *, delx, dely, delz
+        ! print *, grid%dx, grid%dy, grid%dz
+        ! stop
 
         if ((i .gt. grid%nx-1) .or. (i .lt. 1)) then
            print *,"out of bounds!",i,j,k,grid%nx,grid%ny,grid%nz

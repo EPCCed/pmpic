@@ -48,6 +48,13 @@ contains
                 call Get_Grid_Coords(grid,xpos(n),ypos(n),zpos(n),i,j,k,delx, dely, delz)
             endif
 
+            ! if (n .eq. 1) then
+            !     print *, "grid2par:"
+            !     print *, delx, dely, delz
+            !     print *, i, j, k
+            !     !print *, xpos, ypos, xpos
+            ! endif
+
             !get corners of cube around parcel
 
             c000 = grid%data(i,j,k)

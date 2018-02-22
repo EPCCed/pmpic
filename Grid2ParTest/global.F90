@@ -19,6 +19,8 @@ module global_mod
 
     integer :: ierror
 
+    logical, parameter :: debug = .false. 
+
 contains
 
 

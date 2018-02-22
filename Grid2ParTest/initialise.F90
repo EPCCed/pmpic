@@ -57,32 +57,38 @@ contains
         ! endif
 
         !assume we have 2 parcels in each direction in a cell, so 8 per cell
-        nparcels=8*nxbase*nybase*nzbase
+        nparcels=8*(nxbase-1)*(nybase-1)*(nzbase-1)
 
         print *, "There will be ",nparcels," parcels"
 
         !Now place initial parcels:
 
         !spacing of the parcels
-        dx=(xmax-xmin)/nxbase/2.
-        dy=(ymax-ymin)/nybase/2.
-        dz=(zmax-zmin)/nzbase/2.
+        dx=(xmax-xmin)/(nxbase-1)/2.
+        dy=(ymax-ymin)/(nybase-1)/2.
+        dz=(zmax-zmin)/(nzbase-1)/2.
 
 
 
         t1=MPI_Wtime()
 
 !$OMP PARALLEL DO PRIVATE(i,j,k,kpos,jpos,ipos,num)
-        do k=1,nzbase*2
-            kpos=0.25*dz + (k-1)*dz
-            do j=1,nybase*2
-                jpos=0.25*dy + (j-1)*dy
+        do k=1,(nzbase-1)*2
+            kpos=zmin+ 0.5*dz + (k-1)*dz
+            !print *, "k,kpos=",k,kpos
+            do j=1,(nybase-1)*2
+                jpos=ymin+ 0.5*dy + (j-1)*dy
+                !if (k .eq. 1) print *, "j,jpos=",j,jpos
 
-                do i=1,nxbase*2
+                do i=1,(nxbase-1)*2
                     !calculate parcel number
-                    num=(nxbase*2*nybase*2)*(k-1) + (j-1)*nxbase*2 + i
+                    num=((nxbase-1)*2*(nybase-1)*2)*(k-1) + (j-1)*(nxbase-1)*2 + i
 
-                    ipos=0.25*dx + (i-1)*dx
+                    ipos=xmin+ 0.5*dx + (i-1)*dx
+
+                    ! if ((j .eq. 1) .and. (k .eq. 1)) then
+                    !     print *, i, num, ipos
+                    ! endif
 
                     if (structure) then
 
@@ -149,6 +155,7 @@ contains
             deallocate(bl,thetal,q,volume)
             deallocate(active)
             deallocate(dummyvars)
+            deallocate(rvort,svort,tvort)
         endif
         print *, "Deallocating parcels"
     end subroutine
@@ -164,8 +171,13 @@ contains
         ! 2 - gradient in y
         ! 3 - gradient in z
         integer :: i,j,k
+        double precision :: dx, dy, dz
 
         print *, "Setting up grid with type=",type
+
+        dx=(xmax-xmin)/(grid%nx-1)
+        dy=(ymax-ymin)/(grid%ny-1)
+        dz=(zmax-zmin)/(grid%nz-1)
 
 
         if (type .eq. 0) then
@@ -175,19 +187,20 @@ contains
         else if (type .eq. 1) then
 
             do i=1,grid%nx
-                grid%data(i,:,:) = i*grid%dx
+                grid%data(i,:,:) = xmin + (i-1)*dx
             enddo
+
 
         else if (type .eq. 2) then
 
             do j=1,grid%ny
-                grid%data(:,j,:) = j*grid%dy
+                grid%data(:,j,:) = ymin  + (j-1)*dy
             enddo
 
         else if (type .eq. 3) then
 
             do k=1,grid%nz
-                grid%data(:,:,k) = k*grid%dz
+                grid%data(:,:,k) = zmin + (k-1)*dz
             enddo
 
         else
@@ -195,6 +208,14 @@ contains
             STOP "INVALID type value"
 
         endif
+
+        ! print *, "grid initiated with type=",type
+        ! print *, xmin, xmax, ymin, ymax, zmin, zmax
+        ! print *, grid%data(1,1,1)
+        ! print *, grid%data(grid%nx,1,1)
+        ! print *, grid%data(1,grid%ny,1)
+        ! print *, grid%data(1,1,grid%nz)
+
 
 
 
