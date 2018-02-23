@@ -1,8 +1,10 @@
 FC=mpif90
 FFLAGS= -O2 -Wall -fbounds-check -fopenmp
 
-#FC=ftn
-#FFLAGS=-h omp -g
+FC=ftn
+FFLAGS=-h omp
+#FFLAGS=-O2 -openmp
+#FFLAGS=-O2 -fopenmp
 
 FFILES=Main.o grid.o parcel.o initialise.o global.o interpolation.o testInterp.o
 
