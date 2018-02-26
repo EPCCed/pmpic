@@ -4,6 +4,8 @@ module testInterp_mod
     use grid_mod
     use parcel_mod
 
+    implicit none
+
     double precision, parameter :: tol=1.d-9
 
 contains
@@ -18,6 +20,7 @@ contains
         double precision :: val
 
         double precision :: t2, t1
+        double precision :: ref
 
         !if variable = vort_x  then should have 1
         !if variable = vort_y then should be -1
@@ -29,24 +32,36 @@ contains
 
         t1=MPI_Wtime()
 
-        do k=1,nz
-            do j=1,ny
-                do i=1,nx
+        !check internal values only (will be incorrect on boundaries)
+        do k=2,nz-1
+            if(variable .eq. VORT_Z) ref = zmin + (k-1)*grid%dz
+            do j=2,ny-1
+                if (variable .eq. VORT_Y) ref = ymin + (j-1)*grid%dy
+                do i=2,nx-1
+                    if (variable .eq. vort_x) ref = xmin + (i-1)*grid%dx
+
+
                     val=grid%data(i,j,k)
 
                     if (variable .eq. VORT_X) then
-                        if (abs(val-1.d0) .gt. tol) then
-                            print*, "Error:", val, 1.d0, abs(val-1.d0)
+                        if (abs(val-ref) .gt. tol) then
+                            print*, "testgrid error vort_x"
+                            print*, i,j,k
+                            print*, "Error:", val, ref, abs(val-ref)
                             stop
                         endif
                     else if (variable .eq. VORT_Y) then
-                        if (abs(val+1.d0) .gt. tol) then
-                            print*, "Error:", val, -1.d0, abs(val+1.d0)
+                        if (abs(val-ref) .gt. tol) then
+                            print*, "testgrid error vort_y"
+                            print*, i,j,k
+                            print*, "Error:", val, ref, abs(val-ref)
                             stop
                         endif
                     else if (variable .eq. VORT_Z) then
-                        if (abs(val-0.d0) .gt. tol) then
-                            print*, "Error:", val, 0.d0, abs(val)
+                        if (abs(val-ref) .gt. tol) then
+                            print*, "testgrid error vort_z"
+                            print *, i,j,k
+                            print*, "Error:", val, ref, abs(val-ref)
                             stop
                         endif
                     endif
@@ -130,6 +145,7 @@ contains
             !compare refrence with value
 
             if (abs(val-ref) .gt. tol) then
+                print*, "testparcel error"
                 print*, "Error:", val, ref, abs(val-ref)
                 stop
             endif
