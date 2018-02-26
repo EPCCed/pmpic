@@ -98,9 +98,9 @@ contains
                         parcels(num)%z = kpos
                         parcels(num)%volume = 1.d0
 
-                        parcels(num)%r = 1.d0
-                        parcels(num)%s = -1.d0
-                        parcels(num)%t = 0.d0
+                        parcels(num)%r = ipos
+                        parcels(num)%s = jpos
+                        parcels(num)%t = kpos
 
                         !set that parcel to be active
                         parcels(num)%active=.true.
@@ -110,9 +110,9 @@ contains
                         ypos(num) = jpos
                         zpos(num) = kpos
                         volume(num) = 1.d0
-                        rvort(num)= 1.d0
-                        svort(num)= -1.d0
-                        tvort(num)= 0.d0
+                        rvort(num)= ipos
+                        svort(num)= jpos
+                        tvort(num)= kpos
                         active(num) = .true.
 
                     endif
@@ -258,6 +258,20 @@ contains
                 temp_var=zpos(rand_target)
                 zpos(rand_target)=zpos(shuffle_index)
                 zpos(shuffle_index) = temp_var
+
+                temp_var = rvort(rand_target)
+                rvort(rand_target) = rvort(shuffle_index)
+                rvort(shuffle_index) = temp_var
+
+                temp_var = svort(rand_target)
+                svort(rand_target) = svort(shuffle_index)
+                svort(shuffle_index) = temp_var
+
+                temp_var = tvort(rand_target)
+                tvort(rand_target) = tvort(shuffle_index)
+                tvort(shuffle_index) = temp_var
+
+
             endif
 
         end do
