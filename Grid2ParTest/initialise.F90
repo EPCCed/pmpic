@@ -41,6 +41,8 @@ contains
             allocate(rvort(maxparcels))
             allocate(svort(maxparcels))
             allocate(tvort(maxparcels))
+            allocate(is(maxparcels), js(maxparcels), ks(maxparcels))
+            allocate(delxs(maxparcels),delys(maxparcels), delzs(maxparcels))
         endif
         t2=MPI_Wtime()
 
@@ -156,6 +158,8 @@ contains
             deallocate(active)
             deallocate(dummyvars)
             deallocate(rvort,svort,tvort)
+            deallocate(is, js, ks)
+            deallocate(delxs, delys, delzs)
         endif
         print *, "Deallocating parcels"
     end subroutine
@@ -234,6 +238,7 @@ contains
         logical, intent(in) :: structure
         integer :: shuffle_index, rand_target
         double precision :: temp_var
+        integer :: temp_int
         type(parcel) :: temp_par
         real :: random_out
 
@@ -270,6 +275,30 @@ contains
                 temp_var = tvort(rand_target)
                 tvort(rand_target) = tvort(shuffle_index)
                 tvort(shuffle_index) = temp_var
+                
+                temp_int = is(rand_target)
+                is(rand_target)=is(shuffle_index)
+                is(shuffle_index) = temp_int
+                
+                temp_int = js(rand_target)
+                js(rand_target)=js(shuffle_index)
+                js(shuffle_index) = temp_int
+                
+                temp_int =ks(rand_target)
+                ks(rand_target)=ks(shuffle_index)
+                ks(shuffle_index) = temp_int
+                
+                temp_var = delxs(rand_target)
+                delxs(rand_target) = delxs(shuffle_index)
+                delxs(shuffle_index) = temp_var
+                
+                temp_var = delys(rand_target)
+                delys(rand_target) = delys(shuffle_index)
+                delys(shuffle_index) = temp_var
+                
+                temp_var = delzs(rand_target)
+               delzs(rand_target) = delzs(shuffle_index)
+                delzs(shuffle_index) = temp_var
 
 
             endif

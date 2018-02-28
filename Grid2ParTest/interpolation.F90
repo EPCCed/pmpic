@@ -15,6 +15,42 @@ Module interpolation_mod
 
 contains
 
+    subroutine cache_weights(grid,structure)
+        type(gridded_variable), intent(in) :: grid
+        logical, intent(in) :: structure
+        integer :: n !parcel number
+        integer :: i,j,k
+        double precision :: delx, dely, delz
+        
+        do n=1,nparcels
+        
+            if (structure) then
+                    call Get_Grid_Coords(grid,parcels(n)%x,parcels(n)%y,parcels(n)%z,i,j,k, delx, dely, delz)
+                    
+                    parcels(n)%i = i
+                    parcels(n)%j = j
+                    parcels(n)%k = k
+                    parcels(n)%delx=delx
+                    parcels(n)%dely=dely
+                    parcels(n)%delz=delz
+                else
+                    call Get_Grid_Coords(grid,xpos(n),ypos(n),zpos(n),i,j,k,delx, dely, delz)
+                    is(n) = i
+                    js(n) = j
+                    ks(n) = k
+                    delxs(n)=delx
+                    delys(n)=dely
+                    delzs(n)=delz
+            endif
+            
+        enddo
+        
+    end subroutine
+        
+        
+        
+        
+
     subroutine grid2par(grid, structure, variable)
         type(gridded_variable), intent(in) :: grid
         logical, intent(in) :: structure !flag to tell the subroutine if it's using arrays or structures
@@ -36,16 +72,29 @@ contains
         !loop over each parcel
 !$OMP PARALLEL DO DEFAULT(PRIVATE) &
 !$OMP             FIRSTPRIVATE(structure,variable) &
-!$OMP             SHARED(grid,parcels,xpos, ypos, zpos, uvel, vvel, wvel,nparcels) &
+!$OMP             SHARED(grid,parcels,xpos, ypos, zpos, uvel, vvel, wvel,nparcels)&
+!$OMP             SHARED(delxs, delys, delzs, is, js, ks) &
 !$OMP             schedule(guided)
         do n=1, nparcels
 
             !get lower left corner of the cell the particle is contained within:
 
             if (structure) then
-                call Get_Grid_Coords(grid,parcels(n)%x,parcels(n)%y,parcels(n)%z,i,j,k, delx, dely, delz)
+                !call Get_Grid_Coords(grid,parcels(n)%x,parcels(n)%y,parcels(n)%z,i,j,k, delx, dely, delz)
+                delx=parcels(n)%delx
+                dely=parcels(n)%dely
+                delz=parcels(n)%delz
+                i=parcels(n)%i
+                j=parcels(n)%j
+                k=parcels(n)%k
             else
-                call Get_Grid_Coords(grid,xpos(n),ypos(n),zpos(n),i,j,k,delx, dely, delz)
+                !call Get_Grid_Coords(grid,xpos(n),ypos(n),zpos(n),i,j,k,delx, dely, delz)
+                delx=delxs(n)
+                dely=delys(n)
+                delz=delzs(n)
+                i=is(n)
+                j=js(n)
+                k=ks(n)
             endif
 
             ! if (n .eq. 1) then
@@ -152,6 +201,7 @@ contains
 !$OMP PARALLEL DO DEFAULT(PRIVATE) &
 !$OMP             shared(parcels, structure, volume, grid, rvort, svort,tvort, variable,nparcels)&
 !$OMP             shared(xpos,ypos,zpos)&
+!$OMP             SHARED(delxs, delys, delzs, is, js, ks) &
 !$OMP             SCHEDULE(GUIDED)&
 !$OMP             reduction(+:weights,data)
         do n=1,nparcels
@@ -159,9 +209,21 @@ contains
             !get lower left corner of the cell the particle is contained within:
 
             if (structure) then
-                call Get_Grid_Coords(grid,parcels(n)%x,parcels(n)%y,parcels(n)%z,i,j,k, delx, dely, delz)
+                !call Get_Grid_Coords(grid,parcels(n)%x,parcels(n)%y,parcels(n)%z,i,j,k, delx, dely, delz)
+                delx=parcels(n)%delx
+                dely=parcels(n)%dely
+                delz=parcels(n)%delz
+                i=parcels(n)%i
+                j=parcels(n)%j
+                k=parcels(n)%k
             else
-                call Get_Grid_Coords(grid,xpos(n),ypos(n),zpos(n),i,j,k,delx, dely, delz)
+                !call Get_Grid_Coords(grid,xpos(n),ypos(n),zpos(n),i,j,k,delx, dely, delz)
+                delx=delxs(n)
+                dely=delys(n)
+                delz=delzs(n)
+                i=is(n)
+                j=js(n)
+                k=ks(n)
             endif
 
 

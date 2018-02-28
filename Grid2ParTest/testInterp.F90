@@ -147,6 +147,12 @@ contains
             if (abs(val-ref) .gt. tol) then
                 print*, "testparcel error"
                 print*, "Error:", val, ref, abs(val-ref)
+                print *, "Parcel number=",n
+                if (structure) then
+                    print*, "i,j,k=",parcels(n)%i, parcels(n)%k, parcels(n)%k
+                else
+                    print*, "i,j,k=",is(n), js(n), ks(n)
+                endif
                 stop
             endif
 

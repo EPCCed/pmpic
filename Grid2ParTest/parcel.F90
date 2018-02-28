@@ -12,6 +12,10 @@ module parcel_mod
         double precision :: r,s,t
         double precision :: bl,thetal,q,volume
         logical :: active
+        integer :: i
+        integer :: j
+        integer :: k
+        double precision :: delx, dely, delz
         double precision :: dummyvars(10)
     end type parcel
 
@@ -25,6 +29,8 @@ module parcel_mod
     double precision, allocatable, dimension(:) :: bl, thetal, q,volume
     logical, allocatable, dimension(:) :: active
     double precision, allocatable, dimension(:,:) :: dummyvars
+    integer, allocatable, dimension(:) :: is, js, ks
+    double precision, allocatable, dimension(:) :: delxs, delys, delzs
 
 
 end module

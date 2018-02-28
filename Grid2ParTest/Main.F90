@@ -11,7 +11,7 @@ Program main
   implicit none
 
   integer :: i
-  integer, parameter :: numits=10
+  integer, parameter :: numits=1
 
   call MPI_Init(ierror)
 
@@ -71,6 +71,8 @@ Print*, "-----Un shuffled-----"
 
   tp2g=0.d0
   tg2p=0.d0
+  
+  call cache_weights(grid=ugrid, structure = .true.)
 
   do i=1,numits
       call grid2par(grid=ugrid, structure=.true., variable=VEL_X)
@@ -102,6 +104,8 @@ Print*, "-----Un shuffled-----"
 
   tp2g=0.d0
   tg2p=0.d0
+  
+  call cache_weights(grid=ugrid, structure= .false.)
 
   do i=1,numits
       call grid2par(grid=ugrid, structure=.false., variable=VEL_X)
@@ -137,6 +141,8 @@ Print*, "-----Un shuffled-----"
 
     tp2g=0.d0
     tg2p=0.d0
+    
+    call cache_weights(grid=ugrid, structure = .true.)
 
     do i=1,numits
         call grid2par(grid=ugrid, structure=.true., variable=VEL_X)
@@ -168,6 +174,8 @@ Print*, "-----Un shuffled-----"
 
     tp2g=0.d0
     tg2p=0.d0
+    
+    call cache_weights(grid=ugrid, structure = .false.)
 
     do i=1,numits
         call grid2par(grid=ugrid, structure=.false., variable=VEL_X)
