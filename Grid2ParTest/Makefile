@@ -1,8 +1,9 @@
 FC=mpif90
-FFLAGS= -O2 -Wall -fbounds-check -fopenmp
+FFLAGS= -g -O2 -Wall -fbounds-check -fopenmp -fcheck=array-temps -Warray-temporaries
+FFLAGS= -O2 -fopenmp
 
-FC=ftn
-FFLAGS=-h omp
+#FC=ftn
+#FFLAGS=-h omp
 #FFLAGS=-O2 -openmp
 #FFLAGS=-O2 -fopenmp
 
