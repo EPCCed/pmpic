@@ -11,7 +11,7 @@ Program main
   implicit none
 
   integer :: i
-  integer, parameter :: numits=1
+  integer, parameter :: numits=10
 
   call MPI_Init(ierror)
 
@@ -71,26 +71,26 @@ Print*, "-----Un shuffled-----"
 
   tp2g=0.d0
   tg2p=0.d0
-  
+
   call cache_weights(grid=ugrid, structure = .true.)
 
   do i=1,numits
       call grid2par(grid=ugrid, structure=.true., variable=VEL_X)
       call testparcel(structure=.true.,variable=VEL_X,gridtype=0)
-      call grid2par(grid=vgrid, structure=.true., variable=VEL_Y)
-      call testparcel(structure=.true.,variable=VEL_Y,gridtype=1)
-      call grid2par(grid=wgrid, structure=.true., variable=VEL_Z)
-      call testparcel(structure=.true.,variable=VEL_Z,gridtype=2)
+      !call grid2par(grid=vgrid, structure=.true., variable=VEL_Y)
+      !call testparcel(structure=.true.,variable=VEL_Y,gridtype=1)
+      !call grid2par(grid=wgrid, structure=.true., variable=VEL_Z)
+      !call testparcel(structure=.true.,variable=VEL_Z,gridtype=2)
       call par2grid(grid=rgrid, structure=.true.,variable=VORT_X)
       call testgrid(grid=rgrid,variable=vort_X)
-      call par2grid(grid=sgrid, structure=.true.,variable=VORT_Y)
-      call testgrid(grid=sgrid,variable=vort_Y)
-      call par2grid(grid=tgrid, structure=.true.,variable=VORT_Z)
-      call testgrid(grid=tgrid,variable=vort_Z)
+    !  call par2grid(grid=sgrid, structure=.true.,variable=VORT_Y)
+    !  call testgrid(grid=sgrid,variable=vort_Y)
+    !  call par2grid(grid=tgrid, structure=.true.,variable=VORT_Z)
+    !  call testgrid(grid=tgrid,variable=vort_Z)
   enddo
 
-  print *, "mean grid2par time=",tg2p/numits/3.
-  print *, "mean par2grid time=",tp2g/numits/3.
+  print *, "mean grid2par time=",tg2p/numits
+  print *, "mean par2grid time=",tp2g/numits
 
 
   call finalise_parcels(structure=.TRUE.)
@@ -104,26 +104,26 @@ Print*, "-----Un shuffled-----"
 
   tp2g=0.d0
   tg2p=0.d0
-  
+
   call cache_weights(grid=ugrid, structure= .false.)
 
   do i=1,numits
       call grid2par(grid=ugrid, structure=.false., variable=VEL_X)
       call testparcel(structure=.false.,variable=VEL_X,gridtype=0)
-      call grid2par(grid=vgrid, structure=.false., variable=VEL_Y)
-      call testparcel(structure=.false.,variable=VEL_Y,gridtype=1)
-      call grid2par(grid=wgrid, structure=.false., variable=VEL_Z)
-      call testparcel(structure=.false.,variable=VEL_Z,gridtype=2)
+     ! call grid2par(grid=vgrid, structure=.false., variable=VEL_Y)
+     ! call testparcel(structure=.false.,variable=VEL_Y,gridtype=1)
+     ! call grid2par(grid=wgrid, structure=.false., variable=VEL_Z)
+     ! call testparcel(structure=.false.,variable=VEL_Z,gridtype=2)
       call par2grid(grid=rgrid, structure=.false.,variable=VORT_X)
       call testgrid(grid=rgrid,variable=vort_X)
-      call par2grid(grid=sgrid, structure=.false.,variable=VORT_Y)
-      call testgrid(grid=sgrid,variable=vort_Y)
-      call par2grid(grid=tgrid, structure=.false.,variable=VORT_Z)
-      call testgrid(grid=tgrid,variable=vort_Z)
+      !call par2grid(grid=sgrid, structure=.false.,variable=VORT_Y)
+      !call testgrid(grid=sgrid,variable=vort_Y)
+      !call par2grid(grid=tgrid, structure=.false.,variable=VORT_Z)
+      !call testgrid(grid=tgrid,variable=vort_Z)
   enddo
 
-  print *, "mean grid2par time=",tg2p/numits/3.
-  print *, "mean par2grid time=",tp2g/numits/3.
+  print *, "mean grid2par time=",tg2p/numits
+  print *, "mean par2grid time=",tp2g/numits
 
   call finalise_parcels(structure=.FALSE.)
 
@@ -141,26 +141,26 @@ Print*, "-----Un shuffled-----"
 
     tp2g=0.d0
     tg2p=0.d0
-    
+
     call cache_weights(grid=ugrid, structure = .true.)
 
     do i=1,numits
         call grid2par(grid=ugrid, structure=.true., variable=VEL_X)
         call testparcel(structure=.true.,variable=VEL_X,gridtype=0)
-        call grid2par(grid=vgrid, structure=.true., variable=VEL_Y)
-        call testparcel(structure=.true.,variable=VEL_Y,gridtype=1)
-        call grid2par(grid=wgrid, structure=.true., variable=VEL_Z)
-        call testparcel(structure=.true.,variable=VEL_Z,gridtype=2)
+        !call grid2par(grid=vgrid, structure=.true., variable=VEL_Y)
+        !call testparcel(structure=.true.,variable=VEL_Y,gridtype=1)
+        !call grid2par(grid=wgrid, structure=.true., variable=VEL_Z)
+        !call testparcel(structure=.true.,variable=VEL_Z,gridtype=2)
         call par2grid(grid=rgrid, structure=.true.,variable=VORT_X)
         call testgrid(grid=rgrid,variable=vort_X)
-        call par2grid(grid=sgrid, structure=.true.,variable=VORT_Y)
-        call testgrid(grid=sgrid,variable=vort_Y)
-        call par2grid(grid=tgrid, structure=.true.,variable=VORT_Z)
-        call testgrid(grid=tgrid,variable=vort_Z)
+       ! call par2grid(grid=sgrid, structure=.true.,variable=VORT_Y)
+       ! call testgrid(grid=sgrid,variable=vort_Y)
+       ! call par2grid(grid=tgrid, structure=.true.,variable=VORT_Z)
+       ! call testgrid(grid=tgrid,variable=vort_Z)
     enddo
 
-    print *, "mean grid2par time=",tg2p/numits/3.
-    print *, "mean par2grid time=",tp2g/numits/3.
+    print *, "mean grid2par time=",tg2p/numits
+    print *, "mean par2grid time=",tp2g/numits
 
 
     call finalise_parcels(structure=.TRUE.)
@@ -174,26 +174,26 @@ Print*, "-----Un shuffled-----"
 
     tp2g=0.d0
     tg2p=0.d0
-    
+
     call cache_weights(grid=ugrid, structure = .false.)
 
     do i=1,numits
         call grid2par(grid=ugrid, structure=.false., variable=VEL_X)
         call testparcel(structure=.false.,variable=VEL_X,gridtype=0)
-        call grid2par(grid=vgrid, structure=.false., variable=VEL_Y)
-        call testparcel(structure=.false.,variable=VEL_Y,gridtype=1)
-        call grid2par(grid=wgrid, structure=.false., variable=VEL_Z)
-        call testparcel(structure=.false.,variable=VEL_Z,gridtype=2)
+        !call grid2par(grid=vgrid, structure=.false., variable=VEL_Y)
+        !call testparcel(structure=.false.,variable=VEL_Y,gridtype=1)
+        !call grid2par(grid=wgrid, structure=.false., variable=VEL_Z)
+        !call testparcel(structure=.false.,variable=VEL_Z,gridtype=2)
         call par2grid(grid=rgrid, structure=.false.,variable=VORT_X)
         call testgrid(grid=rgrid,variable=vort_X)
-        call par2grid(grid=sgrid, structure=.false.,variable=VORT_Y)
-        call testgrid(grid=sgrid,variable=vort_Y)
-        call par2grid(grid=tgrid, structure=.false.,variable=VORT_Z)
-        call testgrid(grid=tgrid,variable=vort_Z)
+        !call par2grid(grid=sgrid, structure=.false.,variable=VORT_Y)
+        !call testgrid(grid=sgrid,variable=vort_Y)
+        !call par2grid(grid=tgrid, structure=.false.,variable=VORT_Z)
+        !call testgrid(grid=tgrid,variable=vort_Z)
     enddo
 
-    print *, "mean grid2par time=",tg2p/numits/3.
-    print *, "mean par2grid time=",tp2g/numits/3.
+    print *, "mean grid2par time=",tg2p/numits
+    print *, "mean par2grid time=",tp2g/numits
 
     call finalise_parcels(structure=.FALSE.)
 
