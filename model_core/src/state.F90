@@ -4,6 +4,7 @@ module state_mod
   use grids_mod, only : global_grid_type, local_grid_type
   use communication_types_mod, only : halo_communication_type
   use datadefn_mod, only : DEFAULT_PRECISION
+  use parcel_mod, only: parcel_type
   implicit none
 
 #ifndef TEST_MODE
@@ -26,7 +27,7 @@ module state_mod
      logical, dimension(3,2) :: wrapped_around
      procedure(), nopass, pointer :: decomposition_procedure => null() !> The decomposition procedure to use
   end type parallel_state_type
-  
+
   !> The ModelState which represents the current state of a run
   !!
   !! This state is provided to each callback and may be used and modified as required by
@@ -50,5 +51,8 @@ module state_mod
     integer :: timestep=1, start_timestep=1,  column_global_x, column_global_y, column_local_x, column_local_y,  termination_reason
     logical :: first_timestep_column, last_timestep_column, halo_column, first_nonhalo_timestep_column, update_dtm
     double precision :: model_start_wtime
+
+    type(parcel_type) :: parcels
+
   end type model_state_type
 end module state_mod
