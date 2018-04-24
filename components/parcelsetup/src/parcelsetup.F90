@@ -56,6 +56,9 @@ contains
     allocate(current_state%parcels%u(maxparcels_local))
     allocate(current_state%parcels%v(maxparcels_local))
     allocate(current_state%parcels%w(maxparcels_local))
+    allocate(current_state%parcels%q(maxparcels_local))
+    allocate(current_state%parcels%b(maxparcels_local))
+    allocate(current_state%parcels%vol(maxparcels_local))
 
 
     if (myrank .eq. 0) print *, "parcel setup done"
@@ -80,6 +83,9 @@ contains
     deallocate(current_state%parcels%u)
     deallocate(current_state%parcels%v)
     deallocate(current_state%parcels%w)
+    deallocate(current_state%parcels%q)
+    deallocate(current_state%parcels%b)
+    deallocate(current_state%parcels%vol)
 
     if (myrank .eq. 0) print *, "done!"
 
