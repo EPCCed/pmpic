@@ -1,0 +1,26 @@
+# Global configuration
+global_configuration=global_config
+
+# Override global component defaults
+simplesetup_enabled=.true.
+
+testcomponent_enabled=.false.
+
+#initialisation_stage_ordering+=basic_plume
+
+finalisation_stage_ordering+=model_synopsis
+
+# Control configuration
+display_synopsis_frequency=11
+termination_time=5.
+dtm=0.5
+
+# Simple setup configuration
+x_size=64
+y_size=64
+z_size=64
+dxx=100
+dyy=100
+zztop=5000.0
+kgd=10
+hgd=10.0

@@ -1,11 +1,12 @@
 # Essential components - do not change default setting
-# unless you know what you are doing. These have to be on 
+# unless you know what you are doing. These have to be on
 # for MONC to run
 
 decomposition_enabled=.true.
 model_synopsis_enabled=.true.
 termination_check_enabled=.true.
-halo_swapper_enabled=.true.
+halo_swapper_enabled=.false.
+parcelsetup_enabled=.true.
 
 # Component enable configuration
 
@@ -21,13 +22,13 @@ group_names= start, last
 start_group_type=entire
 last_group_type=entire
 
-start_group_contents=halo_swapper
+start_group_contents=halo_swapper, testcomponent
 last_group_contents=model_synopsis, termination_check
 
 # Component ordering for other stages
 
-initialisation_stage_ordering=decomposition, simplesetup, termination_check, model_synopsis, halo_swapper
-finalisation_stage_ordering=halo_swapper, basic_plume
+initialisation_stage_ordering=decomposition, simplesetup, parcelsetup, termination_check, model_synopsis, halo_swapper, testcomponent
+finalisation_stage_ordering=halo_swapper, basic_plume, testcomponent, parcelsetup
 
 # Control configuration
 nn_timesteps=-1
@@ -42,6 +43,10 @@ msg_filename=messages
 
 # Decomposition configuration
 decomposition_method = twodim
+
+
+#parcel properties
+max_parcels=1000000
 
 # Simplesetup options
 x_size=1
