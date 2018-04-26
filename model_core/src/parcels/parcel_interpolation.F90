@@ -22,6 +22,8 @@ module parcel_interpolation_mod
   real(kind=DEFAULT_PRECISION) :: dx, dy
   real(kind=DEFAULT_PRECISION), allocatable, dimension(:) :: z, dz
 
+  real(kind=default_precision), allocatable, dimension(:) :: x_coords, y_coords, z_coords
+
 
 contains
 
@@ -49,11 +51,18 @@ contains
     dy=state%global_grid%resolution(2)
     dzdummy=state%global_grid%resolution(1)
 
+    nx = state%local_grid%size(3) + 2*state%local_grid%halo_size(3)
+    ny = state%local_grid%size(2) + 2*state%local_grid%halo_size(2)
+
 
 
     if (dx .lt. 1.E-3 .or. dy .lt. 1.e-3) then
       error stop "no grid resolutions defined"
     endif
+
+    allocate(x_coords(nx), y_coords(ny))
+
+
 
 
 
@@ -109,6 +118,17 @@ contains
     xmax = (xstop-1)*dx !coordinate of last point in the x grid
     ymax = (ystop-1)*dy
     zmax = z(nz)
+
+    do n=1,nx
+      x_coords(n) = xmin + (n-1)*dx
+    enddo
+
+    do n=1,ny
+      y_coords(n) = ymin + (n-1)*dy
+    enddo
+
+    allocate(z_coords(nz))
+    z_coords(:) = z(:)
 
     !print *, xmin, xmax, ymin, ymax, zmin, zmax
 
@@ -188,11 +208,18 @@ contains
 
       delx= ((xp-xmin)-i*dx)/dx
       dely= ((yp-ymin)-j*dy)/dy
-      delz= ((zp-zmin)-k*dz(k))/dz(k)
+      !if (k .eq. 1) then
+      !  delz=(zp-zmin)/dz(k)
+      !else
+      delz= ((zp-zmin)-(k-1)*dz(k))/dz(k)
+      !endif
 
       if (delx .gt. 1. .or. delx .lt. 0) error stop "delx wrong size"
       if (dely .gt. 1. .or. dely .lt. 0) error stop "dely wrong size"
-      if (delz .gt. 1. .or. delz .lt. 0) error stop "delz wrong size"
+      if (delz .gt. 1. .or. delz .lt. 0) then
+         print *, zp,zmin, k, delz
+         error stop "delz wrong size"
+      endif
 
       is(n) = i
       js(n) = j
@@ -202,7 +229,11 @@ contains
       delys(n)=dely
       delzs(n)=delz
 
+
+
     enddo
+
+    print *, "weights cached"
 
 
 

@@ -3,17 +3,21 @@ global_configuration=global_config
 
 # Override global component defaults
 simplesetup_enabled=.true.
+grid2partest_enabled=.true.
 
-testcomponent_enabled=.false.
+testcomponent_enabled=.true.
 
 #initialisation_stage_ordering+=basic_plume
+initialisation_stage_ordering+=grid2partest
+
+middle_group_contents+=grid2partest
 
 finalisation_stage_ordering+=model_synopsis
 
 # Control configuration
 display_synopsis_frequency=11
-termination_time=5.
-dtm=0.5
+termination_time=0.5
+dtm=1.0
 
 # Simple setup configuration
 x_size=64
@@ -24,3 +28,8 @@ dyy=100
 zztop=5000.0
 kgd=10
 hgd=10.0
+
+
+#parcel properties
+max_parcels=10000000
+parcels_per_cell = 2

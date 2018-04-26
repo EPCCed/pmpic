@@ -17,9 +17,10 @@ debugger_enabled=.false.
 basic_plume_enabled=.false.
 
 # Component timestepping groups
-group_names= start, last
+group_names= start, middle, last
 
 start_group_type=entire
+middle_group_type=entire
 last_group_type=entire
 
 start_group_contents=halo_swapper, testcomponent
