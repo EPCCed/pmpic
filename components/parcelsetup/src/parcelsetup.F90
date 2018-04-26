@@ -3,6 +3,7 @@ module parcelsetup_mod
   use monc_component_mod, only: component_descriptor_type
   use optionsdatabase_mod, only : options_get_integer, options_get_logical, options_get_real, &
      options_get_integer_array, options_get_real_array
+  use parcel_interpolation_mod, only: initialise_parcel_interp, finalise_parcel_interp
 
   implicit none
 
@@ -60,6 +61,8 @@ contains
     allocate(current_state%parcels%b(maxparcels_local))
     allocate(current_state%parcels%vol(maxparcels_local))
 
+    call initialise_parcel_interp(current_state)
+
 
     if (myrank .eq. 0) print *, "parcel setup done"
 
@@ -86,6 +89,8 @@ contains
     deallocate(current_state%parcels%q)
     deallocate(current_state%parcels%b)
     deallocate(current_state%parcels%vol)
+
+    call finalise_parcel_interp(current_state)
 
     if (myrank .eq. 0) print *, "done!"
 

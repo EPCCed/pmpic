@@ -3,6 +3,7 @@ module state_mod
   use collections_mod, only : hashmap_type
   use grids_mod, only : global_grid_type, local_grid_type
   use communication_types_mod, only : halo_communication_type
+  use prognostics_mod, only : prognostic_field_type
   use datadefn_mod, only : DEFAULT_PRECISION
   use parcel_mod, only: parcel_type
   implicit none
@@ -51,6 +52,8 @@ module state_mod
     integer :: timestep=1, start_timestep=1,  column_global_x, column_global_y, column_local_x, column_local_y,  termination_reason
     logical :: first_timestep_column, last_timestep_column, halo_column, first_nonhalo_timestep_column, update_dtm
     double precision :: model_start_wtime
+
+    type(prognostic_field_type) :: x, y, z, u, v, w, r, s, t, b, p
 
     type(parcel_type) :: parcels
 
