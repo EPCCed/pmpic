@@ -5,7 +5,7 @@ global_configuration=global_config
 simplesetup_enabled=.true.
 grid2partest_enabled=.true.
 
-testcomponent_enabled=.true.
+testcomponent_enabled=.false.
 
 #initialisation_stage_ordering+=basic_plume
 initialisation_stage_ordering+=grid2partest
@@ -32,4 +32,4 @@ hgd=10.0
 
 #parcel properties
 max_parcels=10000000
-parcels_per_cell = 2
+parcels_per_cell_dir = 2

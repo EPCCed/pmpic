@@ -27,7 +27,9 @@ module parcel_interpolation_mod
 
 contains
 
-  !initialise parcel interpolation data structures
+  !initialise parcel interpolation data structures (this subroutine should be called once during parcel setup)
+  !This contains variables for caching interpolation values as well as variables converting grid
+  !indices to coordinates
   subroutine initialise_parcel_interp(state)
     type(model_state_type), intent(in) :: state
     integer :: n
@@ -36,6 +38,7 @@ contains
 
     if (initialised) error stop "parcel interpolation routines are already initialised - cannot initialise"
 
+    !allocate cache arrays
     n=state%parcels%maxparcels_local
 
     allocate(is(n))
@@ -47,27 +50,25 @@ contains
 
     initialised = .true.
 
+    !get dx, dy and dz
     dx=state%global_grid%resolution(3)
     dy=state%global_grid%resolution(2)
     dzdummy=state%global_grid%resolution(1)
 
+    !set number of cells in local grids
     nx = state%local_grid%size(3) + 2*state%local_grid%halo_size(3)
     ny = state%local_grid%size(2) + 2*state%local_grid%halo_size(2)
-
+    nz = state%local_grid%size(1) + 2*state%local_grid%halo_size(1)
 
 
     if (dx .lt. 1.E-3 .or. dy .lt. 1.e-3) then
       error stop "no grid resolutions defined"
     endif
 
-    allocate(x_coords(nx), y_coords(ny))
-
-
-
-
 
     if (state%parallel%my_rank .eq. 0 ) print *, "dx=", dx, " dy=", dy, " dz=", dzdummy
 
+    !get global indices of the first and last elements in the local arrays
     xstart = state%local_grid%start(3)-state%local_grid%halo_size(3)
     xstop = state%local_grid%end(3)+state%local_grid%halo_size(3)
 
@@ -78,9 +79,10 @@ contains
     zstop = state%local_grid%end(1)+state%local_grid%halo_size(1)
 
 
-
+    !try to set up z
     if (allocated(state%global_grid%configuration%vertical%z)) then
-      nz=size(state%global_grid%configuration%vertical%z)
+      !if it is already set up then take its values from the state
+    !  nz=size(state%global_grid%configuration%vertical%z)
       print*, "nz=",nz
       allocate(z(nz))
       z=state%global_grid%configuration%vertical%z
@@ -89,10 +91,10 @@ contains
       ndz=size(state%global_grid%configuration%vertical%dz)
       print*, "dzn=",ndz
       allocate(dz(ndz))
-    else
+    else !else we set it up ourselves
       if (state%parallel%my_rank .eq. 0 ) print *, "Warning: no z grid defined. Creating uniform grid"
 
-      nz=zstop-zstart+1
+      !nz=zstop-zstart+1
       allocate(z(nz))
       ndz=nz-1
       allocate(dz(ndz))
@@ -119,6 +121,10 @@ contains
     ymax = (ystop-1)*dy
     zmax = z(nz)
 
+    !allocate arrays that will hold the coordinates of x,y and z for each grid cell
+    allocate(x_coords(nx), y_coords(ny))
+    allocate(z_coords(nz))
+
     do n=1,nx
       x_coords(n) = xmin + (n-1)*dx
     enddo
@@ -127,7 +133,7 @@ contains
       y_coords(n) = ymin + (n-1)*dy
     enddo
 
-    allocate(z_coords(nz))
+
     z_coords(:) = z(:)
 
     !print *, xmin, xmax, ymin, ymax, zmin, zmax
@@ -166,6 +172,8 @@ contains
     deallocate(z)
     deallocate(dz)
 
+    deallocate(x_coords,y_coords,z_coords)
+
     initialised=.false.
 
     if (state%parallel%my_rank .eq. 0 ) print *, "parcel_interp finalised"
@@ -187,15 +195,18 @@ contains
 
     !for each parcel we determine which cell it belongs to
 
-    !maybe have one loop for x, one for y and oen for z for vectorisation?
+    !maybe have one loop for x, one for y and one for z for vectorisation?
     do n=1,nparcels
+
+      !get positions of parcels
       xp=state%parcels%x(n)
       yp=state%parcels%y(n)
       zp=state%parcels%z(n)
 
-      i=floor(xp-xmin)/dx
-      j=floor(yp-ymin)/dy
-      do nn=1,nz-1
+      !get the index of the lower left corner of the cell that the parcel is in
+      i=floor(xp-xmin)/dx+1
+      j=floor(yp-ymin)/dy+1
+      do nn=1,nz-1 !as z may be a variable size grid we need to search through z to get the cell
         if ((zp .gt. z(nn)) .and. (zp .lt. z(nn+1))) then
           k=nn
           exit
@@ -206,50 +217,29 @@ contains
       if ((yp .lt. ymin) .or. (yp .gt. ymax)) error stop "y too big/small"
       if ((zp .lt. zmin) .or. (zp .gt. zmax)) error stop "z too big/small"
 
-      delx= ((xp-xmin)-i*dx)/dx
-      dely= ((yp-ymin)-j*dy)/dy
-      !if (k .eq. 1) then
-      !  delz=(zp-zmin)/dz(k)
-      !else
+      !get the fractional position in the cell (from the lower left corner) that the parcel is at
+      delx= ((xp-xmin)-(i-1)*dx)/dx
+      dely= ((yp-ymin)-(j-1)*dy)/dy
       delz= ((zp-zmin)-(k-1)*dz(k))/dz(k)
-      !endif
+
 
       if (delx .gt. 1. .or. delx .lt. 0) error stop "delx wrong size"
       if (dely .gt. 1. .or. dely .lt. 0) error stop "dely wrong size"
-      if (delz .gt. 1. .or. delz .lt. 0) then
-         print *, zp,zmin, k, delz
-         error stop "delz wrong size"
-      endif
+      if (delz .gt. 1. .or. delz .lt. 0) error stop "delz wrong size"
 
-      is(n) = i+1
-      js(n) = j+1
+      !cache these values
+      is(n) = i
+      js(n) = j
       ks(n) = k
 
       delxs(n)=delx
       delys(n)=dely
       delzs(n)=delz
 
-      ! if (n .eq. 1) then
-      !   print *, is(1), js(1), ks(1)
-      !   print*, xp, yp, zp
-      !   print *, xmin, ymin, zmin
-      !   print*, xmax, ymax, zmax
-      ! endif
-
-
 
     enddo
 
-    !print *, is(1)
-
     print *, "weights cached"
-
-
-
-
-    !if (state%parallel%my_rank .eq. 0 ) print *, "WARNING: Cache weights not implemented yet"
-
-
 
   end subroutine
 
@@ -306,7 +296,7 @@ contains
 
       c = c0*(1-delx) + c1*delx
 
-      !now update parcel's variables
+      !now update parcel's variable
 
       var(n) = c
 

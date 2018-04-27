@@ -23,8 +23,8 @@ start_group_type=entire
 middle_group_type=entire
 last_group_type=entire
 
-start_group_contents=halo_swapper, testcomponent
-last_group_contents=model_synopsis, termination_check
+start_group_contents=termination_check, halo_swapper, testcomponent
+last_group_contents=model_synopsis,
 
 # Component ordering for other stages
 
