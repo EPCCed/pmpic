@@ -37,6 +37,8 @@ contains
 
   end subroutine
 
+
+
   subroutine timestep_callback(current_state)
     type(model_state_type), intent(inout), target :: current_state
 
@@ -45,8 +47,13 @@ contains
     call cache_parcel_interp_weights(current_state)
 
     call grid2par(current_state,current_state%u,current_state%parcels%u)
+    call check_result(current_state,current_state%parcels%u,current_state%parcels%x)
+
     call grid2par(current_state,current_state%v,current_state%parcels%v)
+    call check_result(current_state,current_state%parcels%v,current_state%parcels%y)
+
     call grid2par(current_state,current_state%w,current_state%parcels%w)
+    call check_result(current_state,current_state%parcels%w,current_state%parcels%z)
 
   end subroutine
 
@@ -66,7 +73,7 @@ contains
     ny = state%local_grid%size(2) + 2*state%local_grid%halo_size(2)
     nz = state%local_grid%size(1) + 2*state%local_grid%halo_size(1)
 
-    print *, "setup_grid", nx, ny, nz
+    !print *, "setup_grid", nx, ny, nz
     !print*, "y_coords=", y_coords(1), y_coords(2),y_coords(ny-1),y_coords(ny)
 
 
@@ -87,6 +94,9 @@ contains
       enddo
     enddo
 
+    !print *, x_coords(1), x_coords(2)
+    !print *, state%u%data(1,1,1), state%u%data(1,1,2)
+
     xmin = x_coords(1+state%local_grid%halo_size(3))
     ymin = y_coords(1+state%local_grid%halo_size(2))
     zmin = z_coords(1+state%local_grid%halo_size(1))
@@ -95,9 +105,9 @@ contains
     ymax = y_coords(ny-state%local_grid%halo_size(2))
     zmax = z_coords(nz-state%local_grid%halo_size(1))
 
-    print*, "xmin, xmax=", xmin, xmax
-    print*, "ymin, ymax=", ymin, ymax
-    print*, "zmin, zmax=", zmin, zmax
+    !print*, "xmin, xmax=", xmin, xmax
+    !print*, "ymin, ymax=", ymin, ymax
+    !print*, "zmin, zmax=", zmin, zmax
 
 
 
@@ -129,8 +139,8 @@ contains
 
     nparcels=n_per_cell*(nnx)*(nny)*(nnz)
 
-    print*, "nnx, nny, nnz=", nnx, nny, nnz
-    print*, "maxparcels=",state%parcels%maxparcels_local,  " nparcels=", nparcels
+    !print*, "nnx, nny, nnz=", nnx, nny, nnz
+    !print*, "maxparcels=",state%parcels%maxparcels_local,  " nparcels=", nparcels
 
     if (nparcels .gt. state%parcels%maxparcels_local) then
       error stop "Maxparcels is not big enough for the number of parcels per cell requested"
@@ -138,7 +148,7 @@ contains
 
     state%parcels%numparcels_local = nparcels
 
-    print *, "dx, dy, dz=", dx, dy, dz
+    !print *, "dx, dy, dz=", dx, dy, dz
 
     !start and end indices of the bit of grid belonging to that process
     xstart=state%local_grid%halo_size(3)+1
@@ -149,9 +159,9 @@ contains
     ystop=ny-state%local_grid%halo_size(2)-1
     zstop=nz-state%local_grid%halo_size(1)-1
 
-    print*, "xstart, xstop=", xstart, xstop
-    print*, "ystart, ystop=", ystart, ystop
-    print*, "zstart, zstop=", zstart, zstop
+    !print*, "xstart, xstop=", xstart, xstop
+    !print*, "ystart, ystop=", ystart, ystop
+    !print*, "zstart, zstop=", zstart, zstop
 
     !loop over every cell and put n_per_cell parcels in it
     n=0
@@ -184,20 +194,43 @@ contains
       enddo
     enddo
 
-      ! do n=1,8
-      !   print *, state%parcels%x(n), state%parcels%y(n), state%parcels%z(n)
-      ! enddo
+       ! do n=1,8
+       !   print *, state%parcels%x(n), state%parcels%y(n), state%parcels%z(n)
+       ! enddo
 
       !print*, maxval(state%parcels%x(1:n)), xmax
       !print*, maxval(state%parcels%y(1:n)), ymax
       !print*, maxval(state%parcels%z(1:n)), zmax
 
 
-      print *, n, nparcels
+      ! print *, n, nparcels
 
-      print*, "parcels initialised?"
+      print*, "parcels initialised"
 
 
   end subroutine
+
+  subroutine check_result(state, values, reference)
+    type(model_state_type), intent(in) :: state
+    real(kind=DEFAULT_PRECISION), intent(in), dimension(:) :: values, reference
+    real(kind=DEFAULT_PRECISION), parameter :: tol=1.e-9
+    real(kind=DEFAULT_PRECISION) :: diff
+    integer :: n, nparcels
+
+    nparcels=state%parcels%numparcels_local
+
+    do n=1,nparcels
+      diff =abs(values(n)-reference(n))
+      if (diff .gt. tol) then
+        print *, n, values(n), reference(n), diff
+        error stop "Wrong answer"
+      endif
+    enddo
+
+    print*, "values verified"
+
+  end subroutine
+
+
 
 end module

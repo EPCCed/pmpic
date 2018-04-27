@@ -221,17 +221,26 @@ contains
          error stop "delz wrong size"
       endif
 
-      is(n) = i
-      js(n) = j
+      is(n) = i+1
+      js(n) = j+1
       ks(n) = k
 
       delxs(n)=delx
       delys(n)=dely
       delzs(n)=delz
 
+      ! if (n .eq. 1) then
+      !   print *, is(1), js(1), ks(1)
+      !   print*, xp, yp, zp
+      !   print *, xmin, ymin, zmin
+      !   print*, xmax, ymax, zmax
+      ! endif
+
 
 
     enddo
+
+    !print *, is(1)
 
     print *, "weights cached"
 
@@ -273,14 +282,14 @@ contains
 
       !retrieve corners of grid cell the nth parcel is in
 
-      c000 = grid%data(i,j,k)
-      c001 = grid%data(i,j,k+1)
-      c010 = grid%data(i,j+1,k)
-      c011 = grid%data(i,j+1,k+1)
-      c100 = grid%data(i+1,j,k)
-      c101 = grid%data(i+1,j,k+1)
-      c110 = grid%data(i+1,j+1,k)
-      c111 = grid%data(i+1,j+1,k+1)
+      c000 = grid%data(k,j,i)
+      c001 = grid%data(k,j,i+1)
+      c010 = grid%data(k,j+1,i)
+      c011 = grid%data(k,j+1,i+1)
+      c100 = grid%data(k+1,j,i)
+      c101 = grid%data(k+1,j,i+1)
+      c110 = grid%data(k+1,j+1,i)
+      c111 = grid%data(k+1,j+1,i+1)
 
       !interpolate in z direction to produce square around parcel in y-x plane
       c00 = c000*(1-delz) + c100*delz
