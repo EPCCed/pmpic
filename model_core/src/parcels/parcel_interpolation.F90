@@ -4,6 +4,7 @@ module parcel_interpolation_mod
   use prognostics_mod, only : prognostic_field_type
   use datadefn_mod, only : DEFAULT_PRECISION
   use MPI, only: MPI_Barrier
+  use omp_lib
 
 
   implicit none
@@ -196,6 +197,9 @@ contains
     !for each parcel we determine which cell it belongs to
 
     !maybe have one loop for x, one for y and one for z for vectorisation?
+
+    !$OMP PARALLEL DEFAULT(SHARED) PRIVATE(n,xp,yp,zp,i,j,k,delx,dely,delz)
+    !$OMP DO
     do n=1,nparcels
 
       !get positions of parcels
@@ -238,6 +242,13 @@ contains
 
 
     enddo
+    !$OMP END DO
+
+    !$OMP MASTER
+    print *, "nthreads=", omp_get_num_threads()
+    !$OMP END MASTER
+
+    !$OMP END PARALLEL
 
     print *, "weights cached"
 
@@ -260,6 +271,7 @@ contains
     integer :: i, j, k
     real(kind=DEFAULT_PRECISION) :: delx, dely, delz
 
+    !$OMP PARALLEL DO DEFAULT(PRIVATE) SHARED(nparcels,delxs,delys,delzs,is,js,ks,grid,var)
     do n=1,nparcels
 
       !retrieve cached values
@@ -301,6 +313,7 @@ contains
       var(n) = c
 
     enddo
+    !$OMP END PARALLEL DO
 
   end subroutine
 
@@ -329,13 +342,17 @@ contains
     allocate(data(nz,ny,nx))
 
     !zero the weights and the grid
-!!$OMP PARALLEL DO
+!$OMP PARALLEL DEFAULT(PRIVATE) &
+!$OMP              SHARED(nparcels,nx,ny,nz,delx,dely,delz,state,var,grid, weights,data)
+
+ !$OMP DO
     do n=1,nx
         weights(:,:,n) = 0.0d0
         data(:,:,n) = 0.0d0
     enddo
-!!$OMP END PARALLEL DO
+!$OMP END DO
 
+!$OMP DO REDUCTION(+:weights,data)
     do n=1,nparcels
 
       !get cached grid positions
@@ -405,18 +422,21 @@ contains
 
 
     enddo
+    !$OMP END DO
 
     !divide grid by weights to get the value of the gridded variable
 
     xhalo = state%local_grid%halo_size(3)
     yhalo = state%local_grid%halo_size(2)
     zhalo = state%local_grid%halo_size(1)
-!!$OMP PARALLEL DO
+
+!$OMP DO
     do n=1+xhalo,nx-xhalo
         grid%data(1+zhalo:nz-zhalo,1+yhalo:ny-yhalo,n) = &
         data(1+zhalo:nz-zhalo,1+yhalo:ny-yhalo,n)/weights(1+zhalo:nz-zhalo,1+yhalo:ny-yhalo,n)
     enddo
-!!$OMP END PARALLEL DO
+!$OMP END DO
+!$OMP END PARALLEL
 
 
     deallocate(weights)
