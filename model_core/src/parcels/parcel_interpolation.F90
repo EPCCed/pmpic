@@ -306,5 +306,125 @@ contains
 
 
 
+  subroutine par2grid(state,var,grid)
+
+    implicit none
+
+    type(model_state_type), intent(inout) :: state
+    real(kind=DEFAULT_PRECISION), dimension(:), intent(in) :: var
+    type(prognostic_field_type), intent(inout) :: grid
+
+    integer :: n
+    double precision, allocatable, dimension(:,:,:) :: weights, data
+    double precision :: w
+    double precision :: v
+    double precision :: delx, dely, delz
+    double precision :: w000, w001, w010, w011, w100, w101, w110, w111
+    integer :: i,j,k
+    integer :: xhalo, yhalo, zhalo
+
+
+
+    allocate(weights(nz,ny,nx))
+    allocate(data(nz,ny,nx))
+
+    !zero the weights and the grid
+!!$OMP PARALLEL DO
+    do n=1,nx
+        weights(:,:,n) = 0.0d0
+        data(:,:,n) = 0.0d0
+    enddo
+!!$OMP END PARALLEL DO
+
+    do n=1,nparcels
+
+      !get cached grid positions
+      delx=delxs(n)
+      dely=delys(n)
+      delz=delzs(n)
+      i=is(n)
+      j=js(n)
+      k=ks(n)
+
+      !parcel's volume
+      v = state%parcels%vol(n)
+
+      w=var(n)
+
+      !calculate weights on each vertex of cube and add that to grid subtotals
+
+      ! if (n .lt. 10) then
+      !   print *,n, i, j, k, v, w
+      ! endif
+
+      w000 = (1-delz)*(1-dely)*(1-delx)*v
+      data(k,j,i) = data(k,j,i) + w000*w
+      weights(k,j,i) = weights(k,j,i) + w000
+
+
+
+      w001 = (1-delz)*(1-dely)*(delx)*v
+      data(k,j,i+1) = data(k,j,i+1) + w001*w
+      weights(k,j,i+1) = weights(k,j,i+1) + w001
+
+
+
+      w010 = (1-delz)*(dely)*(1-delx)*v
+      data(k,j+1,i) = data(k,j+1,i) + w010*w
+      weights(k,j+1,i) = weights(k,j+1,i) + w010
+
+
+
+      w011 = (1-delz)*(dely)*(delx)*v
+      data(k,j+1,i+1) = data(k,j+1,i+1) + w011*w
+      weights(k,j+1,i+1) = weights(k,j+1,i+1) + w011
+
+
+
+      w100 = (delz)*(1-dely)*(1-delx)*v
+      data(k+1,j,i) = data(k+1,j,i) + w100*w
+      weights(k+1,j,i) = weights(k+1,j,i) + w100
+
+
+
+      w101 = (delz)*(1-dely)*(delx)*v
+      data(k+1,j,i+1) = data(k+1,j,i+1) + w101*w
+      weights(k+1,j,i+1) = weights(k+1,j,i+1) + w101
+
+
+
+      w110 = (delz)*(dely)*(1-delx)*v
+      data(k+1,j+1,i) = data(k+1,j+1,i) + w110*w
+      weights(k+1,j+1,i) = weights(k+1,j+1,i) + w110
+
+
+
+      w111 = (delz)*(dely)*(delx)*v
+      data(k+1,j+1,i+1) = data(k+1,j+1,i+1) + w111*w
+      weights(k+1,j+1,i+1) = weights(k+1,j+1,i+1) + w111
+
+
+    enddo
+
+    !divide grid by weights to get the value of the gridded variable
+
+    xhalo = state%local_grid%halo_size(3)
+    yhalo = state%local_grid%halo_size(2)
+    zhalo = state%local_grid%halo_size(1)
+!!$OMP PARALLEL DO
+    do n=1+xhalo,nx-xhalo
+        grid%data(1+zhalo:nz-zhalo,1+yhalo:ny-yhalo,n) = &
+        data(1+zhalo:nz-zhalo,1+yhalo:ny-yhalo,n)/weights(1+zhalo:nz-zhalo,1+yhalo:ny-yhalo,n)
+    enddo
+!!$OMP END PARALLEL DO
+
+
+    deallocate(weights)
+    deallocate(data)
+
+  end subroutine
+
+
+
 
 end module
