@@ -186,6 +186,7 @@ contains
                 state%parcels%x(n) = xs
                 state%parcels%y(n) = ys
                 state%parcels%z(n) = zs
+                state%parcels%vol(n) = 1.0
               enddo
             enddo
           enddo

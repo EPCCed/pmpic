@@ -1,9 +1,10 @@
 !sets up some parcels and grids then tests grid2par
 module grid2partest_mod
   use datadefn_mod, only : DEFAULT_PRECISION
+  use prognostics_mod, only: prognostic_field_type
   use state_mod, only: model_state_type
   use monc_component_mod, only: component_descriptor_type
-  use parcel_interpolation_mod, only: cache_parcel_interp_weights, grid2par, x_coords, y_coords, z_coords
+  use parcel_interpolation_mod, only: cache_parcel_interp_weights, grid2par, par2grid, x_coords, y_coords, z_coords
   use optionsdatabase_mod, only : options_get_integer, options_get_logical, options_get_real, &
      options_get_integer_array, options_get_real_array
 
@@ -30,6 +31,8 @@ contains
 
     !set up grid
 
+    call setup_parcels(current_state)
+
     call setup_grid(current_state)
 
 
@@ -40,19 +43,36 @@ contains
   subroutine timestep_callback(current_state)
     type(model_state_type), intent(inout), target :: current_state
 
+    print *, ""
     print*, "grid2partest:"
 
     !cache interpolation weights for parcels
     call cache_parcel_interp_weights(current_state)
 
+    print *, "Testing in x direction"
     call grid2par(current_state,current_state%u,current_state%parcels%u)
-    call check_result(current_state,current_state%parcels%u,current_state%parcels%x)
+    call check_parcels(current_state,current_state%parcels%u,current_state%parcels%x)
 
+    call par2grid(current_state,current_state%parcels%r,current_state%r)
+    call check_grid(current_state,current_state%r,current_state%u)
+
+    print *, "Testing in y direction"
     call grid2par(current_state,current_state%v,current_state%parcels%v)
-    call check_result(current_state,current_state%parcels%v,current_state%parcels%y)
+    call check_parcels(current_state,current_state%parcels%v,current_state%parcels%y)
 
+    call par2grid(current_state,current_state%parcels%s,current_state%s)
+    call check_grid(current_state,current_state%s,current_state%v)
+
+    print *, "Testing in Z direction"
     call grid2par(current_state,current_state%w,current_state%parcels%w)
-    call check_result(current_state,current_state%parcels%w,current_state%parcels%z)
+    call check_parcels(current_state,current_state%parcels%w,current_state%parcels%z)
+
+    call par2grid(current_state,current_state%parcels%t,current_state%t)
+    call check_grid(current_state,current_state%t,current_state%w)
+
+    print *, "grid2partest finished"
+    print *, ""
+
 
   end subroutine
 
@@ -64,6 +84,21 @@ contains
 
 
   end subroutine
+
+
+  subroutine setup_parcels(state)
+    type(model_state_type), intent(inout) :: state
+
+    integer :: n
+
+    do n=1,state%parcels%numparcels_local
+      state%parcels%r(n)=state%parcels%x(n)
+      state%parcels%s(n)=state%parcels%y(n)
+      state%parcels%t(n)=state%parcels%z(n)
+    enddo
+
+  end subroutine
+
 
 
   subroutine setup_grid(state)
@@ -79,6 +114,10 @@ contains
     allocate(state%u%data(nz,ny,nx))
     allocate(state%v%data(nz,ny,nx))
     allocate(state%w%data(nz,ny,nx))
+
+    allocate(state%r%data(nz,ny,nx))
+    allocate(state%s%data(nz,ny,nx))
+    allocate(state%t%data(nz,ny,nx))
 
     ! set values for each variable:
     ! u = x
@@ -109,7 +148,7 @@ contains
 
 
 
-  subroutine check_result(state, values, reference)
+  subroutine check_parcels(state, values, reference)
     type(model_state_type), intent(in) :: state
     real(kind=DEFAULT_PRECISION), intent(in), dimension(:) :: values, reference
     real(kind=DEFAULT_PRECISION), parameter :: tol=1.e-9
@@ -126,9 +165,51 @@ contains
       endif
     enddo
 
-    print*, "grid2partest: values verified"
+    print*, "grid2par result: verified"
 
   end subroutine
+
+
+  subroutine check_grid(state, values, reference)
+    type(model_state_type), intent(in) :: state
+    type(prognostic_field_type), intent(in) :: values, reference
+    real(kind=DEFAULT_PRECISION), parameter :: tol=1.e-9
+    real(kind=DEFAULT_PRECISION) :: diff
+
+    integer :: xhalo, yhalo, zhalo
+    integer :: i, j, k
+
+    nx = state%local_grid%size(3) + 2*state%local_grid%halo_size(3)
+    ny = state%local_grid%size(2) + 2*state%local_grid%halo_size(2)
+    nz = state%local_grid%size(1) + 2*state%local_grid%halo_size(1)
+
+    xhalo = state%local_grid%halo_size(3)
+    yhalo = state%local_grid%halo_size(2)
+    zhalo = state%local_grid%halo_size(1)
+
+    do i=1+xhalo+1,nx-xhalo-1
+      do j=1+yhalo+1,ny-yhalo-1
+        do k=1+zhalo+1,nz-zhalo-1
+          diff = abs(values%data(k,j,i) - reference%data(k,j,i))
+          if (diff .gt. tol ) then
+            print*, "i,j,k=", i, j, k
+            print*, "x, y, z=", x_coords(i), y_coords(j), z_coords(k)
+            print*, "reference=", reference%data(k,j,i)
+            print*, "value=", values%data(k,j,i)
+            error stop "PROBLEM"
+          endif
+        enddo
+      enddo
+    enddo
+
+    print*, "par2grid result: verified"
+
+  end subroutine
+
+
+
+
+
 
 
 
