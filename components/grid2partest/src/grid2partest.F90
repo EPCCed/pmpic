@@ -50,25 +50,25 @@ contains
     call cache_parcel_interp_weights(current_state)
 
     print *, "Testing in x direction"
-    call grid2par(current_state,current_state%u,current_state%parcels%u)
-    call check_parcels(current_state,current_state%parcels%u,current_state%parcels%x)
+    call grid2par(current_state,current_state%u,current_state%parcels%dxdt)
+    call check_parcels(current_state,current_state%parcels%dxdt,current_state%parcels%x)
 
-    call par2grid(current_state,current_state%parcels%r,current_state%r)
-    call check_grid(current_state,current_state%r,current_state%u)
+    call par2grid(current_state,current_state%parcels%p,current_state%p)
+    call check_grid(current_state,current_state%p,current_state%u)
 
     print *, "Testing in y direction"
-    call grid2par(current_state,current_state%v,current_state%parcels%v)
-    call check_parcels(current_state,current_state%parcels%v,current_state%parcels%y)
+    call grid2par(current_state,current_state%v,current_state%parcels%dydt)
+    call check_parcels(current_state,current_state%parcels%dydt,current_state%parcels%y)
 
-    call par2grid(current_state,current_state%parcels%s,current_state%s)
-    call check_grid(current_state,current_state%s,current_state%v)
+    call par2grid(current_state,current_state%parcels%q,current_state%q)
+    call check_grid(current_state,current_state%q,current_state%v)
 
     print *, "Testing in Z direction"
-    call grid2par(current_state,current_state%w,current_state%parcels%w)
-    call check_parcels(current_state,current_state%parcels%w,current_state%parcels%z)
+    call grid2par(current_state,current_state%w,current_state%parcels%dzdt)
+    call check_parcels(current_state,current_state%parcels%dzdt,current_state%parcels%z)
 
-    call par2grid(current_state,current_state%parcels%t,current_state%t)
-    call check_grid(current_state,current_state%t,current_state%w)
+    call par2grid(current_state,current_state%parcels%r,current_state%r)
+    call check_grid(current_state,current_state%r,current_state%w)
 
     print *, "grid2partest finished"
     print *, ""
@@ -92,9 +92,9 @@ contains
     integer :: n
 
     do n=1,state%parcels%numparcels_local
-      state%parcels%r(n)=state%parcels%x(n)
-      state%parcels%s(n)=state%parcels%y(n)
-      state%parcels%t(n)=state%parcels%z(n)
+      state%parcels%p(n)=state%parcels%x(n)
+      state%parcels%q(n)=state%parcels%y(n)
+      state%parcels%r(n)=state%parcels%z(n)
     enddo
 
   end subroutine
@@ -115,9 +115,9 @@ contains
     allocate(state%v%data(nz,ny,nx))
     allocate(state%w%data(nz,ny,nx))
 
+    allocate(state%p%data(nz,ny,nx))
+    allocate(state%q%data(nz,ny,nx))
     allocate(state%r%data(nz,ny,nx))
-    allocate(state%s%data(nz,ny,nx))
-    allocate(state%t%data(nz,ny,nx))
 
     ! set values for each variable:
     ! u = x

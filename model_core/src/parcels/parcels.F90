@@ -14,9 +14,11 @@ private
 
     real (kind=DEFAULT_PRECISION), allocatable, dimension(:) :: &
                 x, y, z, & !positions
-                r, s, t, & !vorticities
-                u, v, w, & !velocities
-                q, b, vol  !humidity, buoyancy, volume
+                p, q, r, & !vorticities
+                dxdt, dydt, dzdt, & !velocities
+                dpdt, dqdt, drdt, & !vorticity tendency
+                h, b, vol, & !humidity, buoyancy, volume
+                stretch !stretch
   end type parcel_type
 
 end module

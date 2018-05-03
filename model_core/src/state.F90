@@ -53,7 +53,10 @@ module state_mod
     logical :: first_timestep_column, last_timestep_column, halo_column, first_nonhalo_timestep_column, update_dtm
     double precision :: model_start_wtime
 
-    type(prognostic_field_type) :: x, y, z, u, v, w, r, s, t, b, p
+    type(prognostic_field_type) :: u, v, w, & !gridded velocities
+                                   p, q, r, & !gridded vorticities
+                                   b, hg, hgliq, & ! buoyancy, humidity fraction, condensed humidity
+                                   vol !volume fraction
 
     type(parcel_type) :: parcels
 
