@@ -48,7 +48,7 @@ contains
 
       print *, "Writing parcels to '",filename,"'"
 
-      open(unit=10,file=filename,form="unformatted")
+      open(unit=10,file=filename,form="unformatted",access="stream")
       write(10) state%time
       write(10) nparcels
       write(10) state%parcels%x(1:nparcels)
