@@ -19,6 +19,8 @@ private
                 dpdt, dqdt, drdt, & !vorticity tendency
                 h, b, vol, & !humidity, buoyancy, volume
                 stretch !stretch
+    integer, allocatable, dimension(:) :: tag ! a tag to tag parcels so they can be tracked
+    
   end type parcel_type
 
 end module
