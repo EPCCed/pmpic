@@ -20,7 +20,7 @@ module parcel_interpolation_mod
   !cached grid variables
   integer :: nx, ny, nz, ndz
   real(kind=DEFAULT_PRECISION) ::xmin, xmax, ymin, ymax, zmin, zmax
-  real(kind=DEFAULT_PRECISION) :: dx, dy
+  real(kind=DEFAULT_PRECISION) :: dx, dy, meandz
   real(kind=DEFAULT_PRECISION), allocatable, dimension(:) :: z, dz
 
   real(kind=default_precision), allocatable, dimension(:) :: x_coords, y_coords, z_coords
@@ -102,6 +102,9 @@ contains
 
       !set dz to dx since we have no other estimate
       dz(1:ndz)=dzdummy
+
+      meandz=sum(dz)/(nz-1)
+
 
       z(1)=(zstart-1)*dz(1)
       do n=2,nz
