@@ -3,6 +3,8 @@ module euler_integrator_mod
   use datadefn_mod, only : DEFAULT_PRECISION
   use state_mod, only: model_state_type
   use monc_component_mod, only: component_descriptor_type
+  use optionsdatabase_mod, only : options_get_integer, options_get_logical, options_get_real, &
+     options_get_integer_array, options_get_real_array
   use parcel_interpolation_mod, only: nx, ny, nz, dx, dy, meandz
 
   implicit none
@@ -26,7 +28,9 @@ contains
 
     print *, "In Euler Integrator Initialisation"
 
-    originaldt = state%dtm
+    originaldt= options_get_real(state%options_database,"dtm")
+
+    state%dtm = originaldt
 
     print *, "Starting dt=",originaldt
 

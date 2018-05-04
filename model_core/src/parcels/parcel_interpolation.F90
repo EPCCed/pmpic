@@ -149,7 +149,7 @@ contains
 
     z_coords(:) = z(:)
 
-    !print *, xmin, xmax, ymin, ymax, zmin, zmax
+    print *, "parcel_interp setup:", xmin, xmax, ymin, ymax, zmin, zmax
 
     call flush()
 
