@@ -20,6 +20,7 @@ module parcel_interpolation_mod
   !cached grid variables
   integer :: nx, ny, nz, ndz
   real(kind=DEFAULT_PRECISION) ::xmin, xmax, ymin, ymax, zmin, zmax
+  real(kind=DEFAULT_PRECISION) :: maxx, maxy, maxz, minx, miny, minz
   real(kind=DEFAULT_PRECISION) :: dx, dy, meandz
   real(kind=DEFAULT_PRECISION), allocatable, dimension(:) :: z, dz
 
@@ -121,9 +122,17 @@ contains
     ymin = (ystart-1)*dy
     zmin = z(1)
 
+    minx = (xstart-1+state%local_grid%halo_size(3))*dx
+    miny = (ystart-1+state%local_grid%halo_size(2))*dy
+    minz = (z(1+state%local_grid%halo_size(1)))
+
     xmax = (xstop-1)*dx !coordinate of last point in the x grid
     ymax = (ystop-1)*dy
     zmax = z(nz)
+
+    maxx= (xstop-1-state%local_grid%halo_size(3))*dx
+    maxy= (ystop-1-state%local_grid%halo_size(2))*dy
+    maxz= (z(nz-state%local_grid%halo_size(1)))
 
     !allocate arrays that will hold the coordinates of x,y and z for each grid cell
     allocate(x_coords(nx), y_coords(ny))
