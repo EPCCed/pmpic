@@ -21,7 +21,7 @@ module haloswapper_mod
 
 #ifndef TEST_MODE
   private
-#endif  
+#endif
 
   real(kind=DEFAULT_PRECISION), dimension(:,:,:), allocatable, target :: my_data
 
@@ -39,24 +39,35 @@ contains
     haloswapper_get_descriptor%initialisation=>initialisation_callback
     haloswapper_get_descriptor%timestep=>timestep_callback
     haloswapper_get_descriptor%finalisation=>finalisation_callback
-  end function haloswapper_get_descriptor  
+  end function haloswapper_get_descriptor
 
-  !> Initialisation callback hook which will set up the halo swapping state and cache some 
+  !> Initialisation callback hook which will set up the halo swapping state and cache some
   !!precalculated data for fast(er) halo swapping at each timestep
   !! @param current_state The current model state
   subroutine initialisation_callback(current_state)
     type(model_state_type), target, intent(inout) :: current_state
 
-    integer :: halo_depth 
+    integer :: halo_depth
+    integer :: nx, ny, nz
 
     ! get halo_depth and pass it to the halo_swapping routines
     halo_depth = options_get_integer(current_state%options_database, "halo_depth")
     call init_halo_communication(current_state, get_single_field_per_halo_cell, halo_swap_state, &
          halo_depth, .false.)
 
-    allocate(my_data(current_state%local_grid%size(Z_INDEX), current_state%local_grid%size(Y_INDEX), &
-        current_state%local_grid%size(X_INDEX)))
-  end subroutine initialisation_callback  
+         print*, "In haloswapper init"
+         print*, current_state%local_grid%size(Z_INDEX), &
+         current_state%local_grid%size(Y_INDEX),&
+         current_state%local_grid%size(X_INDEX)
+
+         nx=current_state%local_grid%size(X_INDEX)+2*current_state%local_grid%halo_size(X_INDEX)
+         ny=current_state%local_grid%size(Y_INDEX)+2*current_state%local_grid%halo_size(Y_INDEX)
+         nz=current_state%local_grid%size(Z_INDEX)+2*current_state%local_grid%halo_size(Z_INDEX)
+
+
+    allocate(my_data(nz, ny, &
+        nx))
+  end subroutine initialisation_callback
 
   !> Timestep callback hook which performs the halo swapping for each prognostic field
   !!
@@ -66,19 +77,19 @@ contains
   subroutine timestep_callback(current_state)
     type(model_state_type), target, intent(inout) :: current_state
 
-    type(field_data_wrapper_type) :: source_data   
+    type(field_data_wrapper_type) :: source_data
     source_data%data=>my_data
 
     call initiate_nonblocking_halo_swap(current_state, halo_swap_state, &
-         copy_my_data_to_halo_buffer, source_data=(/source_data/))    
+         copy_my_data_to_halo_buffer, source_data=(/source_data/))
 
     ! Do something
 
     call complete_nonblocking_halo_swap(current_state, halo_swap_state, perform_local_data_copy_for_my_data, &
                copy_halo_buffer_to_my_data, source_data=(/source_data/))
   end subroutine timestep_callback
-  
-  !> The finalisation callback hook which will clean up and free the memory associated with the 
+
+  !> The finalisation callback hook which will clean up and free the memory associated with the
   !! halo swapping
   !! @param current_state The current model state
   subroutine finalisation_callback(current_state)
@@ -86,7 +97,7 @@ contains
 
     call finalise_halo_communication(halo_swap_state)
     deallocate(my_data)
-  end subroutine finalisation_callback 
+  end subroutine finalisation_callback
 
    subroutine perform_local_data_copy_for_my_data(current_state, halo_depth, involve_corners, source_data)
     type(model_state_type), intent(inout) :: current_state
