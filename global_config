@@ -5,8 +5,10 @@
 decomposition_enabled=.true.
 model_synopsis_enabled=.true.
 termination_check_enabled=.true.
-halo_swapper_enabled=.false.
+halo_swapper_enabled=.true.
 parcelsetup_enabled=.true.
+setup_grid_enabled=.true.
+writeparcels_enabled=.true.
 
 # Component enable configuration
 
@@ -17,19 +19,20 @@ debugger_enabled=.false.
 basic_plume_enabled=.false.
 
 # Component timestepping groups
-group_names= start, middle, last
+group_names= start, integrator, last
 
 start_group_type=entire
-middle_group_type=entire
+integrator_group_type=entire
 last_group_type=entire
 
-start_group_contents=termination_check, halo_swapper, testcomponent
-last_group_contents=model_synopsis,
+start_group_contents=termination_check, halo_swapper
+last_group_contents=model_synopsis,writeparcels
 
 # Component ordering for other stages
 
-initialisation_stage_ordering=decomposition, simplesetup, parcelsetup, termination_check, model_synopsis, halo_swapper, testcomponent
-finalisation_stage_ordering=halo_swapper, basic_plume, testcomponent, parcelsetup
+initialisation_stage_ordering=decomposition, setup_grid, parcelsetup, termination_check, model_synopsis, halo_swapper
+
+finalisation_stage_ordering=halo_swapper, basic_plume,  parcelsetup,model_synopsis
 
 # Control configuration
 nn_timesteps=-1
@@ -48,6 +51,20 @@ decomposition_method = twodim
 
 #parcel properties
 max_parcels=1000000
+parcels_per_cell_dir = 2
+
+
+#grid properties
+nx=32
+ny=32
+nz=32
+
+xmin=0
+xmax=6000
+ymin=0
+ymax=6000
+zmin=0
+zmax=6000
 
 # Simplesetup options
 x_size=1

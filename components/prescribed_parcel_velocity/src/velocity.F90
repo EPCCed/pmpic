@@ -46,12 +46,6 @@ contains
     !print*, "Velocity option read in as", profile_type, x0
 
     !we now need to tag parcels according to the profile
-    !at present we use a basic tag where:
-    ! y<x0 : tag=0
-    !y >= x0 : tag=1
-
-
-
     !$OMP PARALLEL do
     do n=1,state%parcels%numparcels_local
       state%parcels%tag(n) = 0

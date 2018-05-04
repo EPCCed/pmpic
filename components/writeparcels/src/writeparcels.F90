@@ -48,6 +48,7 @@ contains
 
       print *, "Writing parcels to '",filename,"'"
 
+
       open(unit=10,file=filename,form="unformatted",access="stream")
       write(10) state%time
       write(10) nparcels
@@ -58,6 +59,8 @@ contains
       close(10)
 
       written=written+1
+
+      print *, "Written", nparcels, " Parcels"
     endif
 
     num=num+1

@@ -1,4 +1,5 @@
 !reads in parcel options from config file and allocates memory
+!also places uniformly placed parcels in cells 
 module parcelsetup_mod
   use datadefn_mod, only : DEFAULT_PRECISION
   use state_mod, only: model_state_type

@@ -4,11 +4,11 @@ global_configuration=global_config
 # Override global component defaults
 simplesetup_enabled=.false.
 setup_grid_enabled=.true.
-grid2partest_enabled=.false.
-euler_integrator_enabled=.true.
-prescribed_parcel_velocity_enabled=.true.
-writeparcels_enabled=.true.
-parcelswap_enabled=.true.
+grid2partest_enabled=.true.
+euler_integrator_enabled=.false.
+prescribed_parcel_velocity_enabled=.false.
+writeparcels_enabled=.false.
+parcelswap_enabled=.false.
 
 testcomponent_enabled=.false.
 
@@ -17,14 +17,14 @@ testcomponent_enabled=.false.
 
 initialisation_stage_ordering+=euler_integrator,prescribed_parcel_velocity,writeparcels
 
-integrator_group_contents=grid2partest,prescribed_parcel_velocity,euler_integrator,parcelswap
+integrator_group_contents=grid2partest,prescribed_parcel_velocity,euler_integrator,parcelswap,grid2partest
 
 finalisation_stage_ordering+=model_synopsis,euler_integrator,prescribed_parcel_velocity,writeparcels
 
 
 # Control configuration
 display_synopsis_frequency=10
-termination_time=1000
+termination_time=0
 dtm=10.0
 
 #parcel properties

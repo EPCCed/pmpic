@@ -101,7 +101,7 @@ contains
       ndz=nz-1
       allocate(dz(ndz))
 
-      !set dz to dx since we have no other estimate
+      !set dz
       dz(1:ndz)=dzdummy
 
       meandz=sum(dz)/(nz-1)
@@ -118,18 +118,20 @@ contains
     !   print*, state%parallel%my_rank, n, z(n)
     ! enddo
 
-    xmin = (xstart-1)*dx !Coordinate of first point in the x grid
+    xmin = (xstart-1)*dx !Coordinate of first point in the x grid (inc halo cells)
     ymin = (ystart-1)*dy
     zmin = z(1)
 
+    !coordinate of first point belonging to that grid
     minx = (xstart-1+state%local_grid%halo_size(3))*dx
     miny = (ystart-1+state%local_grid%halo_size(2))*dy
     minz = (z(1+state%local_grid%halo_size(1)))
 
-    xmax = (xstop-1)*dx !coordinate of last point in the x grid
+    xmax = (xstop-1)*dx !coordinate of last point in the x grid (inc halo cells)
     ymax = (ystop-1)*dy
     zmax = z(nz)
 
+    !coordinate of last point belonging to the grid
     maxx= (xstop-1-state%local_grid%halo_size(3))*dx
     maxy= (ystop-1-state%local_grid%halo_size(2))*dy
     maxz= (z(nz-state%local_grid%halo_size(1)))

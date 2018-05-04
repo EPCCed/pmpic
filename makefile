@@ -43,7 +43,7 @@ else
 	PETSC_LIBS=-lpetsc
 endif
 
-COMPILERFFLAGS=-O3
+COMPILERFFLAGS=-fopenmp #-O3
 COMPILERRECURSIVE=
 ACTIVE=-DU_ACTIVE -DV_ACTIVE -DW_ACTIVE -DUSE_MAKE
 DEBUG_FLAGS=-g -fcheck=all -ffpe-trap=invalid,zero,overflow -fbacktrace -DDEBUG_MODE
@@ -89,7 +89,7 @@ clean-build: clean-build-model_core clean-build-components clean-build-testcases
 	rm -Rf build
 
 buildmonc: check-vars create-build-dirs compile-model_core compile-components compile-testcases compile-bootstrapper
-	$(FTN) -o $(EXEC_NAME) $(BUILD_DIR)/*.o $(CORE_DIR)/$(BUILD_DIR)/*.o $(COMPONENTS_DIR)/$(BUILD_DIR)/*.o $(CASIM_BUILD_LOC)  $(TESTCASE_DIR)/$(BUILD_DIR)/*.o $(LFLAGS)
+	$(FTN) -fopenmp -o $(EXEC_NAME) $(BUILD_DIR)/*.o $(CORE_DIR)/$(BUILD_DIR)/*.o $(COMPONENTS_DIR)/$(BUILD_DIR)/*.o $(CASIM_BUILD_LOC)  $(TESTCASE_DIR)/$(BUILD_DIR)/*.o $(LFLAGS)
 
 check-vars:
 	$(call check_defined, NETCDF_DIR, Need the path to the NetCDF installation directory as an environment variable - export this before running make)
@@ -99,11 +99,11 @@ check-vars:
 create-build-dirs:
 	mkdir -p $(BUILD_DIR)
 
-compile-model_core:	
+compile-model_core:
 	cd $(CORE_DIR) ; $(MAKE)
 
 clean-model_core:
-	cd $(CORE_DIR); $(MAKE) clean 
+	cd $(CORE_DIR); $(MAKE) clean
 
 clean-build-model_core:
 	cd $(CORE_DIR); $(MAKE) clean-build
@@ -112,7 +112,7 @@ compile-components:
 	cd $(COMPONENTS_DIR) ; $(MAKE)
 
 clean-components:
-	cd $(COMPONENTS_DIR); $(MAKE) clean 
+	cd $(COMPONENTS_DIR); $(MAKE) clean
 
 clean-build-components:
 	cd $(COMPONENTS_DIR); $(MAKE) clean-build
@@ -121,7 +121,7 @@ compile-testcases:
 	cd $(TESTCASE_DIR) ; $(MAKE)
 
 clean-testcases:
-	cd $(TESTCASE_DIR); $(MAKE) clean 
+	cd $(TESTCASE_DIR); $(MAKE) clean
 
 clean-build-testcases:
 	cd $(TESTCASE_DIR); $(MAKE) clean-build

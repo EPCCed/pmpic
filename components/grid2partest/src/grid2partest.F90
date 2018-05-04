@@ -85,7 +85,7 @@ contains
 
   end subroutine
 
-
+  ! sets up p=x, q=y, r=z
   subroutine setup_parcels(state)
     type(model_state_type), intent(inout) :: state
 
@@ -100,7 +100,7 @@ contains
   end subroutine
 
 
-
+  !sets up u=x, v=y, w=z
   subroutine setup_grid(state)
     type(model_state_type), intent(inout) :: state
     integer :: i, j, k
@@ -111,13 +111,13 @@ contains
     nz = state%local_grid%size(1) + 2*state%local_grid%halo_size(1)
 
 
-    allocate(state%u%data(nz,ny,nx))
-    allocate(state%v%data(nz,ny,nx))
-    allocate(state%w%data(nz,ny,nx))
+    !allocate(state%u%data(nz,ny,nx))
+    !allocate(state%v%data(nz,ny,nx))
+    !allocate(state%w%data(nz,ny,nx))
 
-    allocate(state%p%data(nz,ny,nx))
-    allocate(state%q%data(nz,ny,nx))
-    allocate(state%r%data(nz,ny,nx))
+    !allocate(state%p%data(nz,ny,nx))
+    !allocate(state%q%data(nz,ny,nx))
+    !allocate(state%r%data(nz,ny,nx))
 
     ! set values for each variable:
     ! u = x
@@ -147,7 +147,7 @@ contains
   end subroutine
 
 
-
+  !compares interpolated values with reference values
   subroutine check_parcels(state, values, reference)
     type(model_state_type), intent(in) :: state
     real(kind=DEFAULT_PRECISION), intent(in), dimension(:) :: values, reference
@@ -169,7 +169,7 @@ contains
 
   end subroutine
 
-
+    !compares interpolated values with reference values
   subroutine check_grid(state, values, reference)
     type(model_state_type), intent(in) :: state
     type(prognostic_field_type), intent(in) :: values, reference

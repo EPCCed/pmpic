@@ -97,12 +97,15 @@ contains
     type(model_state_type), intent(inout) :: state
     integer :: nnx, nny, nnz
 
+    !get number of cells in local grid
     nnx=state%local_grid%size(X_INDEX) + 2*state%local_grid%halo_size(X_INDEX)
     nny=state%local_grid%size(Y_INDEX) + 2*state%local_grid%halo_size(Y_INDEX)
     nnz=state%local_grid%size(Z_INDEX) + 2*state%local_grid%halo_size(Z_INDEX)
 
 
     print*, "Local grid sizes (+halos)=", nnx, nny, nnz
+
+    !allocate local grids
 
     allocate(state%u%data(nnz,nny,nnx))
     allocate(state%v%data(nnz,nny,nnx))
