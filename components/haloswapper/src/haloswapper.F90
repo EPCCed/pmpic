@@ -14,8 +14,8 @@ module haloswapper_mod
        field_data_wrapper_type
   use halo_communication_mod, only : copy_buffer_to_field, copy_field_to_buffer, perform_local_data_copy_for_field, &
        init_halo_communication, finalise_halo_communication, initiate_nonblocking_halo_swap, complete_nonblocking_halo_swap, &
-       blocking_halo_swap, get_single_field_per_halo_cell
-  use mpi, only : MPI_REQUEST_NULL, MPI_STATUSES_IGNORE
+       blocking_halo_swap, get_single_field_per_halo_cell,copy_corner_to_buffer,copy_buffer_to_corner
+  use mpi, only : MPI_REQUEST_NULL, MPI_STATUSES_IGNORE, mpi_barrier
   use optionsdatabase_mod, only : options_get_integer
   implicit none
 
@@ -23,9 +23,12 @@ module haloswapper_mod
   private
 #endif
 
-  real(kind=DEFAULT_PRECISION), dimension(:,:,:), allocatable, target :: my_data
+  real(kind=DEFAULT_PRECISION), dimension(:,:,:), allocatable :: my_data, append_data
 
   type(halo_communication_type), save :: halo_swap_state
+
+  integer :: nx, ny, nz
+  integer :: hx, hy, hz
 
   public haloswapper_get_descriptor
 
@@ -48,25 +51,42 @@ contains
     type(model_state_type), target, intent(inout) :: current_state
 
     integer :: halo_depth
-    integer :: nx, ny, nz
+    integer :: rank
 
     ! get halo_depth and pass it to the halo_swapping routines
     halo_depth = options_get_integer(current_state%options_database, "halo_depth")
     call init_halo_communication(current_state, get_single_field_per_halo_cell, halo_swap_state, &
-         halo_depth, .false.)
+         halo_depth, .true.)
 
-         print*, "In haloswapper init"
-         print*, current_state%local_grid%size(Z_INDEX), &
-         current_state%local_grid%size(Y_INDEX),&
-         current_state%local_grid%size(X_INDEX)
+    print*, "In haloswapper init"
+    print*, current_state%local_grid%size(Z_INDEX), &
+    current_state%local_grid%size(Y_INDEX),&
+    current_state%local_grid%size(X_INDEX)
 
-         nx=current_state%local_grid%size(X_INDEX)+2*current_state%local_grid%halo_size(X_INDEX)
-         ny=current_state%local_grid%size(Y_INDEX)+2*current_state%local_grid%halo_size(Y_INDEX)
-         nz=current_state%local_grid%size(Z_INDEX)+2*current_state%local_grid%halo_size(Z_INDEX)
+    nx=current_state%local_grid%size(X_INDEX)+2*current_state%local_grid%halo_size(X_INDEX)
+    ny=current_state%local_grid%size(Y_INDEX)+2*current_state%local_grid%halo_size(Y_INDEX)
+    nz=current_state%local_grid%size(Z_INDEX)+2*current_state%local_grid%halo_size(Z_INDEX)
+
+    !array to do normal halo swapping with - set to be rank in centre and 0 on halos
+    allocate(my_data(nz, ny, nx))
+
+    !array to do addition halo swapping - set to be rank for the whole array
+    allocate(append_data(nz,ny,nx))
+
+    rank=current_state%parallel%my_rank
+
+    append_data(:,:,:) = rank
 
 
-    allocate(my_data(nz, ny, &
-        nx))
+
+    hx=current_state%local_grid%halo_size(X_INDEX)
+    hy=current_state%local_grid%halo_size(Y_INDEX)
+    hz=current_state%local_grid%halo_size(Z_INDEX)
+
+    my_data(:,:,:) = -1
+    my_data(hz+1:nz-hz,hy+1:ny-hy,hx+1:nx-hx) = rank
+
+
   end subroutine initialisation_callback
 
   !> Timestep callback hook which performs the halo swapping for each prognostic field
@@ -78,15 +98,84 @@ contains
     type(model_state_type), target, intent(inout) :: current_state
 
     type(field_data_wrapper_type) :: source_data
-    source_data%data=>my_data
 
-    call initiate_nonblocking_halo_swap(current_state, halo_swap_state, &
-         copy_my_data_to_halo_buffer, source_data=(/source_data/))
+    integer :: rank, comm, ierr
+
+    ! call initiate_nonblocking_halo_swap(current_state, halo_swap_state, &
+    !      copy_my_data_to_halo_buffer, source_data=(/source_data/))
 
     ! Do something
 
-    call complete_nonblocking_halo_swap(current_state, halo_swap_state, perform_local_data_copy_for_my_data, &
-               copy_halo_buffer_to_my_data, source_data=(/source_data/))
+    ! call complete_nonblocking_halo_swap(current_state, halo_swap_state, perform_local_data_copy_for_my_data, &
+    !            copy_halo_buffer_to_my_data, source_data=(/source_data/))
+
+    ! call blocking_halo_swap(current_state, halo_swap_state, halo2buff, &
+    !                         local_copy,buff2halo,&
+    !                        copy_corners_to_halo_buffer=corner2buff,&
+    !                        copy_from_halo_buffer_to_corner=buff2corner,&
+    !                        source_data=(/source_data/))
+
+
+   !do a normal halo swap for my_data (halos are replaced by the neighbouring processes' values)
+    call perform_halo_swap(current_state,my_data,perform_sum=.false.)
+
+
+    rank=current_state%parallel%my_rank
+    comm=current_state%parallel%monc_communicator
+    call MPI_Barrier(comm,ierr)
+
+    call flush()
+
+    if (rank .eq. 0) print *, "Swap:"
+
+
+
+    call MPI_Barrier(comm,ierr)
+
+    write(*,"(i2.1,a,f3.0,f3.0, f3.0,f3.0)") rank, " halo    ", &
+                        my_data(nz/2,ny/2,1), my_data(nz/2,ny/2,nx),&
+                        my_data(nz/2,1,nx/2),my_data(nz/2,ny,nx/2)
+
+    write(*,"(i2.1,a,f3.0,f3.0, f3.0,f3.0)") rank, " Corners ", &
+                        my_data(nz/2,ny,nx), my_data(nz/2,1,nx),&
+                        my_data(nz/2,1,1),my_data(nz/2,ny,1)
+
+
+    call MPI_Barrier(comm, ierr)
+
+    call flush()
+
+
+
+    ! call blocking_halo_swap(current_state, halo_swap_state, halo2buff, &
+    !                         local_copy,buff2halo,&
+    !                        copy_corners_to_halo_buffer=corner2buff,&
+    !                        copy_from_halo_buffer_to_corner=buff2corner,&
+    !                        source_data=(/source_data/))
+
+    !perform a summing halo swap - halos are set to halo + neighbouring processes data
+    call perform_halo_swap(current_state,append_data,perform_sum=.true.)
+
+    call MPI_Barrier(comm,ierr)
+
+    if (rank .eq. 0) print *, "Add:"
+
+    call MPI_Barrier(comm,ierr)
+
+    write(*,"(i2.1,a,f3.0,f3.0, f3.0,f3.0)") rank, " halo    ", &
+                        append_data(nz/2,ny/2,1), append_data(nz/2,ny/2,nx),&
+                        append_data(nz/2,1,nx/2),append_data(nz/2,ny,nx/2)
+
+    write(*,"(i2.1,a,f3.0,f3.0, f3.0,f3.0)") rank, " Corners ", &
+                        append_data(nz/2,ny,nx), append_data(nz/2,1,nx),&
+                        append_data(nz/2,1,1),append_data(nz/2,ny,1)
+
+
+    call MPI_Barrier(comm, ierr)
+
+    ! call MPI_Finalize(ierr)
+    ! stop "finished"
+
   end subroutine timestep_callback
 
   !> The finalisation callback hook which will clean up and free the memory associated with the
@@ -97,23 +186,72 @@ contains
 
     call finalise_halo_communication(halo_swap_state)
     deallocate(my_data)
+    deallocate(append_data)
   end subroutine finalisation_callback
 
-   subroutine perform_local_data_copy_for_my_data(current_state, halo_depth, involve_corners, source_data)
-    type(model_state_type), intent(inout) :: current_state
-    integer, intent(in) :: halo_depth
-    logical, intent(in) :: involve_corners
-    type(field_data_wrapper_type), dimension(:), intent(in), optional :: source_data
 
-    type(field_data_wrapper_type) :: selected_source
+!wrapper for intrnal halo swapping routines
+! if the optional perform_sum argument is supplued (and true) then the halo values will have the
+! neighbouring processes values added onto them. To do this we make a copy of the original halo
+! values and add these back on after the swap
+  subroutine perform_halo_swap(state,data,perform_sum)
+    type(model_state_type), intent(inout), target :: state
+    real(kind=DEFAULT_PRECISION), allocatable, dimension(:,:,:), target, intent(inout) :: data
+    logical, intent(in), optional :: perform_sum
 
-    selected_source=source_data(1)
+    logical :: sum
+    real(kind=DEFAULT_PRECISION), allocatable, dimension(:,:,:) :: left, right, up, down
 
-    call perform_local_data_copy_for_field(selected_source%data, current_state%local_grid, &
-         current_state%parallel%my_rank, halo_depth, involve_corners)
-  end subroutine perform_local_data_copy_for_my_data
 
-  subroutine copy_my_data_to_halo_buffer(current_state, neighbour_description, dim, source_index, &
+    type(field_data_wrapper_type) :: source_data
+
+    if (present(perform_sum)) then
+      sum=perform_sum
+    else
+      sum = .false.
+    endif
+
+    !if we are summing then we have to make a copy of our halos
+    if (sum) then
+
+      allocate(left(nz,ny,hx), right(nz,ny,hx), up(nz,hy,nx-2*hx), down(nz,hy,nx-2*hx))
+
+      !copy data into our caches
+      left(:,:,:) = data(:,:,1:hx)
+      right(:,:,:) = data(:,:,nx-hx+1:nx)
+      down(:,:,:) = data(:,1:hy,hx+1:nx-hx)
+      up(:,:,:) = data(:,ny-hy+1:ny,hx+1:nx-hx)
+    endif
+
+    source_data%data=>data
+
+    call blocking_halo_swap(state, halo_swap_state, halo2buff, &
+                            local_copy,buff2halo,&
+                           copy_corners_to_halo_buffer=corner2buff,&
+                           copy_from_halo_buffer_to_corner=buff2corner,&
+                           source_data=(/source_data/))
+
+    if (sum) then
+      !add our cache back onto halos
+
+      data(:,:,1:hx) = data(:,:,1:hx) + left(:,:,:)
+      data(:,:,nx-hx+1:nx) = data(:,:,nx-hx+1:nx) + right(:,:,:)
+      data(:,1:hy,hx+1:nx-hx) = data(:,1:hy,hx+1:nx-hx)+ down(:,:,:)
+      data(:,ny-hy+1:ny,hx+1:nx-hx) = data(:,ny-hy+1:ny,hx+1:nx-hx) +up(:,:,:)
+
+      deallocate(up, down, left, right)
+
+    endif
+
+  end subroutine
+
+
+
+
+
+  ! routines for interfacing with model_core halo swapping functionality
+
+  subroutine halo2buff(current_state, neighbour_description, dim, source_index, &
        pid_location, current_page, source_data)
     type(model_state_type), intent(inout) :: current_state
     integer, intent(in) :: dim, pid_location, source_index
@@ -129,9 +267,48 @@ contains
          dim, source_index, current_page(pid_location))
 
     current_page(pid_location)=current_page(pid_location)+1
-  end subroutine copy_my_data_to_halo_buffer
+  end subroutine !copy_my_data_to_halo_buffer
 
-  subroutine copy_halo_buffer_to_my_data(current_state, neighbour_description, dim, target_index, &
+
+  subroutine corner2buff(current_state, neighbour_description, &
+       dim, x_source_index, &
+       y_source_index, pid_location, current_page, source_data)
+    !import model_state_type, neighbour_description_type, field_data_wrapper_type
+    type(model_state_type), intent(inout) :: current_state
+    integer, intent(in) :: dim, pid_location, x_source_index, y_source_index
+    integer, intent(inout) :: current_page(:)
+    type(neighbour_description_type), intent(inout) :: neighbour_description
+    type(field_data_wrapper_type), dimension(:), intent(in), optional :: source_data
+
+    type(field_data_wrapper_type) :: selected_source
+
+    selected_source=source_data(1)
+
+    call copy_corner_to_buffer(current_state%local_grid, neighbour_description%send_corner_buffer,&
+    selected_source%data, dim, &
+         x_source_index, y_source_index, current_page(pid_location))
+
+    current_page(pid_location)=current_page(pid_location)+1
+
+  end subroutine
+
+
+  subroutine local_copy(current_state, halo_depth, involve_corners, source_data)
+   type(model_state_type), intent(inout) :: current_state
+   integer, intent(in) :: halo_depth
+   logical, intent(in) :: involve_corners
+   type(field_data_wrapper_type), dimension(:), intent(in), optional :: source_data
+
+   type(field_data_wrapper_type) :: selected_source
+
+   selected_source=source_data(1)
+
+   call perform_local_data_copy_for_field(selected_source%data, current_state%local_grid, &
+        current_state%parallel%my_rank, halo_depth, involve_corners)
+ end subroutine !perform_local_data_copy_for_my_data
+
+
+  subroutine buff2halo(current_state, neighbour_description, dim, target_index, &
        neighbour_location, current_page, source_data)
     type(model_state_type), intent(inout) :: current_state
     integer, intent(in) :: dim, target_index, neighbour_location
@@ -147,5 +324,30 @@ contains
          dim, target_index, current_page(neighbour_location))
 
     current_page(neighbour_location)=current_page(neighbour_location)+1
-  end subroutine copy_halo_buffer_to_my_data
+  end subroutine !copy_halo_buffer_to_my_data
+
+
+  subroutine buff2corner(current_state, neighbour_description,&
+       corner_loc, x_target_index, &
+       y_target_index, neighbour_location, current_page, source_data)
+  !  import model_state_type, neighbour_description_type, field_data_wrapper_type
+    type(model_state_type), intent(inout) :: current_state
+    integer, intent(in) :: corner_loc, x_target_index, y_target_index, neighbour_location
+    integer, intent(inout) :: current_page(:)
+    type(neighbour_description_type), intent(inout) :: neighbour_description
+    type(field_data_wrapper_type), dimension(:), intent(in), optional :: source_data
+
+    type(field_data_wrapper_type) :: selected_source
+
+    selected_source=source_data(1)
+
+    call copy_buffer_to_corner(current_state%local_grid, neighbour_description%recv_corner_buffer,&
+     selected_source%data, corner_loc, &
+         x_target_index, y_target_index, current_page(neighbour_location))
+
+    current_page(neighbour_location) = current_page(neighbour_location)+1
+
+  end subroutine buff2corner
+
+
 end module haloswapper_mod
