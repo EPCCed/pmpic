@@ -9,6 +9,7 @@ module setup_grid_mod
      options_get_integer_array, options_get_real_array
   use grids_mod, only : local_grid_type, global_grid_type, X_INDEX, Y_INDEX, Z_INDEX
   use logging_mod, only : LOG_ERROR, log_log
+  use MPI
 
 
   implicit none
@@ -43,6 +44,7 @@ contains
     nx=options_get_integer(state%options_database, "nx")
     ny=options_get_integer(state%options_database, "ny")
     nz=options_get_integer(state%options_database, "nz")
+    nz=nz+1
 
     xmin=options_get_real(state%options_database,"xmin")
     ymin=options_get_real(state%options_database,"ymin")
@@ -57,8 +59,8 @@ contains
     type(model_state_type), intent(inout) :: state
     type(global_grid_type), intent(inout) :: global_grid
 
-    dx=(xmax-xmin)/(nx-1)
-    dy=(ymax-ymin)/(ny-1)
+    dx=(xmax-xmin)/(nx)
+    dy=(ymax-ymin)/(ny)
     dz=(zmax-zmin)/(nz-1)
 
     global_grid%resolution(X_INDEX) = dx

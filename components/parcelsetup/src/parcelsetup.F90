@@ -1,5 +1,5 @@
 !reads in parcel options from config file and allocates memory
-!also places uniformly placed parcels in cells 
+!also places uniformly placed parcels in cells
 module parcelsetup_mod
   use datadefn_mod, only : DEFAULT_PRECISION
   use state_mod, only: model_state_type
@@ -140,8 +140,8 @@ contains
     n_per_cell=n_per_dir**3
 
     !calculate number of cells in each direction (total grid size minus halo cells)
-    nnx=nx - 2*state%local_grid%halo_size(3) - 1
-    nny=ny - 2*state%local_grid%halo_size(2) - 1
+    nnx=nx - 2*state%local_grid%halo_size(3) !- 1
+    nny=ny - 2*state%local_grid%halo_size(2) !- 1
     nnz=nz - 2*state%local_grid%halo_size(1) - 1
 
     nparcels=n_per_cell*(nnx)*(nny)*(nnz)
@@ -166,8 +166,8 @@ contains
     ystart=state%local_grid%halo_size(2)+1
     zstart=state%local_grid%halo_size(1)+1
 
-    xstop=nx-state%local_grid%halo_size(3)-1
-    ystop=ny-state%local_grid%halo_size(2)-1
+    xstop=nx-state%local_grid%halo_size(3)!-1
+    ystop=ny-state%local_grid%halo_size(2)!-1
     zstop=nz-state%local_grid%halo_size(1)-1
 
     !print*, "xstart, xstop=", xstart, xstop
@@ -214,7 +214,8 @@ contains
       !print*, maxval(state%parcels%z(1:n)), zmax
 
 
-      ! print *, n, nparcels
+      print *, n, nparcels
+      if (n .ne. nparcels) error stop "incorrect parcel numbers"
 
       print*, "parcels initialised"
 
