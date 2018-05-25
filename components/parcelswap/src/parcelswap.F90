@@ -5,7 +5,7 @@ module parcelswap_mod
   use datadefn_mod, only : DEFAULT_PRECISION
   use state_mod, only: model_state_type
   use monc_component_mod, only: component_descriptor_type
-  use parcel_interpolation_mod, only: nx, ny, nz, dx, dy, meandz, maxx, maxy, minx, miny
+  use parcel_interpolation_mod, only: nx, ny, nz, dx, dy, dz, maxx, maxy, minx, miny
 
   implicit none
 

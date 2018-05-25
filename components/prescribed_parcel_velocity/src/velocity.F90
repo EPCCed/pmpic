@@ -10,7 +10,7 @@ module prescribed_parcel_velocity_mod
   use monc_component_mod, only: component_descriptor_type
   use optionsdatabase_mod, only : options_get_integer, options_get_logical, options_get_real, &
      options_get_integer_array, options_get_real_array
-  use parcel_interpolation_mod, only: nx, ny, nz, dx, dy, meandz
+  use parcel_interpolation_mod, only: nx, ny, nz, dx, dy, dz
 
   implicit none
 

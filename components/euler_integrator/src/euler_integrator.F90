@@ -5,7 +5,7 @@ module euler_integrator_mod
   use monc_component_mod, only: component_descriptor_type
   use optionsdatabase_mod, only : options_get_integer, options_get_logical, options_get_real, &
      options_get_integer_array, options_get_real_array
-  use parcel_interpolation_mod, only: nx, ny, nz, dx, dy, meandz
+  use parcel_interpolation_mod, only: nx, ny, nz, dx, dy, dz
 
   implicit none
 
@@ -53,7 +53,7 @@ contains
     if (vmax .eq. 0.) vmax=1.e-10
     if (wmax .eq. 0.) wmax=1.e-10
 
-    maxdt = minval( (/ dx/umax, dy/vmax, meandz/wmax /) )*cfl
+    maxdt = minval( (/ dx/umax, dy/vmax, dz/wmax /) )*cfl
     dt = minval( (/ maxdt, originaldt/) )
 
     print*, "t=", state%time," maxdt=",maxdt, " New dt=",dt

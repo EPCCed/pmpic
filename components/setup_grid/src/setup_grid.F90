@@ -44,7 +44,7 @@ contains
     nx=options_get_integer(state%options_database, "nx")
     ny=options_get_integer(state%options_database, "ny")
     nz=options_get_integer(state%options_database, "nz")
-    nz=nz+1
+    nz=nz+1 !We want one extra grid point in the z direction to ensure we have the same number of cells in each dir
 
     xmin=options_get_real(state%options_database,"xmin")
     ymin=options_get_real(state%options_database,"ymin")
@@ -62,6 +62,10 @@ contains
     dx=(xmax-xmin)/(nx)
     dy=(ymax-ymin)/(ny)
     dz=(zmax-zmin)/(nz-1)
+
+    print *, "Dx, dy, dz=", dx, dy, dz
+    print *, "nx, ny, nz=", nx, ny, nz
+
 
     global_grid%resolution(X_INDEX) = dx
     global_grid%resolution(Y_INDEX) = dy

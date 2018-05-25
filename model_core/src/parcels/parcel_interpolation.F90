@@ -21,8 +21,8 @@ module parcel_interpolation_mod
   integer :: nx, ny, nz, ndz
   real(kind=DEFAULT_PRECISION) ::xmin, xmax, ymin, ymax, zmin, zmax
   real(kind=DEFAULT_PRECISION) :: maxx, maxy, maxz, minx, miny, minz
-  real(kind=DEFAULT_PRECISION) :: dx, dy, meandz
-  real(kind=DEFAULT_PRECISION), allocatable, dimension(:) :: z, dz
+  real(kind=DEFAULT_PRECISION) :: dx, dy, dz
+  !real(kind=DEFAULT_PRECISION), allocatable, dimension(:) :: z, dz
 
   real(kind=default_precision), allocatable, dimension(:) :: x_coords, y_coords, z_coords
 
@@ -55,7 +55,7 @@ contains
     !get dx, dy and dz
     dx=state%global_grid%resolution(3)
     dy=state%global_grid%resolution(2)
-    dzdummy=state%global_grid%resolution(1)
+    dz=state%global_grid%resolution(1)
 
     !set number of cells in local grids
     nx = state%local_grid%size(3) + 2*state%local_grid%halo_size(3)
@@ -68,7 +68,7 @@ contains
     endif
 
 
-    if (state%parallel%my_rank .eq. 0 ) print *, "dx=", dx, " dy=", dy, " dz=", dzdummy
+    if (state%parallel%my_rank .eq. 0 ) print *, "dx=", dx, " dy=", dy, " dz=", dz
 
     !get global indices of the first and last elements in the local arrays
     xstart = state%local_grid%start(3)-state%local_grid%halo_size(3)
@@ -81,75 +81,83 @@ contains
     zstop = state%local_grid%end(1)+state%local_grid%halo_size(1)
 
 
-    !try to set up z
-    if (allocated(state%global_grid%configuration%vertical%z)) then
-      !if it is already set up then take its values from the state
-    !  nz=size(state%global_grid%configuration%vertical%z)
-      print*, "nz=",nz
-      allocate(z(nz))
-      z=state%global_grid%configuration%vertical%z
-
-
-      ndz=size(state%global_grid%configuration%vertical%dz)
-      print*, "dzn=",ndz
-      allocate(dz(ndz))
-    else !else we set it up ourselves
-      if (state%parallel%my_rank .eq. 0 ) print *, "Warning: no z grid defined. Creating uniform grid"
-
-      !nz=zstop-zstart+1
-      allocate(z(nz))
-      ndz=nz-1
-      allocate(dz(ndz))
-
-      !set dz
-      dz(1:ndz)=dzdummy
-
-      meandz=sum(dz)/(nz-1)
-
-
-      z(1)=(zstart-1)*dz(1)
-      do n=2,nz
-        z(n) = z(n-1)+dz(n-1)
-      enddo
-    endif
+    ! !try to set up z
+    ! if (allocated(state%global_grid%configuration%vertical%z)) then
+    !   !if it is already set up then take its values from the state
+    ! !  nz=size(state%global_grid%configuration%vertical%z)
+    !   print*, "nz=",nz
+    !   allocate(z(nz))
+    !   z=state%global_grid%configuration%vertical%z
+    !
+    !
+    !   ndz=size(state%global_grid%configuration%vertical%dz)
+    !   print*, "dzn=",ndz
+    !   allocate(dz(ndz))
+    ! else !else we set it up ourselves
+    !   if (state%parallel%my_rank .eq. 0 ) print *, "Warning: no z grid defined. Creating uniform grid"
+    !
+    !   !nz=zstop-zstart+1
+    !   allocate(z(nz))
+    !   ndz=nz-1
+    !   allocate(dz(ndz))
+    !
+    !   !set dz
+    !   dz(1:ndz)=dzdummy
+    !
+    !   meandz=sum(dz)/(nz-1)
+    !
+    !
+    !   z(1)=(zstart-1)*dz(1)
+    !   do n=2,nz
+    !     z(n) = z(n-1)+dz(n-1)
+    !   enddo
+    ! endif
 
     !print*, state%parallel%my_rank, xstart, xstop, ystart, ystop, zstart, zstop
     ! do n=1,nz
     !   print*, state%parallel%my_rank, n, z(n)
     ! enddo
 
-    xmin = (xstart-1)*dx !Coordinate of first point in the x grid (inc halo cells)
-    ymin = (ystart-1)*dy
-    zmin = z(1)
+    xmin = (xstart-1)*dx + state%global_grid%bottom(3) !Coordinate of first point in the x grid (inc halo cells)
+    ymin = (ystart-1)*dy + state%global_grid%bottom(2)
+    zmin = (zstart-1)*dz + state%global_grid%bottom(1)
+
+     print *, "xmin, ymin, zmin", xmin, ymin, zmin
+    !
+
 
     !coordinate of first point belonging to that grid
-    minx = (xstart-1+state%local_grid%halo_size(3))*dx
-    miny = (ystart-1+state%local_grid%halo_size(2))*dy
-    minz = (z(1+state%local_grid%halo_size(1)))
+    minx = (xstart-1+state%local_grid%halo_size(3))*dx + state%global_grid%bottom(2)
+    miny = (ystart-1+state%local_grid%halo_size(2))*dy + state%global_grid%bottom(2)
+    minz = (zstart-1+state%local_grid%halo_size(1))*dz + state%global_grid%bottom(1)
 
     xmax = (xstop-1)*dx !coordinate of last point in the x grid (inc halo cells)
     ymax = (ystop-1)*dy
-    zmax = z(nz)
+    zmax = (zstop-1)*dz
 
     !coordinate of last point belonging to the grid
     maxx= (xstop-1-state%local_grid%halo_size(3))*dx
     maxy= (ystop-1-state%local_grid%halo_size(2))*dy
-    maxz= (z(nz-state%local_grid%halo_size(1)))
+    maxz= (zstop-1-state%local_grid%halo_size(1))*dz
 
     !allocate arrays that will hold the coordinates of x,y and z for each grid cell
     allocate(x_coords(nx), y_coords(ny))
     allocate(z_coords(nz))
 
     do n=1,nx
-      x_coords(n) = xmin + (n-1)*dx
+      x_coords(n) = xmin + (n-1)*dx + state%global_grid%bottom(3)
     enddo
 
     do n=1,ny
-      y_coords(n) = ymin + (n-1)*dy
+      y_coords(n) = ymin + (n-1)*dy + state%global_grid%bottom(2)
+    enddo
+
+    do n=1,nz
+      z_coords(n) = zmin + (n-1)*dz + state%global_grid%bottom(1)
     enddo
 
 
-    z_coords(:) = z(:)
+    !z_coords(:) = z(:)
 
     print *, "parcel_interp setup:", xmin, xmax, ymin, ymax, zmin, zmax
 
@@ -165,6 +173,11 @@ contains
     !print *, state%parallel%my_rank, ymin+dy, ymax-2*dy
 
     call MPI_Barrier(state%parallel%monc_communicator,n)
+
+   !  call MPI_Barrier(state%parallel%monc_communicator,n)
+   !  call MPI_Finalize(n)
+   ! !
+   !  stop
 
     if (state%parallel%my_rank .eq. 0 ) print *, "parcel_interp initialised"
 
@@ -184,8 +197,8 @@ contains
     deallocate(delys)
     deallocate(delzs)
 
-    deallocate(z)
-    deallocate(dz)
+    !deallocate(z)
+    !deallocate(dz)
 
     deallocate(x_coords,y_coords,z_coords)
 
@@ -224,12 +237,13 @@ contains
       !get the index of the lower left corner of the cell that the parcel is in
       i=floor(xp-xmin)/dx+1
       j=floor(yp-ymin)/dy+1
-      do nn=1,nz-1 !as z may be a variable size grid we need to search through z to get the cell
-        if ((zp .gt. z(nn)) .and. (zp .lt. z(nn+1))) then
-          k=nn
-          exit
-        endif
-      enddo
+      ! do nn=1,nz-1 !as z may be a variable size grid we need to search through z to get the cell
+      !   if ((zp .gt. z(nn)) .and. (zp .lt. z(nn+1))) then
+      !     k=nn
+      !     exit
+      !   endif
+      ! enddo
+      k=floor(zp-zmin)/dz+1
 
       if ((xp .lt. xmin) .or. (xp .gt. xmax)) error stop "x too big/small"
       if ((yp .lt. ymin) .or. (yp .gt. ymax)) error stop "y too big/small"
@@ -238,7 +252,7 @@ contains
       !get the fractional position in the cell (from the lower left corner) that the parcel is at
       delx= ((xp-xmin)-(i-1)*dx)/dx
       dely= ((yp-ymin)-(j-1)*dy)/dy
-      delz= ((zp-zmin)-(k-1)*dz(k))/dz(k)
+      delz= ((zp-zmin)-(k-1)*dz)/dz
 
 
       if (delx .gt. 1. .or. delx .lt. 0) error stop "delx wrong size"
@@ -357,7 +371,8 @@ contains
 
     !zero the weights and the grid
 !$OMP PARALLEL DEFAULT(PRIVATE) &
-!$OMP              SHARED(nparcels,nx,ny,nz,delx,dely,delz,state,var,grid, weights,data)
+!$OMP              SHARED(nparcels,nx,ny,nz,state,var,grid, weights,data) &
+!$OMP              SHARED(is, js, ks, delxs, delys, delzs)
 
  !$OMP DO
     do n=1,nx
