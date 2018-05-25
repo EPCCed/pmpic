@@ -46,7 +46,7 @@ endif
 COMPILERFFLAGS=-fopenmp #-O3
 COMPILERRECURSIVE=
 ACTIVE=-DU_ACTIVE -DV_ACTIVE -DW_ACTIVE -DUSE_MAKE
-DEBUG_FLAGS=-g -fcheck=all -ffpe-trap=invalid,zero,overflow -fbacktrace -DDEBUG_MODE
+DEBUG_FLAGS=-g -fopenmp -fcheck=all -ffpe-trap=invalid,zero,overflow -fbacktrace -DDEBUG_MODE
 
 FFLAGS=-I $(CORE_DIR)/$(BUILD_DIR) -I $(COMPONENTS_DIR)/$(BUILD_DIR) -I $(TESTCASE_DIR)/$(BUILD_DIR) $(COMPILERFFLAGS)
 LFLAGS=

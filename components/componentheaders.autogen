@@ -1,6 +1,0 @@
-use debugger_mod, only : debugger_get_descriptor
-use decomposition_mod, only : decomposition_get_descriptor
-use haloswapper_mod, only : haloswapper_get_descriptor
-use modelsynopsis_mod, only : modelsynopsis_get_descriptor
-use simplesetup_mod, only : simplesetup_get_descriptor
-use terminationcheck_mod, only : terminationcheck_get_descriptor

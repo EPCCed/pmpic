@@ -1,6 +1,0 @@
-call add_component(component_descriptions, debugger_get_descriptor())
-call add_component(component_descriptions, decomposition_get_descriptor())
-call add_component(component_descriptions, haloswapper_get_descriptor())
-call add_component(component_descriptions, modelsynopsis_get_descriptor())
-call add_component(component_descriptions, simplesetup_get_descriptor())
-call add_component(component_descriptions, terminationcheck_get_descriptor())
