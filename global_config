@@ -5,7 +5,7 @@
 decomposition_enabled=.true.
 model_synopsis_enabled=.true.
 termination_check_enabled=.true.
-halo_swapper_enabled=.true.
+halo_swapper_enabled=.false.
 parcelsetup_enabled=.true.
 setup_grid_enabled=.true.
 writeparcels_enabled=.true.

@@ -7,6 +7,7 @@ module parcelsetup_mod
   use optionsdatabase_mod, only : options_get_integer, options_get_logical, options_get_real, &
      options_get_integer_array, options_get_real_array
   use parcel_interpolation_mod, only: initialise_parcel_interp, finalise_parcel_interp, x_coords, y_coords, z_coords
+  use MPI
 
   implicit none
 
@@ -14,6 +15,7 @@ module parcelsetup_mod
   integer :: nprocs
   integer :: myrank
   integer :: n_per_dir
+  integer :: ierr
 
 contains
 
@@ -32,7 +34,10 @@ contains
     myrank=current_state%parallel%my_rank
     nprocs=current_state%parallel%processes
 
-    if (myrank .eq. 0) print *, "Parcel Setup - initialise"
+    if (myrank .eq. 0) then
+       print *, ""
+       print *, "Parcel Setup:"
+    endif
 
     !get options from config file
     call read_configuration(current_state)
@@ -78,7 +83,7 @@ contains
     call setup_parcels(current_state)
 
 
-    if (myrank .eq. 0) print *, "parcel setup done"
+  !  if (myrank .eq. 0) print *, "parcel setup done"
 
 
   end subroutine initialisation_callback
@@ -146,9 +151,9 @@ contains
 
     nparcels=n_per_cell*(nnx)*(nny)*(nnz)
 
-    if (state%parallel%my_rank .eq. 0) print*, n_per_dir, "parcels per direction per cell"
-    if (state%parallel%my_rank .eq. 0) print*, "So", n_per_cell,"Parcels per cell"
-    if (state%parallel%my_rank .eq. 0) print*, "Setting up", nparcels,"parcels in", nnx*nny*nnz, "cells"
+    if (state%parallel%my_rank .eq. 0) write(*,"(i2.1,a)")  n_per_dir, " parcels per direction per cell"
+    if (state%parallel%my_rank .eq. 0) write(*,"(a,i4.1,a)") " So ", n_per_cell," Parcels per cell"
+    !if (state%parallel%my_rank .eq. 0) write(*,"(a,i12,a,i12)") "Setting up", nparcels,"parcels in", nnx*nny*nnz, "cells"
 
     !print*, "nnx, nny, nnz=", nnx, nny, nnz
     !print*, "maxparcels=",state%parcels%maxparcels_local,  " nparcels=", nparcels
@@ -170,9 +175,19 @@ contains
     ystop=ny-state%local_grid%halo_size(2)!-1
     zstop=nz-state%local_grid%halo_size(1)-1
 
-    !print*, "xstart, xstop=", xstart, xstop
-    !print*, "ystart, ystop=", ystart, ystop
-    !print*, "zstart, zstop=", zstart, zstop
+    !call MPI_Barrier(state%parallel%monc_communicator,ierr)
+
+    !print*, "rank, xstart, xstop=", state%parallel%my_rank,x_coords(xstart), x_coords(xstop+1)
+    !print*, "rank, ystart, ystop=", state%parallel%my_rank,y_coords(ystart), y_coords(ystop+1)
+    !print*, "rank, zstart, zstop=", state%parallel%my_rank,z_coords(zstart), z_coords(zstop+1)
+
+    !call MPI_Barrier(state%parallel%monc_communicator,ierr)
+
+    !call MPI_Finalize(ierr)
+
+    !error stop
+
+
 
     !loop over every cell and put n_per_cell parcels in it
     n=0
@@ -214,10 +229,10 @@ contains
       !print*, maxval(state%parcels%z(1:n)), zmax
 
 
-      print *, n, nparcels
+      !print *, n, nparcels
       if (n .ne. nparcels) error stop "incorrect parcel numbers"
 
-      print*, "parcels initialised"
+      if (state%parallel%my_rank .eq. 0) print*, "parcels initialised"
 
 
   end subroutine

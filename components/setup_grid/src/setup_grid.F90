@@ -29,6 +29,10 @@ contains
 
   subroutine initialisation_callback(state)
     type(model_state_type), intent(inout), target :: state
+    if (state%parallel%my_rank .eq. 0) then
+      print *, ""
+      print *, "Initialising grid:"
+    endif
 
     call read_configuration(state)
 
@@ -53,6 +57,13 @@ contains
     ymax=options_get_real(state%options_database,"ymax")
     zmax=options_get_real(state%options_database,"zmax")
 
+    if (state%parallel%my_rank .eq. 0) then
+      write(*,"(a,i5,a,i5,a,i5,a)") "(nx, ny, nz) = (",nx,",",ny,",",nz,")"
+      write(*,"(a,f10.2,a,f10.2,a,f10.2,a)") "xrange = [",xmin,",",xmax,"]"
+      write(*,"(a,f10.2,a,f10.2,a,f10.2,a)") "yrange = [",ymin,",",ymax,"]"
+      write(*,"(a,f10.2,a,f10.2,a,f10.2,a)") "zrange = [",zmin,",",zmax,"]"
+    endif
+
   end subroutine
 
   subroutine create_grid(state, global_grid)
@@ -63,8 +74,10 @@ contains
     dy=(ymax-ymin)/(ny)
     dz=(zmax-zmin)/(nz-1)
 
-    print *, "Dx, dy, dz=", dx, dy, dz
-    print *, "nx, ny, nz=", nx, ny, nz
+    if (state%parallel%my_rank .eq. 0) then
+      write(*,"(a,f10.4,a,f10.4,a,f10.4,a)")  "(dx, dy, dz) = (", dx,",", dy,",", dz,")"
+    endif
+
 
 
     global_grid%resolution(X_INDEX) = dx
@@ -109,7 +122,7 @@ contains
     nnz=state%local_grid%size(Z_INDEX) + 2*state%local_grid%halo_size(Z_INDEX)
 
 
-    print*, "Local grid sizes (+halos)=", nnx, nny, nnz
+    if (state%parallel%my_rank .eq. 0) print*, "Local grid x,y,z sizes (+halos)=", nnx, nny, nnz
 
     !allocate local grids
 

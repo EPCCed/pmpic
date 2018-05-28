@@ -7,11 +7,14 @@ module grid2partest_mod
   use parcel_interpolation_mod, only: cache_parcel_interp_weights, grid2par, par2grid, x_coords, y_coords, z_coords
   use optionsdatabase_mod, only : options_get_integer, options_get_logical, options_get_real, &
      options_get_integer_array, options_get_real_array
+  use MPI
 
   implicit none
 
   integer :: nx, ny, nz
   real(kind=DEFAULT_PRECISION) :: dx, dy, dz!, xmin, xmax, ymin, ymax, zmin,zmax
+
+  integer :: ierr
 
 contains
 
@@ -27,9 +30,17 @@ contains
   subroutine initialisation_callback(current_state)
     type(model_state_type), intent(inout), target :: current_state
 
-    !print*, "grid2partest initialisation"
+    if (current_state%parallel%my_rank .eq. 0) then
+      print *, ""
+      print*, "grid2partest initialisation"
+    endif
 
     !set up grid
+
+    dx = current_state%global_grid%resolution(3)
+    dy = current_state%global_grid%resolution(2)
+    dz = current_state%global_grid%resolution(1)
+
 
     call setup_parcels(current_state)
 
@@ -43,35 +54,45 @@ contains
   subroutine timestep_callback(current_state)
     type(model_state_type), intent(inout), target :: current_state
 
-    print *, ""
-    print*, "grid2partest:"
+    call MPI_Barrier(current_state%parallel%monc_communicator,ierr)
+
+    if (current_state%parallel%my_rank .eq. 0) then
+      print *, ""
+      print*, "grid2partest:"
+    endif
 
     !cache interpolation weights for parcels
     call cache_parcel_interp_weights(current_state)
 
-    print *, "Testing in x direction"
+    if (current_state%parallel%my_rank .eq. 0) print*, "Testing in x direction"
     call grid2par(current_state,current_state%u,current_state%parcels%dxdt)
     call check_parcels(current_state,current_state%parcels%dxdt,current_state%parcels%x)
 
     call par2grid(current_state,current_state%parcels%p,current_state%p)
     call check_grid(current_state,current_state%p,current_state%u)
 
-    print *, "Testing in y direction"
+    if (current_state%parallel%my_rank .eq. 0) print *, "Testing in y direction"
     call grid2par(current_state,current_state%v,current_state%parcels%dydt)
     call check_parcels(current_state,current_state%parcels%dydt,current_state%parcels%y)
 
     call par2grid(current_state,current_state%parcels%q,current_state%q)
     call check_grid(current_state,current_state%q,current_state%v)
 
-    print *, "Testing in Z direction"
+    if (current_state%parallel%my_rank .eq. 0) print *, "Testing in Z direction"
     call grid2par(current_state,current_state%w,current_state%parcels%dzdt)
     call check_parcels(current_state,current_state%parcels%dzdt,current_state%parcels%z)
 
     call par2grid(current_state,current_state%parcels%r,current_state%r)
     call check_grid(current_state,current_state%r,current_state%w)
 
-    print *, "grid2partest finished"
-    print *, ""
+    call MPI_Barrier(current_state%parallel%monc_communicator,ierr)
+
+    if (current_state%parallel%my_rank .eq. 0) then
+      print *, "grid2partest finished"
+      print *, ""
+    endif
+
+    call MPI_Barrier(current_state%parallel%monc_communicator,ierr)
 
 
   end subroutine
@@ -97,6 +118,8 @@ contains
       state%parcels%r(n)=state%parcels%z(n)
     enddo
 
+    if (state%parallel%my_rank .eq. 0) print *, "grid2partest: initialised parcels"
+
   end subroutine
 
 
@@ -110,14 +133,6 @@ contains
     ny = state%local_grid%size(2) + 2*state%local_grid%halo_size(2)
     nz = state%local_grid%size(1) + 2*state%local_grid%halo_size(1)
 
-
-    !allocate(state%u%data(nz,ny,nx))
-    !allocate(state%v%data(nz,ny,nx))
-    !allocate(state%w%data(nz,ny,nx))
-
-    !allocate(state%p%data(nz,ny,nx))
-    !allocate(state%q%data(nz,ny,nx))
-    !allocate(state%r%data(nz,ny,nx))
 
     ! set values for each variable:
     ! u = x
@@ -133,16 +148,7 @@ contains
       enddo
     enddo
 
-    ! xmin = x_coords(1+state%local_grid%halo_size(3))
-    ! ymin = y_coords(1+state%local_grid%halo_size(2))
-    ! zmin = z_coords(1+state%local_grid%halo_size(1))
-    !
-    ! xmax = x_coords(nx-state%local_grid%halo_size(3))
-    ! ymax = y_coords(ny-state%local_grid%halo_size(2))
-    ! zmax = z_coords(nz-state%local_grid%halo_size(1))
-
-
-    print *, "grid2partest: initialised grids"
+    if (state%parallel%my_rank .eq. 0) print *, "grid2partest: initialised grids"
 
   end subroutine
 
@@ -160,12 +166,23 @@ contains
     do n=1,nparcels
       diff =abs(values(n)-reference(n))
       if (diff .gt. tol) then
-        print *, n, values(n), reference(n), diff
-        error stop "Wrong answer"
+        !answer will be wrong at up, down left and right extreme boundaries of grid because test profile is
+        !linear so it can't deal with the periodicity of the grid
+        if ((state%parcels%x(n) .gt. state%global_grid%bottom(3)+dx) .and. &
+            (state%parcels%x(n) .lt. state%global_grid%top(3)-dx)) then
+            if ((state%parcels%y(n) .gt. state%global_grid%bottom(2)+dy) .and. &
+                (state%parcels%y(n) .lt. state%global_grid%top(2)-dy)) then
+                    print *, n, values(n), reference(n), diff
+                    print*, state%parallel%my_rank
+                    error stop "Wrong answer grid2par"
+            endif
+        endif
       endif
     enddo
 
-    print*, "grid2par result: verified"
+    call MPI_Barrier(state%parallel%monc_communicator,ierr)
+
+    if (state%parallel%my_rank .eq. 0) print*, "grid2par result: verified"
 
   end subroutine
 
@@ -177,7 +194,12 @@ contains
     real(kind=DEFAULT_PRECISION) :: diff
 
     integer :: xhalo, yhalo, zhalo
+    integer :: xstart, ystart, zstart
+    integer :: xstop, ystop, zstop
     integer :: i, j, k
+
+    !again, answer will be incorrect on the edges of the global grid due to periodicity
+    !so we don't want to check cells on the edge of the grid
 
     nx = state%local_grid%size(3) + 2*state%local_grid%halo_size(3)
     ny = state%local_grid%size(2) + 2*state%local_grid%halo_size(2)
@@ -187,22 +209,40 @@ contains
     yhalo = state%local_grid%halo_size(2)
     zhalo = state%local_grid%halo_size(1)
 
-    do i=1+xhalo+1,nx-xhalo-1
-      do j=1+yhalo+1,ny-yhalo-1
-        do k=1+zhalo+1,nz-zhalo-1
+    xstart=1
+    xstop=nx
+
+    if (x_coords(1) .lt. state%global_grid%bottom(3)) xstart=1+xhalo+1
+    if (x_coords(nx) .gt. state%global_grid%top(3)) xstop=nx-xhalo-1
+
+    ystart=1
+    ystop=ny
+
+    if (y_coords(1) .lt. state%global_grid%bottom(2)) ystart=1+yhalo+1
+    if (y_coords(ny) .gt. state%global_grid%top(2)) ystop=ny-yhalo-1
+
+    zstart=2
+    zstop=nz-1
+
+    do i=xstart, xstop
+      do j=ystart,ystop
+        do k=zstart,zstop
           diff = abs(values%data(k,j,i) - reference%data(k,j,i))
           if (diff .gt. tol ) then
             print*, "i,j,k=", i, j, k
             print*, "x, y, z=", x_coords(i), y_coords(j), z_coords(k)
             print*, "reference=", reference%data(k,j,i)
             print*, "value=", values%data(k,j,i)
-            error stop "PROBLEM"
+            print *, "rank=", state%parallel%my_rank
+            error stop "par2grid PROBLEM"
           endif
         enddo
       enddo
     enddo
 
-    print*, "par2grid result: verified"
+    call MPI_Barrier(state%parallel%monc_communicator,ierr)
+
+    if (state%parallel%my_rank .eq. 0) print*, "par2grid result: verified"
 
   end subroutine
 

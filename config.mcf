@@ -8,7 +8,7 @@ grid2partest_enabled=.false.
 euler_integrator_enabled=.true.
 prescribed_parcel_velocity_enabled=.true.
 writeparcels_enabled=.true.
-parcelswap_enabled=.true.
+parcelswap_enabled=.false.
 
 testcomponent_enabled=.false.
 
@@ -24,7 +24,7 @@ finalisation_stage_ordering+=model_synopsis,euler_integrator,prescribed_parcel_v
 
 # Control configuration
 display_synopsis_frequency=10
-termination_time=1000
+termination_time=20
 dtm=10.0
 
 #parcel properties

@@ -2,12 +2,23 @@
 module parcel_interpolation_mod
   use state_mod, only: model_state_type
   use prognostics_mod, only : prognostic_field_type
-  use datadefn_mod, only : DEFAULT_PRECISION
-  use MPI, only: MPI_Barrier
+  use datadefn_mod, only : DEFAULT_PRECISION, PRECISION_TYPE
   use omp_lib
+
+  use optionsdatabase_mod, only : options_get_integer
+
+  use communication_types_mod, only : halo_communication_type, neighbour_description_type, &
+       field_data_wrapper_type
+  use halo_communication_mod, only : copy_buffer_to_field, copy_field_to_buffer, perform_local_data_copy_for_field, &
+       init_halo_communication, finalise_halo_communication, initiate_nonblocking_halo_swap, complete_nonblocking_halo_swap, &
+       blocking_halo_swap, get_single_field_per_halo_cell,copy_corner_to_buffer,copy_buffer_to_corner
+  use mpi
 
 
   implicit none
+
+  type(halo_communication_type), save :: halo_swap_state
+
 
   !flag to see if this is intiialised or not
   logical :: initialised = .false.
@@ -22,6 +33,7 @@ module parcel_interpolation_mod
   real(kind=DEFAULT_PRECISION) ::xmin, xmax, ymin, ymax, zmin, zmax
   real(kind=DEFAULT_PRECISION) :: maxx, maxy, maxz, minx, miny, minz
   real(kind=DEFAULT_PRECISION) :: dx, dy, dz
+  integer :: hx, hy, hz
   !real(kind=DEFAULT_PRECISION), allocatable, dimension(:) :: z, dz
 
   real(kind=default_precision), allocatable, dimension(:) :: x_coords, y_coords, z_coords
@@ -33,11 +45,13 @@ contains
   !This contains variables for caching interpolation values as well as variables converting grid
   !indices to coordinates
   subroutine initialise_parcel_interp(state)
-    type(model_state_type), intent(in) :: state
+    type(model_state_type), intent(inout) :: state
     integer :: n
     integer :: xstart, xstop, ystart, ystop, zstart, zstop
     real(kind=DEFAULT_PRECISION) :: dzdummy
+    integer :: halo_depth
 
+    if (state%parallel%my_rank .eq. 0 ) print *, "Initialising parcel_interp module"
     if (initialised) error stop "parcel interpolation routines are already initialised - cannot initialise"
 
     !allocate cache arrays
@@ -68,7 +82,7 @@ contains
     endif
 
 
-    if (state%parallel%my_rank .eq. 0 ) print *, "dx=", dx, " dy=", dy, " dz=", dz
+    !if (state%parallel%my_rank .eq. 0 ) print *, "dx=", dx, " dy=", dy, " dz=", dz
 
     !get global indices of the first and last elements in the local arrays
     xstart = state%local_grid%start(3)-state%local_grid%halo_size(3)
@@ -122,7 +136,7 @@ contains
     ymin = (ystart-1)*dy + state%global_grid%bottom(2)
     zmin = (zstart-1)*dz + state%global_grid%bottom(1)
 
-     print *, "xmin, ymin, zmin", xmin, ymin, zmin
+     !print *, "xmin, ymin, zmin", xmin, ymin, zmin
     !
 
 
@@ -159,9 +173,9 @@ contains
 
     !z_coords(:) = z(:)
 
-    print *, "parcel_interp setup:", xmin, xmax, ymin, ymax, zmin, zmax
+    !print *, "parcel_interp setup:", xmin, xmax, ymin, ymax, zmin, zmax
 
-    call flush()
+    !call flush()
 
     ! if (state%parallel%my_rank .eq. 0) then
     ! do n=1,nz
@@ -172,14 +186,27 @@ contains
     !sanity check to see if grid is set up right
     !print *, state%parallel%my_rank, ymin+dy, ymax-2*dy
 
-    call MPI_Barrier(state%parallel%monc_communicator,n)
+    !call MPI_Barrier(state%parallel%monc_communicator,n)
+
+    !print *, state%parallel%my_rank, y_coords(ny-2:ny), y_coords(1:3)
 
    !  call MPI_Barrier(state%parallel%monc_communicator,n)
-   !  call MPI_Finalize(n)
+     !call MPI_Finalize(n)
    ! !
-   !  stop
+     !stop
 
-    if (state%parallel%my_rank .eq. 0 ) print *, "parcel_interp initialised"
+     hx=state%local_grid%halo_size(3)
+     hy=state%local_grid%halo_size(2)
+     hz=state%local_grid%halo_size(1)
+
+     halo_depth = options_get_integer(state%options_database, "halo_depth")
+     call init_halo_communication(state, get_single_field_per_halo_cell, halo_swap_state, &
+          halo_depth, .true.)
+
+     !call init_halo_communication(state, get_single_field_per_halo_cell, halo_add_state, &
+      !    halo_depth+1, .true.)
+
+
 
   end subroutine
 
@@ -245,9 +272,13 @@ contains
       ! enddo
       k=floor(zp-zmin)/dz+1
 
-      if ((xp .lt. xmin) .or. (xp .gt. xmax)) error stop "x too big/small"
-      if ((yp .lt. ymin) .or. (yp .gt. ymax)) error stop "y too big/small"
-      if ((zp .lt. zmin) .or. (zp .gt. zmax)) error stop "z too big/small"
+      !if ((xp .lt. xmin) .or. (xp .gt. xmax)) error stop "x too big/small"
+      !if ((yp .lt. ymin) .or. (yp .gt. ymax)) error stop "y too big/small"
+      !if ((zp .lt. zmin) .or. (zp .gt. zmax)) error stop "z too big/small"
+
+      if ((i .lt. 1) .or. (i .ge. nx)) error stop "parcel out of box (x direction)"
+      if ((j .lt. 1) .or. (j .ge. ny)) error stop "parcel out of box (y direction)"
+      if ((k .lt. 1) .or. (k .ge. nz)) error stop "parcel out of box (z direction)"
 
       !get the fractional position in the cell (from the lower left corner) that the parcel is at
       delx= ((xp-xmin)-(i-1)*dx)/dx
@@ -273,12 +304,12 @@ contains
     !$OMP END DO
 
     !$OMP MASTER
-    print *, "nthreads=", omp_get_num_threads()
+    !if (state%parallel%my_rank .eq. 0) print *, "nthreads=", omp_get_num_threads()
     !$OMP END MASTER
 
     !$OMP END PARALLEL
 
-    print *, "weights cached"
+    !print *, "weights cached"
 
   end subroutine
 
@@ -287,7 +318,7 @@ contains
   !interpolate gridded variable (grid) to parcel variable (var)
   subroutine grid2par(state,grid,var)
     type(model_state_type), intent(inout) :: state
-    type(prognostic_field_type), intent(in) :: grid
+    type(prognostic_field_type), intent(inout) :: grid
     real(kind=DEFAULT_PRECISION), dimension(:) :: var
 
     integer :: n
@@ -298,6 +329,8 @@ contains
 
     integer :: i, j, k
     real(kind=DEFAULT_PRECISION) :: delx, dely, delz
+
+    call perform_halo_swap(state,grid%data,perform_sum=.false.)
 
     !$OMP PARALLEL DO DEFAULT(PRIVATE) SHARED(nparcels,delxs,delys,delzs,is,js,ks,grid,var)
     do n=1,nparcels
@@ -372,7 +405,8 @@ contains
     !zero the weights and the grid
 !$OMP PARALLEL DEFAULT(PRIVATE) &
 !$OMP              SHARED(nparcels,nx,ny,nz,state,var,grid, weights,data) &
-!$OMP              SHARED(is, js, ks, delxs, delys, delzs)
+!$OMP              SHARED(is, js, ks, delxs, delys, delzs) &
+!$OMP SHARED(x_coords, y_coords, z_coords)
 
  !$OMP DO
     do n=1,nx
@@ -459,10 +493,20 @@ contains
     yhalo = state%local_grid%halo_size(2)
     zhalo = state%local_grid%halo_size(1)
 
+    !$OMP BARRIER
+
+    !$OMP MASTER
+    call perform_halo_swap(state,weights,perform_sum=.true.)
+    call perform_halo_swap(state,data,perform_sum=.true.)
+    !$OMP END MASTER
+
+    !$OMP BARRIER
+
 !$OMP DO
-    do n=1+xhalo,nx-xhalo
-        grid%data(1+zhalo:nz-zhalo,1+yhalo:ny-yhalo,n) = &
-        data(1+zhalo:nz-zhalo,1+yhalo:ny-yhalo,n)/weights(1+zhalo:nz-zhalo,1+yhalo:ny-yhalo,n)
+    do n=1,nx
+        !set areas with weight=0 to 1 to prevent divide by 0
+        where (weights(:,:,n) .eq. 0.) weights(:,:,n) = 1.
+        grid%data(:,:,n) = data(:,:,n)/weights(:,:,n)
     enddo
 !$OMP END DO
 !$OMP END PARALLEL
@@ -472,6 +516,275 @@ contains
     deallocate(data)
 
   end subroutine
+
+
+
+
+  !halo swapping functionality beyond this point
+
+
+
+  !main halo swap routine to be called
+  ! state - current model state
+  ! data - 3D array of grid data
+  ! perform_sum is an optional argument (default .false.)
+  ! if .false. : Perform a "normal" haloswap (grid cells -> halo cells) using monc haloswapper
+  ! if .true. : Take halo cells and add their contents to the grid cells (halo -> grid += halo)
+    subroutine perform_halo_swap(state,data,perform_sum)
+      type(model_state_type), intent(inout), target :: state
+      real(kind=DEFAULT_PRECISION), allocatable, dimension(:,:,:), target, intent(inout) :: data
+      logical, intent(in), optional :: perform_sum
+
+      logical :: sum
+      real(kind=DEFAULT_PRECISION), allocatable, dimension(:,:,:) :: left_buf, right_buf, up_buf, down_buf
+      integer :: left, right, up, down
+      integer :: status(MPI_STATUS_SIZE)
+      integer :: ierr
+
+
+
+      type(field_data_wrapper_type) :: source_data
+
+      if (present(perform_sum)) then
+        sum=perform_sum
+      else
+        sum = .false.
+      endif
+
+      source_data%data=>data
+
+      !if we are summing then we need to move halo values across to the adjacent grid and add these to the
+      !values already there. This means we cannot use MONC's inbuilt haloswapping (because it moves grid to halo
+      ! not halo to grid) so we have our own version
+      if (sum) then
+
+        !allocate the buffers
+        allocate(left_buf(nz,ny,hx), right_buf(nz,ny,hx), up_buf(nz,hy,nx), down_buf(nz,hy,nx))
+
+        !determine the ranks in each direction from the "neighbours" array sotred in the state
+        ! (seems to be neighbours(3,2*halosize) corresponding tot he 3 directions, and an entry for each halo cell)
+        ! we assume that halo size is 2 and each halo cell in a given direction belongs to the same rank.
+        down=state%local_grid%neighbours(2,1) ! in -y direction
+        up=state%local_grid%neighbours(2,3) !in +y firection
+        left=state%local_grid%neighbours(3,1) ! in -x direction
+        right=state%local_grid%neighbours(3,3) ! in +x direction
+
+        !send right, receive left
+
+        right_buf(:,:,:) = data(:,:,nx-hx+1:nx) !copy halo to buffer
+
+        call MPI_Sendrecv(sendbuf=right_buf, &
+                          sendcount=nz*ny*hx, &
+                          sendtype=PRECISION_TYPE, &
+                          dest=right, &
+                          sendtag=0, &
+                          recvbuf=left_buf,&
+                          recvcount=nz*ny*hx,&
+                          recvtype=PRECISION_TYPE,&
+                          source=left,&
+                          recvtag=0,&
+                          comm=state%parallel%monc_communicator,&
+                          status=status,&
+                          ierror=ierr)
+
+        data(:,:,hx+1:hx+2) = data(:,:,hx+1:hx+2) + left_buf(:,:,:) !add buffer to grid
+
+
+        !send left, receive right
+
+        left_buf(:,:,:) = data(:,:,1:hx) !copy halo to buffer
+
+        call MPI_Sendrecv(sendbuf=left_buf, &
+                          sendcount=nz*ny*hx, &
+                          sendtype=PRECISION_TYPE, &
+                          dest=left, &
+                          sendtag=0, &
+                          recvbuf=right_buf,&
+                          recvcount=nz*ny*hx,&
+                          recvtype=PRECISION_TYPE,&
+                          source=right,&
+                          recvtag=0,&
+                          comm=state%parallel%monc_communicator,&
+                          status=status,&
+                          ierror=ierr)
+
+        data(:,:,nx-2*hx+1:nx-hx) = data(:,:,nx-2*hx+1:nx-hx) + right_buf(:,:,:)
+
+        !send up recv down
+
+        up_buf(:,:,:) = data(:,ny-hy+1:ny,:) !copy halo to buffer
+
+        call MPI_Sendrecv(sendbuf=up_buf, &
+                          sendcount=nz*nx*hy, &
+                          sendtype=PRECISION_TYPE, &
+                          dest=up, &
+                          sendtag=0, &
+                          recvbuf=down_buf,&
+                          recvcount=nz*nx*hy,&
+                          recvtype=PRECISION_TYPE,&
+                          source=down,&
+                          recvtag=0,&
+                          comm=state%parallel%monc_communicator,&
+                          status=status,&
+                          ierror=ierr)
+
+         data(:,hy+1:2*hy,:) = data(:,hy+1:2*hy,:) + down_buf(:,:,:)
+
+         !send down recv up
+
+         down_buf(:,:,:) = data(:,1:hy,:) !copy halo to buffer
+
+         call MPI_Sendrecv(sendbuf=down_buf, &
+                           sendcount=nz*nx*hy, &
+                           sendtype=PRECISION_TYPE, &
+                           dest=down, &
+                           sendtag=0, &
+                           recvbuf=up_buf,&
+                           recvcount=nz*nx*hy,&
+                           recvtype=PRECISION_TYPE,&
+                           source=up,&
+                           recvtag=0,&
+                           comm=state%parallel%monc_communicator,&
+                           status=status,&
+                           ierror=ierr)
+
+          data(:,ny-2*hy+1:ny-hy,:) = data(:,ny-2*hy+1:ny-hy,:) + up_buf(:,:,:)
+
+
+
+
+
+
+         !then swap the halos conventionally to ensure the halos also have the correct values (do we need this?)
+
+         call blocking_halo_swap(state, halo_swap_state, grid2buff, &
+                                local_copy,buff2halo,&
+                               copy_corners_to_halo_buffer=corner2buff,&
+                               copy_from_halo_buffer_to_corner=buff2corner,&
+                               source_data=(/source_data/))
+
+
+
+
+
+        deallocate(up_buf, down_buf, left_buf, right_buf)
+
+      else
+        call blocking_halo_swap(state, halo_swap_state, grid2buff, &
+                               local_copy,buff2halo,&
+                              copy_corners_to_halo_buffer=corner2buff,&
+                              copy_from_halo_buffer_to_corner=buff2corner,&
+                              source_data=(/source_data/))
+
+      endif
+
+
+    end subroutine
+
+
+
+
+
+    ! routines for interfacing with model_core halo swapping functionality
+
+    subroutine grid2buff(current_state, neighbour_description, dim, source_index, &
+         pid_location, current_page, source_data)
+      type(model_state_type), intent(inout) :: current_state
+      integer, intent(in) :: dim, pid_location, source_index
+      integer, intent(inout) :: current_page(:)
+      type(neighbour_description_type), intent(inout) :: neighbour_description
+      type(field_data_wrapper_type), dimension(:), intent(in), optional :: source_data
+
+      type(field_data_wrapper_type) :: selected_source
+
+      selected_source=source_data(1)
+
+      call copy_field_to_buffer(current_state%local_grid, neighbour_description%send_halo_buffer, selected_source%data, &
+           dim, source_index, current_page(pid_location))
+
+      current_page(pid_location)=current_page(pid_location)+1
+    end subroutine !copy_my_data_to_halo_buffer
+
+
+    subroutine corner2buff(current_state, neighbour_description, &
+         dim, x_source_index, &
+         y_source_index, pid_location, current_page, source_data)
+      !import model_state_type, neighbour_description_type, field_data_wrapper_type
+      type(model_state_type), intent(inout) :: current_state
+      integer, intent(in) :: dim, pid_location, x_source_index, y_source_index
+      integer, intent(inout) :: current_page(:)
+      type(neighbour_description_type), intent(inout) :: neighbour_description
+      type(field_data_wrapper_type), dimension(:), intent(in), optional :: source_data
+
+      type(field_data_wrapper_type) :: selected_source
+
+      selected_source=source_data(1)
+
+      call copy_corner_to_buffer(current_state%local_grid, neighbour_description%send_corner_buffer,&
+      selected_source%data, dim, &
+           x_source_index, y_source_index, current_page(pid_location))
+
+      current_page(pid_location)=current_page(pid_location)+1
+
+    end subroutine
+
+
+    subroutine local_copy(current_state, halo_depth, involve_corners, source_data)
+     type(model_state_type), intent(inout) :: current_state
+     integer, intent(in) :: halo_depth
+     logical, intent(in) :: involve_corners
+     type(field_data_wrapper_type), dimension(:), intent(in), optional :: source_data
+
+     type(field_data_wrapper_type) :: selected_source
+
+     selected_source=source_data(1)
+
+     call perform_local_data_copy_for_field(selected_source%data, current_state%local_grid, &
+          current_state%parallel%my_rank, halo_depth, involve_corners)
+   end subroutine !perform_local_data_copy_for_my_data
+
+
+    subroutine buff2halo(current_state, neighbour_description, dim, target_index, &
+         neighbour_location, current_page, source_data)
+      type(model_state_type), intent(inout) :: current_state
+      integer, intent(in) :: dim, target_index, neighbour_location
+      integer, intent(inout) :: current_page(:)
+      type(neighbour_description_type), intent(inout) :: neighbour_description
+      type(field_data_wrapper_type), dimension(:), intent(in), optional :: source_data
+
+      type(field_data_wrapper_type) :: selected_source
+
+      selected_source=source_data(1)
+
+      call copy_buffer_to_field(current_state%local_grid, neighbour_description%recv_halo_buffer, selected_source%data, &
+           dim, target_index, current_page(neighbour_location))
+
+      current_page(neighbour_location)=current_page(neighbour_location)+1
+    end subroutine !copy_halo_buffer_to_my_data
+
+
+    subroutine buff2corner(current_state, neighbour_description,&
+         corner_loc, x_target_index, &
+         y_target_index, neighbour_location, current_page, source_data)
+    !  import model_state_type, neighbour_description_type, field_data_wrapper_type
+      type(model_state_type), intent(inout) :: current_state
+      integer, intent(in) :: corner_loc, x_target_index, y_target_index, neighbour_location
+      integer, intent(inout) :: current_page(:)
+      type(neighbour_description_type), intent(inout) :: neighbour_description
+      type(field_data_wrapper_type), dimension(:), intent(in), optional :: source_data
+
+      type(field_data_wrapper_type) :: selected_source
+
+      selected_source=source_data(1)
+
+      call copy_buffer_to_corner(current_state%local_grid, neighbour_description%recv_corner_buffer,&
+       selected_source%data, corner_loc, &
+           x_target_index, y_target_index, current_page(neighbour_location))
+
+      current_page(neighbour_location) = current_page(neighbour_location)+1
+
+    end subroutine buff2corner
+
 
 
 
