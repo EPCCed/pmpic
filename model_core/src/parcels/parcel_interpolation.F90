@@ -203,8 +203,6 @@ contains
      call init_halo_communication(state, get_single_field_per_halo_cell, halo_swap_state, &
           halo_depth, .true.)
 
-     !call init_halo_communication(state, get_single_field_per_halo_cell, halo_add_state, &
-      !    halo_depth+1, .true.)
 
 
 
@@ -540,8 +538,6 @@ contains
       integer :: left, right, up, down
       integer :: status(MPI_STATUS_SIZE)
       integer :: ierr
-
-
 
       type(field_data_wrapper_type) :: source_data
 

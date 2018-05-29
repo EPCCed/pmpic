@@ -8,6 +8,8 @@ module parcelsetup_mod
      options_get_integer_array, options_get_real_array
   use parcel_interpolation_mod, only: initialise_parcel_interp, finalise_parcel_interp, x_coords, y_coords, z_coords
   use MPI
+  use parcel_haloswap_mod, only: initialise_parcel_haloswapping
+
 
   implicit none
 
@@ -78,6 +80,9 @@ contains
 
     !initialise parcel interpolation 'component' of model core
     call initialise_parcel_interp(current_state)
+
+    !initialise parcel haloswapping
+    call initialise_parcel_haloswapping(current_state)
 
 
     call setup_parcels(current_state)
