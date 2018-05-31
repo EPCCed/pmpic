@@ -29,8 +29,26 @@ module parcel_haloswap_mod
   integer, parameter :: W = 7
   integer, parameter :: NW = 8
 
-  !ranks to send to in each direction
-  integer :: N_rank, NE_rank, E_rank, SE_rank, S_rank, SW_rank, W_rank, NW_rank
+  !parameters defining the index in the send/recv buffer that each parcel property belongs to
+  integer, parameter :: X_INDEX=1
+  integer, parameter :: Y_INDEX=2
+  integer, parameter :: Z_INDEX=3
+  integer, parameter :: P_INDEX=4
+  integer, parameter :: Q_INDEX=5
+  integer, parameter :: R_INDEX=6
+  integer, parameter :: DXDT_INDEX=7
+  integer, parameter :: DYDT_INDEX=8
+  integer, parameter :: DZDT_INDEX=9
+  integer, parameter :: DPDT_INDEX=10
+  integer, parameter :: DQDT_INDEX=11
+  integer, parameter :: DRDT_INDEX=12
+  integer, parameter :: H_INDEX=13
+  integer, parameter :: B_INDEX=14
+  integer, parameter :: VOL_INDEX=15
+  integer, parameter :: STRETCH_INDEX=16
+  integer, parameter :: TAG_INDEX=17
+
+  integer :: destinations(8)
 
 
 
@@ -45,15 +63,15 @@ contains
 
     !determine neighbours
 
-    S_rank=state%local_grid%neighbours(2,1) ! in -y direction
-    N_rank=state%local_grid%neighbours(2,3) !in +y firection
-    W_rank=state%local_grid%neighbours(3,1) ! in -x direction
-    E_rank=state%local_grid%neighbours(3,3) ! in +x direction
+    destinations(S)=state%local_grid%neighbours(2,1) ! in -y direction
+    destinations(N)=state%local_grid%neighbours(2,3) !in +y firection
+    destinations(W)=state%local_grid%neighbours(3,1) ! in -x direction
+    destinations(E)=state%local_grid%neighbours(3,3) ! in +x direction
 
-    SW_rank=state%local_grid%corner_neighbours(1,1)
-    SE_rank=state%local_grid%corner_neighbours(2,1)
-    NW_rank=state%local_grid%corner_neighbours(3,1)
-    NE_rank=state%local_grid%corner_neighbours(4,1)
+    destinations(SW)=state%local_grid%corner_neighbours(1,1)
+    destinations(SE)=state%local_grid%corner_neighbours(2,1)
+    destinations(NW)=state%local_grid%corner_neighbours(3,1)
+    destinations(NE)=state%local_grid%corner_neighbours(4,1)
 
 
     !allocate index array
@@ -71,7 +89,8 @@ contains
     type(model_state_type), intent(inout) :: state
 
     integer :: dir, nreceived, src
-    integer :: nparcels_initial, nparcels_final, lastparcel
+    integer :: nparcels_initial, nparcels_final
+    integer :: global_initial, global_final
     integer :: i
     integer :: recv_status(MPI_STATUS_SIZE), send_statuses(MPI_STATUS_SIZE,8)
     !number of parcels to send/recv per direction and the request handle for sent messages
@@ -79,21 +98,27 @@ contains
     !receive buffer
     real (kind=DEFAULT_PRECISION), dimension(:,:), allocatable :: recv_buffer
 
+    integer :: lastparcel  !the last parcel we replaced (initially set to 1)
+
     if (.not. initialised) error stop "parcel_haloswap not initialised"
 
     nparcels_initial = state%parcels%numparcels_local
     nparcels_final = nparcels_initial
     lastparcel=state%parcels%numparcels_local
 
+    global_initial = state%parcels%numparcels_global
+
     index(1:nparcels_initial) = 0
     index(nparcels_initial+1:state%parcels%maxparcels_local) = -1
 
+    lastparcel=1
 
+    !count the parcels to send, and also create an index if what parcel to send where
     do dir=1,8
       call count_parcels_to_send(state,dir,nsend(dir))
     enddo
 
-    print *, "to send=", nsend
+    !print *, "to send=", nsend
 
     nparcels_final = nparcels_final - sum(nsend)
 
@@ -108,8 +133,9 @@ contains
     allocate(NW_buff(nsend(NW),state%parcels%n_properties))
 
     do dir=1,8
-      call populate_send_buffer(state,dir)
+      if (nsend(dir) .gt. 0) call populate_send_buffer(state,dir,nsend(dir))
     enddo
+
 
     do dir=1,8
       call send_buffers(state,dir,requests(dir),nsend(dir))
@@ -124,7 +150,7 @@ contains
 
       nparcels_final = nparcels_final + nreceived
 
-      print *, "reading message from dir=", dir
+      !print *, "reading message from dir=", dir
       call MPI_Recv(buf=recv_buffer,&
                     count=nreceived*state%parcels%n_properties,&
                     datatype=PRECISION_TYPE,&
@@ -135,7 +161,7 @@ contains
                     ierror=ierr)
 
        !unpacks parcels into state%parcels, backfilling where possible
-       call unpack_parcels(state,recv_buffer,nreceived, lastparcel,index)
+       if (nreceived .gt. 0) call unpack_parcels(state,recv_buffer,nreceived, lastparcel)
 
        deallocate(recv_buffer)
 
@@ -143,7 +169,7 @@ contains
 
      ! if we end out with fewer parcels than we started with then we need to backfill
      if (nparcels_final .lt. nparcels_initial) then
-       call backfill(state,index,lastparcel)
+       call backfill(state,index,lastparcel,nparcels_initial-nparcels_final)
      endif
 
      !check that all our messages have been received
@@ -165,7 +191,25 @@ contains
      !update parcel number
      state%parcels%numparcels_local = nparcels_final
 
+     !a sanity check. We're moving parcels around so the total number across all processes shouldn't change
+     call MPI_Allreduce(sendbuf=state%parcels%numparcels_local,&
+                        recvbuf=state%parcels%numparcels_global,&
+                        count=1,&
+                        datatype=MPI_INTEGER,&
+                        op=MPI_SUM,&
+                        comm=state%parallel%monc_communicator,&
+                        ierror=ierr)
+
+      if (global_initial .ne. state%parcels%numparcels_global) then
+        print *, "parcel number not conserved"
+        call MPI_Finalize(ierr)
+        error stop
+      endif
+
    end subroutine
+
+
+
 
 
 
@@ -312,61 +356,161 @@ contains
 
    end subroutine
 
-   subroutine populate_send_buffer(state,dir)
-     type(model_state_type), intent(inout) :: state
+
+
+
+
+
+   subroutine get_buffer_ptr(ptr,dir)
+     real(kind=DEFAULT_PRECISION), dimension(:,:), pointer, intent(out) :: ptr
      integer, intent(in) :: dir
 
-     print *, "populate_send_buffer - nothing to see here yet"
+     if (dir .eq. N) then
+       ptr => N_buff
+     else if (dir .eq. NE) then
+       ptr => NE_buff
+     else if (dir .eq. E) then
+       ptr => E_buff
+     else if (dir .eq. SE) then
+       ptr => SE_buff
+     else if (dir .eq. S) then
+       ptr => S_buff
+     else if (dir .eq. SW) then
+       ptr => SW_buff
+     else if (dir .eq. W) then
+       ptr => W_buff
+     else if (dir .eq. NW) then
+       ptr => NW_buff
+     endif
 
    end subroutine
+
+
+
+
+
+
+   subroutine populate_send_buffer(state,dir,npars)
+     type(model_state_type), intent(inout) :: state
+     integer, intent(in) :: dir
+     integer, intent(in) :: npars
+
+     integer, allocatable, dimension(:) :: myindex
+
+     real(kind=DEFAULT_PRECISION), dimension(:,:), pointer :: buff
+     real(kind=DEFAULT_PRECISION) :: xshift=0.,&
+                                     yshift=0.
+
+     integer :: istart, i, num
+
+     !we want to create a new index (myindex) which says where from the main parcel list
+     ! (state%parcels...) each parcel in the buffer comes from
+
+
+     !print *, "npars=",npars
+
+     allocate(myindex(npars))
+     istart=1
+     do num=1,npars
+       do i=istart,state%parcels%numparcels_local
+         if (index(i) .eq. dir) then
+           myindex(num) = i
+           istart=i+1
+           exit
+         endif
+       enddo
+     enddo
+
+     !get the pointer to the buffer array
+     call get_buffer_ptr(buff,dir)
+
+     !if our process is on the edge of the domain and the send direction sends
+     !off the end then we need to adjust the parcel positions so they wrap around
+     if ((dir .eq. E ) .or. (dir .eq. NE) .or. (dir .eq. SE)) then
+       if (state%parallel%my_coords(3) .eq. state%parallel%dim_sizes(3)-1) then
+         xshift = state%global_grid%bottom(3)-state%global_grid%top(3)
+       endif
+     else if ((dir .eq. W ) .or. (dir .eq. NW) .or. (dir .eq. SW)) then
+       if (state%parallel%my_coords(3) .eq. 0) then
+         xshift = state%global_grid%top(3)-state%global_grid%bottom(3)
+       endif
+     endif
+     if ((dir .eq. N ) .or. (dir .eq. NE) .or. (dir .eq. NW)) then
+       if (state%parallel%my_coords(2) .eq. state%parallel%dim_sizes(2)-1) then
+         yshift = state%global_grid%bottom(2)-state%global_grid%top(2)
+       endif
+     else if ((dir .eq. S ) .or. (dir .eq. SW) .or. (dir .eq. SE)) then
+       if (state%parallel%my_coords(2) .eq. 0) then
+         yshift = state%global_grid%top(2)-state%global_grid%bottom(2)
+       endif
+     endif
+
+     !now we want to copy data in
+
+     buff(:,X_INDEX) = state%parcels%x(myindex) + xshift
+     buff(:,Y_INDEX) = state%parcels%y(myindex) + yshift
+     buff(:,Z_INDEX) = state%parcels%z(myindex)
+     buff(:,P_INDEX) = state%parcels%p(myindex)
+     buff(:,Q_INDEX) = state%parcels%q(myindex)
+     buff(:,R_INDEX) = state%parcels%r(myindex)
+     buff(:,DXDT_INDEX) = state%parcels%dxdt(myindex)
+     buff(:,DYDT_INDEX) = state%parcels%dydt(myindex)
+     buff(:,DZDT_INDEX) = state%parcels%dzdt(myindex)
+     buff(:,DPDT_INDEX) = state%parcels%dpdt(myindex)
+     buff(:,DQDT_INDEX) = state%parcels%dqdt(myindex)
+     buff(:,DRDT_INDEX) = state%parcels%drdt(myindex)
+     buff(:,H_INDEX) = state%parcels%h(myindex)
+     buff(:,B_INDEX) = state%parcels%b(myindex)
+     buff(:,VOL_INDEX) = state%parcels%vol(myindex)
+     buff(:,STRETCH_INDEX) = state%parcels%stretch(myindex)
+     buff(:,TAG_INDEX) = state%parcels%tag(myindex)
+
+     deallocate(myindex)
+
+   end subroutine
+
+
+
+
+
 
    subroutine send_buffers(state,dir,request,count)
      type(model_state_type), intent(inout) :: state
      integer, intent(in) :: dir
      integer, intent(out) :: request
      integer, intent(in) :: count
-     integer:: dest
+     !integer:: dest
 
      real(kind=DEFAULT_PRECISION), dimension(:,:), pointer :: buff
 
-     if (dir .eq. N) then
-       buff => N_buff
-       dest = N_rank
-     else if (dir .eq. NE) then
-       buff => NE_buff
-       dest=NE_rank
-     else if (dir .eq. E) then
-       buff => E_buff
-       dest=E_rank
-     else if (dir .eq. SE) then
-       buff => SE_buff
-       dest=SE_rank
-     else if (dir .eq. S) then
-       buff => S_buff
-       dest=S_rank
-     else if (dir .eq. SW) then
-       buff => SW_buff
-       dest=SW_rank
-     else if (dir .eq. W) then
-       buff => W_buff
-       dest=W_rank
-     else if (dir .eq. NW) then
-       buff => NW_buff
-       dest=NW_rank
+     call get_buffer_ptr(buff,dir)
+
+     if (count .eq. 0) then !so as to not go out of bounds we send a dummy variable if the count is 0
+       call MPI_ISend(buf=count,&
+                      count=count*state%parcels%n_properties,&
+                      datatype=PRECISION_TYPE,&
+                      dest=destinations(dir),&
+                      tag=dir,&
+                      comm=state%parallel%monc_communicator,&
+                      request=request,&
+                      ierror=ierr)
+     else
+       call MPI_ISend(buf=buff(1,1),&
+                      count=count*state%parcels%n_properties,&
+                      datatype=PRECISION_TYPE,&
+                      dest=destinations(dir),&
+                      tag=dir,&
+                      comm=state%parallel%monc_communicator,&
+                      request=request,&
+                      ierror=ierr)
      endif
 
-     call MPI_ISend(buf=buff(1,1),&
-                    count=count*state%parcels%n_properties,&
-                    datatype=PRECISION_TYPE,&
-                    dest=dest,&
-                    tag=dir,&
-                    comm=state%parallel%monc_communicator,&
-                    request=request,&
-                    ierror=ierr)
-
-      print *, "sent in direction", dir
+    ! print *, "sent in direction", dir
 
     end subroutine
+
+
+
 
 
     subroutine check_for_message(state,dir,nrecv,src)
@@ -387,54 +531,127 @@ contains
 
       nrecv=nrecv/state%parcels%n_properties
 
-      print *, "message: src, tag, size=", src, dir, nrecv
-
-
+      !print *, "message: src, tag, size=", src, dir, nrecv
 
     end subroutine
 
 
 
 
-    subroutine unpack_parcels(state,buff,nrecv,lastparcel,index)
+    subroutine unpack_parcels(state,buff,nrecv,lastparcel)
       type(model_state_type), intent(inout) :: state
       real(kind=DEFAULT_PRECISION), dimension(:,:), intent(in) :: buff
       integer, intent(in) :: nrecv
-      integer, intent(inout) :: lastparcel
-      integer, dimension(:), intent(inout) :: index
+      integer, intent(inout) :: lastparcel !the last parcel we replaced +1
 
-      print *, "unpack parcels - nothing to see here yet"
+      integer, dimension(:), allocatable :: myindex
+      integer :: istart, i, num
+
+      ! we need to create an index (myindex) saying where each parcel in the buffer will go
+      !to do this we look through the main index to see where parcels have been removed and
+      !arrange to put the buffer parcels in these places
+
+      allocate(myindex(nrecv))
+
+      istart=lastparcel
+      do num=1,nrecv
+        do i=istart,state%parcels%maxparcels_local
+          if (index(i) .ne. 0) then !this parcel location is free to be overwritten
+            myindex(num) = i
+            index(i) = 0
+            istart=i+1
+            exit
+          endif
+        enddo
+      enddo
+
+      lastparcel=istart
+
+      !we now copy from the buffer to the parcels
+
+      state%parcels%x(myindex) = buff(:,X_INDEX)
+      state%parcels%y(myindex) = buff(:,Y_INDEX)
+      state%parcels%z(myindex) = buff(:,Z_INDEX)
+      state%parcels%p(myindex) = buff(:,P_INDEX)
+      state%parcels%q(myindex) = buff(:,Q_INDEX)
+      state%parcels%r(myindex) = buff(:,R_INDEX)
+      state%parcels%dxdt(myindex) = buff(:,DXDT_INDEX)
+      state%parcels%dydt(myindex) = buff(:,DYDT_INDEX)
+      state%parcels%dzdt(myindex) = buff(:,DZDT_INDEX)
+      state%parcels%dpdt(myindex) = buff(:,DPDT_INDEX)
+      state%parcels%dqdt(myindex) = buff(:,DQDT_INDEX)
+      state%parcels%drdt(myindex) = buff(:,DRDT_INDEX)
+      state%parcels%h(myindex) = buff(:,H_INDEX)
+      state%parcels%b(myindex) = buff(:,B_INDEX)
+      state%parcels%vol(myindex) = buff(:,VOL_INDEX)
+      state%parcels%stretch(myindex) = buff(:,STRETCH_INDEX)
+      state%parcels%tag(myindex) = buff(:,TAG_INDEX)
+
+      deallocate(myindex)
+
     end subroutine
 
-    subroutine backfill(state,index,lastparcel)
+
+
+
+
+    subroutine backfill(state,index,lastparcel,ntofill)
       type(model_state_type), intent(inout) :: state
       integer, dimension(:), intent(inout) :: index
       integer, intent(inout) :: lastparcel
+      integer, intent(in) :: ntofill
 
-      print *, "Backfill - nothing to be seen here yet"
+      integer, dimension(:), allocatable :: from, to
+      integer :: istart, i, num
+
+      allocate(from(ntofill), to(ntofill))
+
+      !identify empty spaces that we can backfill parcels into
+      istart=lastparcel !we know all parcels before this are in the correct place and there are no gaps
+      num=1
+      do i=istart,state%parcels%numparcels_local
+        if (index(i) .ne. 0) then
+          to(num) = i
+          num=num+1
+          if (num .gt. ntofill) exit
+        endif
+      enddo
+
+      !identify parcels to backfill
+      istart=state%parcels%numparcels_local
+      num=1
+      do i=istart,lastparcel,-1
+        if (index(i) .eq. 0) then
+          from(num) = i
+          num=num+1
+          if (num .gt. ntofill) exit
+        endif
+      enddo
+
+      !now we can copy parcels at "from" to parcels at "to"
+
+      state%parcels%x(to) = state%parcels%x(from)
+      state%parcels%y(to) = state%parcels%y(from)
+      state%parcels%z(to) = state%parcels%z(from)
+      state%parcels%p(to) = state%parcels%p(from)
+      state%parcels%q(to) = state%parcels%q(from)
+      state%parcels%r(to) = state%parcels%r(from)
+      state%parcels%dxdt(to) = state%parcels%dxdt(from)
+      state%parcels%dydt(to) = state%parcels%dydt(from)
+      state%parcels%dzdt(to) = state%parcels%dzdt(from)
+      state%parcels%dpdt(to) = state%parcels%dpdt(from)
+      state%parcels%dqdt(to) = state%parcels%dqdt(from)
+      state%parcels%drdt(to) = state%parcels%drdt(from)
+      state%parcels%h(to) = state%parcels%h(from)
+      state%parcels%b(to) = state%parcels%b(from)
+      state%parcels%vol(to) = state%parcels%vol(from)
+      state%parcels%stretch(to) = state%parcels%stretch(from)
+      state%parcels%tag(to) = state%parcels%tag(from)
+
+      deallocate(to)
+      deallocate(from)
 
     end subroutine
-
-  !have array of maxparcels size (logical) containing t/f if parcel is to be removed or not
-
-  !loop through parcels and identify parcels to be moved (another index array of integers to signify where?)
-
-  !allocate buffers
-
-  !populate buffers (can use OMP SECTIONS)
-
-  !call MPI_Isend for each buffer
-
-  !do i=1,4
-     !call MPI_Probe (tag=any)
-     !allocate recv_buffer
-     !call mpi_recv
-
-     !unpack parcels and backfill
-
-  !do any necessary final backfilling
-
-
 
 
 
