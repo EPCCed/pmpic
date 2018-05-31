@@ -24,7 +24,7 @@ finalisation_stage_ordering+=model_synopsis,euler_integrator,prescribed_parcel_v
 
 # Control configuration
 display_synopsis_frequency=10
-termination_time=20
+termination_time=1000
 dtm=10.0
 
 #parcel properties
@@ -34,7 +34,7 @@ parcels_per_cell_dir = 2
 #grid properties
 nx=32
 ny=32
-nz=32
+nz=1
 
 xmin=0
 xmax=6000

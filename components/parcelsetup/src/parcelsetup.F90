@@ -169,6 +169,15 @@ contains
 
     state%parcels%numparcels_local = nparcels
 
+    !set global parcel count
+    call MPI_Allreduce(sendbuf=state%parcels%numparcels_local,&
+                       recvbuf=state%parcels%numparcels_global,&
+                       count=1,&
+                       datatype=MPI_INTEGER,&
+                       op=MPI_SUM,&
+                       comm=state%parallel%monc_communicator,&
+                       ierror=ierr)
+
     !print *, "dx, dy, dz=", dx, dy, dz
 
     !start and end indices of the bit of grid belonging to that process

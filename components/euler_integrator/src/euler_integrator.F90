@@ -6,6 +6,7 @@ module euler_integrator_mod
   use optionsdatabase_mod, only : options_get_integer, options_get_logical, options_get_real, &
      options_get_integer_array, options_get_real_array
   use parcel_interpolation_mod, only: nx, ny, nz, dx, dy, dz
+  use parcel_haloswap_mod, only: parcel_haloswap
 
   implicit none
 
@@ -69,6 +70,8 @@ contains
       state%parcels%z(n) = state%parcels%z(n) + state%parcels%dzdt(n) * dt
     enddo
     !$OMP END PARALLEL DO
+
+    call parcel_haloswap(state)
 
   end subroutine
 
