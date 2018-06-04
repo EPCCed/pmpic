@@ -1,17 +1,19 @@
 !A basic Euler integrator component
 module euler_integrator_mod
-  use datadefn_mod, only : DEFAULT_PRECISION
+  use datadefn_mod, only : DEFAULT_PRECISION, PRECISION_TYPE
   use state_mod, only: model_state_type
   use monc_component_mod, only: component_descriptor_type
   use optionsdatabase_mod, only : options_get_integer, options_get_logical, options_get_real, &
      options_get_integer_array, options_get_real_array
   use parcel_interpolation_mod, only: nx, ny, nz, dx, dy, dz
   use parcel_haloswap_mod, only: parcel_haloswap
+  use MPI
 
   implicit none
 
   real(kind=DEFAULT_PRECISION) :: originaldt
   real(kind=DEFAULT_PRECISION), parameter :: cfl=0.1
+  integer :: ierr
 
 contains
 
@@ -40,7 +42,7 @@ contains
   subroutine timestep_callback(state)
     type(model_state_type), intent(inout), target :: state
 
-    real(kind=DEFAULT_PRECISION) :: umax, vmax, wmax, maxdt, dt
+    real(kind=DEFAULT_PRECISION) :: umax, vmax, wmax, maxdt, maxdtglobal, dt
     integer :: nparcels, n
 
     nparcels=state%parcels%numparcels_local
@@ -55,9 +57,21 @@ contains
     if (wmax .eq. 0.) wmax=1.e-10
 
     maxdt = minval( (/ dx/umax, dy/vmax, dz/wmax /) )*cfl
-    dt = minval( (/ maxdt, originaldt/) )
 
-    print*, "t=", state%time," maxdt=",maxdt, " New dt=",dt
+    if (nparcels .eq. 0) maxdt = originaldt
+
+    call MPI_Allreduce(sendbuf=maxdt,&
+                       recvbuf=maxdtglobal,&
+                       count=1,&
+                       datatype=PRECISION_TYPE,&
+                       op=MPI_MIN,&
+                       comm=state%parallel%monc_communicator,&
+                       ierror=ierr)
+
+
+    dt = minval( (/ maxdtglobal, originaldt/) )
+
+    if (state%parallel%my_rank .eq. 0) print*, "t=", state%time," maxdt=",maxdtglobal, " New dt=",dt
     !print*, "vmax=",vmax
 
     state%dtm = dt
