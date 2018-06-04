@@ -113,10 +113,16 @@ contains
 
     lastparcel=1
 
+    !$OMP PARALLEL default(shared)
+
     !count the parcels to send, and also create an index if what parcel to send where
+    !$OMP DO schedule(dynamic,1)
     do dir=1,8
       call count_parcels_to_send(state,dir,nsend(dir))
     enddo
+    !$OMP END DO
+
+    !$OMP MASTER
 
     nparcels_final = nparcels_final - sum(nsend)
 
@@ -130,17 +136,26 @@ contains
     allocate(W_buff(nsend(W),state%parcels%n_properties))
     allocate(NW_buff(nsend(NW),state%parcels%n_properties))
 
+    !$OMP END MASTER
+
+    !$OMP BARRIER
+
+
     do dir=1,8
       if (nsend(dir) .gt. 0) call populate_send_buffer(state,dir,nsend(dir))
     enddo
 
 
+    !$OMP MASTER
     do dir=1,8
       call send_buffers(state,dir,requests(dir),nsend(dir))
     enddo
+    !$OMP END MASTER
+
 
     do i=1,8
       !see if a message has come in, who it came from and what its size is
+      !$OMP MASTER
       call check_for_message(state,dir,nreceived,src)
 
       allocate(recv_buffer(nreceived,state%parcels%n_properties))
@@ -157,12 +172,22 @@ contains
                     status=recv_status,&
                     ierror=ierr)
 
+      !$OMP END MASTER
+
+      !$OMP BARRIER
+
        !unpacks parcels into state%parcels, backfilling where possible
        if (nreceived .gt. 0) call unpack_parcels(state,recv_buffer,nreceived, lastparcel)
 
+
+
+       !$OMP SINGLE
        deallocate(recv_buffer)
+       !$OMP END SINGLE
 
      enddo
+
+
 
 
      ! if we end out with fewer parcels than we started with then we need to backfill
@@ -170,6 +195,7 @@ contains
        call backfill(state,index,nparcels_initial-nparcels_final)
      endif
 
+     !$OMP MASTER
      !check that all our messages have been received
      call MPI_Waitall(count=8,&
                       array_of_requests=requests,&
@@ -203,6 +229,9 @@ contains
         call MPI_Finalize(ierr)
         error stop
       endif
+
+      !$OMP END MASTER
+      !$OMP END PARALLEL
 
    end subroutine
 
@@ -393,12 +422,14 @@ contains
      integer, intent(in) :: dir
      integer, intent(in) :: npars
 
-     integer, allocatable, dimension(:) :: myindex
+     integer, allocatable, dimension(:), save :: myindex
 
-     real(kind=DEFAULT_PRECISION), dimension(:,:), pointer :: buff
-     real(kind=DEFAULT_PRECISION) :: xshift, yshift
+     real(kind=DEFAULT_PRECISION), dimension(:,:), pointer, save :: buff
+     real(kind=DEFAULT_PRECISION), save :: xshift, yshift
 
      integer :: istart, i, num
+
+     !$OMP SINGLE
 
      xshift=0
      yshift=0
@@ -445,8 +476,10 @@ contains
        endif
      endif
 
-     !now we want to copy data in
+     !$OMP END SINGLE
 
+     !now we want to copy data in
+     !$OMP WORKSHARE
      buff(:,X_INDEX) = state%parcels%x(myindex) + xshift
      buff(:,Y_INDEX) = state%parcels%y(myindex) + yshift
      buff(:,Z_INDEX) = state%parcels%z(myindex)
@@ -464,8 +497,11 @@ contains
      buff(:,VOL_INDEX) = state%parcels%vol(myindex)
      buff(:,STRETCH_INDEX) = state%parcels%stretch(myindex)
      buff(:,TAG_INDEX) = state%parcels%tag(myindex)
+     !$OMP END WORKSHARE
 
+     !$OMP SINGLE
      deallocate(myindex)
+     !$OMP END SINGLE
 
    end subroutine
 
@@ -544,12 +580,14 @@ contains
       integer, intent(in) :: nrecv
       integer, intent(inout) :: lastparcel !the last parcel we replaced +1
 
-      integer, dimension(:), allocatable :: myindex
+      integer, dimension(:), allocatable, save :: myindex
       integer :: istart, i, num
 
       ! we need to create an index (myindex) saying where each parcel in the buffer will go
       !to do this we look through the main index to see where parcels have been removed and
       !arrange to put the buffer parcels in these places
+
+      !$OMP SINGLE
 
       allocate(myindex(nrecv))
 
@@ -567,8 +605,10 @@ contains
 
       lastparcel=istart
 
-      !we now copy from the buffer to the parcels
+      !$OMP END SINGLE
 
+      !we now copy from the buffer to the parcels
+      !$OMP WORKSHARE
       state%parcels%x(myindex) = buff(:,X_INDEX)
       state%parcels%y(myindex) = buff(:,Y_INDEX)
       state%parcels%z(myindex) = buff(:,Z_INDEX)
@@ -586,8 +626,11 @@ contains
       state%parcels%vol(myindex) = buff(:,VOL_INDEX)
       state%parcels%stretch(myindex) = buff(:,STRETCH_INDEX)
       state%parcels%tag(myindex) = buff(:,TAG_INDEX)
+      !$OMP END WORKSHARE
 
+      !$OMP SINGLE
       deallocate(myindex)
+      !$OMP END SINGLE
 
     end subroutine
 
@@ -599,11 +642,11 @@ contains
       type(model_state_type), intent(inout) :: state
       integer, dimension(:), intent(inout) :: index
       integer, intent(in) :: ntofill
-      integer :: nswap
+      integer, save :: nswap
 
-      integer, dimension(:), allocatable :: from, to
+      integer, dimension(:), allocatable, save :: from, to
       integer :: i, num
-
+      !$OMP SINGLE
       !count number of existing parcels in region of array that will be removed
       !this is the number of parcels that needs to be swapped
       nswap=0
@@ -611,8 +654,11 @@ contains
         if (index(i) .eq. 0) nswap=nswap+1
       enddo
 
+      !$OMP END SINGLE
+
 
       if (nswap .gt. 0) then
+        !$OMP SINGLE
         allocate(to(nswap))
         allocate(from(nswap))
 
@@ -638,11 +684,13 @@ contains
           endif
         enddo
 
+        !$OMP END SINGLE
+
         !if (num .ne. nswap+1) error stop "We have less parcels to swap from than we intended"
 
 
         !now we can copy parcels at "from" to parcels at "to"
-
+        !$OMP WORKSHARE
         state%parcels%x(to) = state%parcels%x(from)
         state%parcels%y(to) = state%parcels%y(from)
         state%parcels%z(to) = state%parcels%z(from)
@@ -660,9 +708,12 @@ contains
         state%parcels%vol(to) = state%parcels%vol(from)
         state%parcels%stretch(to) = state%parcels%stretch(from)
         state%parcels%tag(to) = state%parcels%tag(from)
+        !$OMP END WORKSHARE
 
+        !$OMP SINGLE
         deallocate(to)
         deallocate(from)
+        !$OMP END SINGLE
 
       endif
 
