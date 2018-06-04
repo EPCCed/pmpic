@@ -118,8 +118,6 @@ contains
       call count_parcels_to_send(state,dir,nsend(dir))
     enddo
 
-    !print *, "to send=", nsend
-
     nparcels_final = nparcels_final - sum(nsend)
 
     !allocate the send buffers
@@ -142,7 +140,6 @@ contains
     enddo
 
     do i=1,8
-
       !see if a message has come in, who it came from and what its size is
       call check_for_message(state,dir,nreceived,src)
 
@@ -167,9 +164,10 @@ contains
 
      enddo
 
+
      ! if we end out with fewer parcels than we started with then we need to backfill
      if (nparcels_final .lt. nparcels_initial) then
-       call backfill(state,index,lastparcel,nparcels_initial-nparcels_final)
+       call backfill(state,index,nparcels_initial-nparcels_final)
      endif
 
      !check that all our messages have been received
@@ -398,10 +396,12 @@ contains
      integer, allocatable, dimension(:) :: myindex
 
      real(kind=DEFAULT_PRECISION), dimension(:,:), pointer :: buff
-     real(kind=DEFAULT_PRECISION) :: xshift=0.,&
-                                     yshift=0.
+     real(kind=DEFAULT_PRECISION) :: xshift, yshift
 
      integer :: istart, i, num
+
+     xshift=0
+     yshift=0
 
      !we want to create a new index (myindex) which says where from the main parcel list
      ! (state%parcels...) each parcel in the buffer comes from
@@ -595,61 +595,76 @@ contains
 
 
 
-    subroutine backfill(state,index,lastparcel,ntofill)
+    subroutine backfill(state,index,ntofill)
       type(model_state_type), intent(inout) :: state
       integer, dimension(:), intent(inout) :: index
-      integer, intent(inout) :: lastparcel
       integer, intent(in) :: ntofill
+      integer :: nswap
 
       integer, dimension(:), allocatable :: from, to
-      integer :: istart, i, num
+      integer :: i, num
 
-      allocate(from(ntofill), to(ntofill))
-
-      !identify empty spaces that we can backfill parcels into
-      istart=lastparcel !we know all parcels before this are in the correct place and there are no gaps
-      num=1
-      do i=istart,state%parcels%numparcels_local
-        if (index(i) .ne. 0) then
-          to(num) = i
-          num=num+1
-          if (num .gt. ntofill) exit
-        endif
+      !count number of existing parcels in region of array that will be removed
+      !this is the number of parcels that needs to be swapped
+      nswap=0
+      do i=state%parcels%numparcels_local-ntofill+1,state%parcels%numparcels_local
+        if (index(i) .eq. 0) nswap=nswap+1
       enddo
 
-      !identify parcels to backfill
-      istart=state%parcels%numparcels_local
-      num=1
-      do i=istart,lastparcel,-1
-        if (index(i) .eq. 0) then
-          from(num) = i
-          num=num+1
-          if (num .gt. ntofill) exit
-        endif
-      enddo
 
-      !now we can copy parcels at "from" to parcels at "to"
+      if (nswap .gt. 0) then
+        allocate(to(nswap))
+        allocate(from(nswap))
 
-      state%parcels%x(to) = state%parcels%x(from)
-      state%parcels%y(to) = state%parcels%y(from)
-      state%parcels%z(to) = state%parcels%z(from)
-      state%parcels%p(to) = state%parcels%p(from)
-      state%parcels%q(to) = state%parcels%q(from)
-      state%parcels%r(to) = state%parcels%r(from)
-      state%parcels%dxdt(to) = state%parcels%dxdt(from)
-      state%parcels%dydt(to) = state%parcels%dydt(from)
-      state%parcels%dzdt(to) = state%parcels%dzdt(from)
-      state%parcels%dpdt(to) = state%parcels%dpdt(from)
-      state%parcels%dqdt(to) = state%parcels%dqdt(from)
-      state%parcels%drdt(to) = state%parcels%drdt(from)
-      state%parcels%h(to) = state%parcels%h(from)
-      state%parcels%b(to) = state%parcels%b(from)
-      state%parcels%vol(to) = state%parcels%vol(from)
-      state%parcels%stretch(to) = state%parcels%stretch(from)
-      state%parcels%tag(to) = state%parcels%tag(from)
+        !generate "to" array - look for gaps in parcels from the beginning of the array
+        num=1
+        do i=1,state%parcels%numparcels_local-ntofill
+          if (index(i) .ne. 0) then
+            to(num) = i
+            num=num+1
+            if (num .gt. nswap) exit
+          endif
+        enddo
 
-      deallocate(to)
-      deallocate(from)
+        !if (num .ne. nswap+1) error stop "We have less parcels to swap into than we intended"
+
+        !generate "from" array - look for esisting parcels at the end of the array
+        num=1
+        do i=state%parcels%numparcels_local,state%parcels%numparcels_local-ntofill+1,-1
+          if (index(i) .eq. 0) then
+            from(num) = i
+            num=num+1
+            if (num .gt. nswap) exit
+          endif
+        enddo
+
+        !if (num .ne. nswap+1) error stop "We have less parcels to swap from than we intended"
+
+
+        !now we can copy parcels at "from" to parcels at "to"
+
+        state%parcels%x(to) = state%parcels%x(from)
+        state%parcels%y(to) = state%parcels%y(from)
+        state%parcels%z(to) = state%parcels%z(from)
+        state%parcels%p(to) = state%parcels%p(from)
+        state%parcels%q(to) = state%parcels%q(from)
+        state%parcels%r(to) = state%parcels%r(from)
+        state%parcels%dxdt(to) = state%parcels%dxdt(from)
+        state%parcels%dydt(to) = state%parcels%dydt(from)
+        state%parcels%dzdt(to) = state%parcels%dzdt(from)
+        state%parcels%dpdt(to) = state%parcels%dpdt(from)
+        state%parcels%dqdt(to) = state%parcels%dqdt(from)
+        state%parcels%drdt(to) = state%parcels%drdt(from)
+        state%parcels%h(to) = state%parcels%h(from)
+        state%parcels%b(to) = state%parcels%b(from)
+        state%parcels%vol(to) = state%parcels%vol(from)
+        state%parcels%stretch(to) = state%parcels%stretch(from)
+        state%parcels%tag(to) = state%parcels%tag(from)
+
+        deallocate(to)
+        deallocate(from)
+
+      endif
 
     end subroutine
 
