@@ -17,6 +17,19 @@ module prescribed_parcel_velocity_mod
   integer :: profile_type
   real(kind=DEFAULT_PRECISION) :: x0, y0, r0
 
+  integer, parameter :: SHEAR = 0
+  integer, parameter :: NORTH=1
+  integer, parameter :: NORTH_EAST=2
+  integer, parameter :: EAST=3
+  integer, parameter :: SOUTH_EAST=4
+  integer, parameter :: SOUTH=5
+  integer, parameter :: SOUTH_WEST=6
+  integer, parameter :: WEST=7
+  integer, parameter :: NORTH_WEST=8
+  integer, parameter :: CYLINDRICAL=9
+  integer, parameter :: EVACUATE=10
+
+
 contains
 
   type(component_descriptor_type) function prescribed_parcel_velocity_get_descriptor()
@@ -75,9 +88,9 @@ contains
   subroutine timestep_callback(state)
     type(model_state_type), intent(inout), target :: state
     integer :: n
-    real(kind=DEFAULT_PRECISION) :: x, y, z, v0, theta, r2
+    real(kind=DEFAULT_PRECISION) :: x, y, z, v0, theta, r2, xc1, yc1, xc2, yc2, r1
 
-    if (profile_type .eq. 1) then
+    if (profile_type .eq. SHEAR) then
 
       !$OMP PARALLEL DO PRIVATE(x)
       do n=1,state%parcels%numparcels_local
@@ -91,7 +104,7 @@ contains
       enddo
       !$OMP END PARALLEL DO
 
-    else if (profile_type .eq. 2) then
+    else if (profile_type .eq. CYLINDRICAL) then
 
       !$OMP PARALLEL DO PRIVATE(x,y,v0,theta,r2)
       do n=1,state%parcels%numparcels_local
@@ -111,11 +124,116 @@ contains
       enddo
       !$OMP END PARALLEL DO
 
+    else if (profile_type .eq. NORTH) then
+
+      !$OMP PARALLEL DO
+      do n=1,state%parcels%numparcels_local
+        state%parcels%dxdt(n) = 0.
+        state%parcels%dydt(n) = 1.
+        state%parcels%dzdt(n) = 0.
+      enddo
+      !$OMP END PARALLEL DO
+
+    else if (profile_type .eq. NORTH_EAST) then
+
+      !$OMP PARALLEL DO
+      do n=1,state%parcels%numparcels_local
+        state%parcels%dxdt(n) = 1.
+        state%parcels%dydt(n) = 1.
+        state%parcels%dzdt(n) = 0.
+      enddo
+      !$OMP END PARALLEL DO
+
+    else if (profile_type .eq. EAST) then
+
+      !$OMP PARALLEL DO
+      do n=1,state%parcels%numparcels_local
+        state%parcels%dxdt(n) = 1.
+        state%parcels%dydt(n) = 0.
+        state%parcels%dzdt(n) = 0.
+      enddo
+      !$OMP END PARALLEL DO
+
+    else if (profile_type .eq. SOUTH_EAST) then
+
+      !$OMP PARALLEL DO
+      do n=1,state%parcels%numparcels_local
+        state%parcels%dxdt(n) = 1.
+        state%parcels%dydt(n) = -1.
+        state%parcels%dzdt(n) = 0.
+      enddo
+      !$OMP END PARALLEL DO
+
+    else if (profile_type .eq. SOUTH) then
+
+      !$OMP PARALLEL DO
+      do n=1,state%parcels%numparcels_local
+        state%parcels%dxdt(n) = 0.
+        state%parcels%dydt(n) = -1.
+        state%parcels%dzdt(n) = 0.
+      enddo
+      !$OMP END PARALLEL DO
+
+    else if (profile_type .eq. SOUTH_WEST) then
+
+      !$OMP PARALLEL DO
+      do n=1,state%parcels%numparcels_local
+        state%parcels%dxdt(n) = -1.
+        state%parcels%dydt(n) = -1.
+        state%parcels%dzdt(n) = 0.
+      enddo
+      !$OMP END PARALLEL DO
+
+    else if (profile_type .eq. WEST) then
+
+      !$OMP PARALLEL DO
+      do n=1,state%parcels%numparcels_local
+        state%parcels%dxdt(n) = -1.
+        state%parcels%dydt(n) = 0.
+        state%parcels%dzdt(n) = 0.
+      enddo
+      !$OMP END PARALLEL DO
+
+    else if (profile_type .eq. NORTH_WEST) then
+
+      !$OMP PARALLEL DO
+      do n=1,state%parcels%numparcels_local
+        state%parcels%dxdt(n) = -1.
+        state%parcels%dydt(n) = 1.
+        state%parcels%dzdt(n) = 0.
+      enddo
+      !$OMP END PARALLEL DO
+
+    else if (profile_type .eq. EVACUATE) then
+      !have radial outflow and inflows to remove parcels from a region of the grid
+      ! - to test backfilling of haloswapping
+
+      !centre is going to be 1/4 of way into grid in x and y
+      xc1 = 0.25*(state%global_grid%top(3)-state%global_grid%bottom(3)) + state%global_grid%bottom(3)
+      yc1 = 0.25*(state%global_grid%top(2)-state%global_grid%bottom(2)) + state%global_grid%bottom(2)
+
+      xc2 = 0.75*(state%global_grid%top(3)-state%global_grid%bottom(3)) + state%global_grid%bottom(3)
+      yc2 = 0.75*(state%global_grid%top(2)-state%global_grid%bottom(2)) + state%global_grid%bottom(2)
+
+      !$OMP PARALLEL DO private(r1, r2)
+      do n=1,state%parcels%numparcels_local
+        r1 = sqrt((state%parcels%x(n) - xc1)**2 + (state%parcels%y(n) - yc1)**2)
+        r2 = sqrt((state%parcels%x(n) - xc2)**2 + (state%parcels%y(n) - yc2)**2)
+
+        state%parcels%dxdt(n) = -(state%parcels%x(n) - xc1)/r1 * exp(-r1*r1/r0/r0/4) + &
+                                (state%parcels%x(n) - xc2)/r2 * exp(-r2*r2/r0/r0/4)
+        state%parcels%dydt(n) = -(state%parcels%y(n) - yc1)/r1 * exp(-r1*r1/r0/r0/4) + &
+                                (state%parcels%y(n) - yc2)/r2 * exp(-r2*r2/r0/r0/4)
+        state%parcels%dzdt(n) = 0
+      enddo
+      !$OMP END PARALLEL DO
+
     else
+      print *, "profile_type = ", profile_type
       error stop "invalid velocity option"
     endif
 
-    print*, "velocities set"
+    !print*, "velocities set"
 
 
   end subroutine
