@@ -2,7 +2,7 @@
 module parcel_interpolation_mod
   use state_mod, only: model_state_type
   use prognostics_mod, only : prognostic_field_type
-  use datadefn_mod, only : DEFAULT_PRECISION, PRECISION_TYPE
+  use datadefn_mod, only : DEFAULT_PRECISION, PRECISION_TYPE, PARCEL_INTEGER
   use omp_lib
 
   use optionsdatabase_mod, only : options_get_integer
@@ -26,7 +26,7 @@ module parcel_interpolation_mod
   !cached variables
   integer, allocatable, dimension(:) ::  is, js, ks
   real(kind=DEFAULT_PRECISION), allocatable, dimension(:) :: delxs, delys, delzs
-  integer :: nparcels
+  integer(kind=PARCEL_INTEGER) :: nparcels
 
   !cached grid variables
   integer :: nx, ny, nz, ndz
@@ -46,7 +46,7 @@ contains
   !indices to coordinates
   subroutine initialise_parcel_interp(state)
     type(model_state_type), intent(inout) :: state
-    integer :: n
+    integer(kind=PARCEL_INTEGER) :: n
     integer :: xstart, xstop, ystart, ystop, zstart, zstop
     real(kind=DEFAULT_PRECISION) :: dzdummy
     integer :: halo_depth
@@ -237,9 +237,8 @@ contains
   !cache weights for parcels (should be called once after parcel positions have changed before interpolating values)
   subroutine cache_parcel_interp_weights(state)
     type(model_state_type), intent(in) :: state
-    integer :: n
+    integer(kind=PARCEL_INTEGER) :: n
     integer :: i, j, k
-    integer :: nn
     real(kind=DEFAULT_PRECISION) :: delx, dely, delz
     real(kind=DEFAULT_PRECISION) :: xp, yp, zp
 
@@ -319,7 +318,7 @@ contains
     type(prognostic_field_type), intent(inout) :: grid
     real(kind=DEFAULT_PRECISION), dimension(:) :: var
 
-    integer :: n
+    integer(kind=PARCEL_INTEGER) :: n
     real(kind=DEFAULT_PRECISION) :: c000, c001, c010, c011, c100, c101, c110, c111
     real(kind=DEFAULT_PRECISION) :: c00, c01, c10, c11
     real(kind=DEFAULT_PRECISION) :: c0, c1
@@ -386,7 +385,7 @@ contains
     real(kind=DEFAULT_PRECISION), dimension(:), intent(in) :: var
     type(prognostic_field_type), intent(inout) :: grid
 
-    integer :: n
+    integer(kind=PARCEL_INTEGER) :: n
     double precision, allocatable, dimension(:,:,:) :: weights, data
     double precision :: w
     double precision :: v

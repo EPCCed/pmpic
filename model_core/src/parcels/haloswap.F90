@@ -2,7 +2,7 @@ module parcel_haloswap_mod
 
   use parcel_interpolation_mod, only: x_coords, y_coords, z_coords
   use state_mod, only : model_state_type
-  use datadefn_mod, only : DEFAULT_PRECISION, PRECISION_TYPE
+  use datadefn_mod, only : DEFAULT_PRECISION, PRECISION_TYPE, MPI_PARCEL_INT, PARCEL_INTEGER
   use MPI
 
   implicit none
@@ -89,8 +89,8 @@ contains
     type(model_state_type), intent(inout) :: state
 
     integer :: dir, nreceived, src
-    integer :: nparcels_initial, nparcels_final
-    integer :: global_initial, global_final
+    integer(kind=PARCEL_INTEGER) :: nparcels_initial, nparcels_final
+    integer(kind=PARCEL_INTEGER) :: global_initial, global_final
     integer :: i
     integer :: recv_status(MPI_STATUS_SIZE), send_statuses(MPI_STATUS_SIZE,8)
     !number of parcels to send/recv per direction and the request handle for sent messages
@@ -98,7 +98,7 @@ contains
     !receive buffer
     real (kind=DEFAULT_PRECISION), dimension(:,:), allocatable :: recv_buffer
 
-    integer :: lastparcel  !the last parcel we replaced (initially set to 1)
+    integer(kind=PARCEL_INTEGER) :: lastparcel  !the last parcel we replaced (initially set to 1)
 
     if (.not. initialised) error stop "parcel_haloswap not initialised"
 
@@ -219,7 +219,7 @@ contains
      call MPI_Allreduce(sendbuf=state%parcels%numparcels_local,&
                         recvbuf=state%parcels%numparcels_global,&
                         count=1,&
-                        datatype=MPI_INTEGER,&
+                        datatype=MPI_PARCEL_INT,&
                         op=MPI_SUM,&
                         comm=state%parallel%monc_communicator,&
                         ierror=ierr)
@@ -248,7 +248,7 @@ contains
      real (kind=DEFAULT_PRECISION) :: xmin, xmax, ymin, ymax
      real (kind=DEFAULT_PRECISION) :: x, y
      integer :: hy, hx, ny, nx
-     integer :: i
+     integer(kind=PARCEL_INTEGER) :: i
 
      hy=state%local_grid%halo_size(2)
      hx=state%local_grid%halo_size(3)
@@ -422,12 +422,12 @@ contains
      integer, intent(in) :: dir
      integer, intent(in) :: npars
 
-     integer, allocatable, dimension(:), save :: myindex
+     integer(kind=PARCEL_INTEGER), allocatable, dimension(:), save :: myindex
 
      real(kind=DEFAULT_PRECISION), dimension(:,:), pointer, save :: buff
      real(kind=DEFAULT_PRECISION), save :: xshift, yshift
 
-     integer :: istart, i, num
+     integer(kind=PARCEL_INTEGER) :: istart, i, num
 
      !$OMP SINGLE
 
@@ -578,10 +578,10 @@ contains
       type(model_state_type), intent(inout) :: state
       real(kind=DEFAULT_PRECISION), dimension(:,:), intent(in) :: buff
       integer, intent(in) :: nrecv
-      integer, intent(inout) :: lastparcel !the last parcel we replaced +1
+      integer(kind=PARCEL_INTEGER), intent(inout) :: lastparcel !the last parcel we replaced +1
 
-      integer, dimension(:), allocatable, save :: myindex
-      integer :: istart, i, num
+      integer(kind=PARCEL_INTEGER), dimension(:), allocatable, save :: myindex
+      integer(kind=PARCEL_INTEGER) :: istart, i, num
 
       ! we need to create an index (myindex) saying where each parcel in the buffer will go
       !to do this we look through the main index to see where parcels have been removed and
@@ -641,11 +641,11 @@ contains
     subroutine backfill(state,index,ntofill)
       type(model_state_type), intent(inout) :: state
       integer, dimension(:), intent(inout) :: index
-      integer, intent(in) :: ntofill
+      integer(kind=PARCEL_INTEGER), intent(in) :: ntofill
       integer, save :: nswap
 
-      integer, dimension(:), allocatable, save :: from, to
-      integer :: i, num
+      integer(kind=PARCEL_INTEGER), dimension(:), allocatable, save :: from, to
+      integer(kind=PARCEL_INTEGER) :: i, num
       !$OMP SINGLE
       !count number of existing parcels in region of array that will be removed
       !this is the number of parcels that needs to be swapped

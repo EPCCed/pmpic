@@ -14,7 +14,7 @@ if (len(sys.argv) != 3):
 def read_filename(filename):
     f=open(filename,"rb")
     time=np.fromfile(f,dtype=np.float64,count=1)
-    n=np.fromfile(f,dtype=np.int32,count=1)
+    n=np.fromfile(f,dtype=np.int64,count=1)
 
     n=n[0]
 
@@ -23,7 +23,7 @@ def read_filename(filename):
     x=np.fromfile(f,dtype=np.float64,count=n)
     y=np.fromfile(f,dtype=np.float64,count=n)
     z=np.fromfile(f,dtype=np.float64,count=n)
-    tag=np.fromfile(f,dtype=np.float,count=n)
+    tag=np.fromfile(f,dtype=np.float64,count=n)
 
     f.close()
 
@@ -72,7 +72,7 @@ print(len(xs), np.cbrt(len(xs)))
 
 fig = plt.figure()
 ax = fig.add_subplot(111)#, projection='3d')
-ax.scatter(xs, ys, c=tags,s=1)
+ax.scatter(xs, ys, c=tags,s=4)
 ax.set_xlabel('X Label')
 ax.set_ylabel('Y Label')
 

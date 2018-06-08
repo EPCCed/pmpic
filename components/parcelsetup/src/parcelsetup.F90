@@ -1,7 +1,7 @@
 !reads in parcel options from config file and allocates memory
 !also places uniformly placed parcels in cells
 module parcelsetup_mod
-  use datadefn_mod, only : DEFAULT_PRECISION
+  use datadefn_mod, only : DEFAULT_PRECISION, PARCEL_INTEGER, MPI_PARCEL_INT
   use state_mod, only: model_state_type
   use monc_component_mod, only: component_descriptor_type
   use optionsdatabase_mod, only : options_get_integer, options_get_logical, options_get_real, &
@@ -13,7 +13,7 @@ module parcelsetup_mod
 
   implicit none
 
-  integer :: maxparcels_global, maxparcels_local
+  integer(kind=PARCEL_INTEGER) :: maxparcels_global, maxparcels_local
   integer :: nprocs
   integer :: myrank
   integer :: n_per_dir
@@ -134,8 +134,9 @@ contains
     integer :: nx, ny, nz
     real(kind=DEFAULT_PRECISION) :: dx, dy, dz
     integer :: nnx, nny, nnz
-    integer :: nparcels
-    integer :: n, i, j, k
+    integer(kind=PARCEL_INTEGER) :: nparcels
+    integer(kind=PARCEL_INTEGER) :: n
+    integer :: i, j, k
     integer :: xstart, xstop, ystart, ystop, zstart, zstop
     real(kind=DEFAULT_PRECISION) :: ddx, ddy, ddz, xs, ys, zs
     integer :: ii, jj, kk
@@ -173,7 +174,7 @@ contains
     call MPI_Allreduce(sendbuf=state%parcels%numparcels_local,&
                        recvbuf=state%parcels%numparcels_global,&
                        count=1,&
-                       datatype=MPI_INTEGER,&
+                       datatype=MPI_PARCEL_INT,&
                        op=MPI_SUM,&
                        comm=state%parallel%monc_communicator,&
                        ierror=ierr)

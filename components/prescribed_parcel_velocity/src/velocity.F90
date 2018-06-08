@@ -5,7 +5,7 @@
 !2) cylindrical flow (u,v,w) = r*exp(-(r-r0)^2/l0^2)(cos(theta), -sin(theta), 0)
 
 module prescribed_parcel_velocity_mod
-  use datadefn_mod, only : DEFAULT_PRECISION
+  use datadefn_mod, only : DEFAULT_PRECISION, PARCEL_INTEGER
   use state_mod, only: model_state_type
   use monc_component_mod, only: component_descriptor_type
   use optionsdatabase_mod, only : options_get_integer, options_get_logical, options_get_real, &
@@ -44,7 +44,7 @@ contains
 
   subroutine initialisation_callback(state)
     type(model_state_type), intent(inout), target :: state
-    integer :: n
+    integer(kind=PARCEL_INTEGER) :: n
 
     profile_type=options_get_integer(state%options_database,"velocity_profile")
     !x0=options_get_real(state%options_database,"x0")

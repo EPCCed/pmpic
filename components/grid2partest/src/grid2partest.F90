@@ -1,6 +1,6 @@
 !sets up some parcels and grids then tests grid2par
 module grid2partest_mod
-  use datadefn_mod, only : DEFAULT_PRECISION
+  use datadefn_mod, only : DEFAULT_PRECISION, PARCEL_INTEGER
   use prognostics_mod, only: prognostic_field_type
   use state_mod, only: model_state_type
   use monc_component_mod, only: component_descriptor_type
@@ -8,6 +8,7 @@ module grid2partest_mod
   use optionsdatabase_mod, only : options_get_integer, options_get_logical, options_get_real, &
      options_get_integer_array, options_get_real_array
   use MPI
+  use parcel_haloswap_mod, only: parcel_haloswap
 
   implicit none
 
@@ -61,6 +62,8 @@ contains
       print*, "grid2partest:"
     endif
 
+    call parcel_haloswap(current_state)
+
     !cache interpolation weights for parcels
     call cache_parcel_interp_weights(current_state)
 
@@ -110,7 +113,7 @@ contains
   subroutine setup_parcels(state)
     type(model_state_type), intent(inout) :: state
 
-    integer :: n
+    integer(kind=PARCEL_INTEGER) :: n
 
     do n=1,state%parcels%numparcels_local
       state%parcels%p(n)=state%parcels%x(n)
@@ -159,7 +162,7 @@ contains
     real(kind=DEFAULT_PRECISION), intent(in), dimension(:) :: values, reference
     real(kind=DEFAULT_PRECISION), parameter :: tol=1.e-9
     real(kind=DEFAULT_PRECISION) :: diff
-    integer :: n, nparcels
+    integer(kind=PARCEL_INTEGER) :: n, nparcels
 
     nparcels=state%parcels%numparcels_local
 

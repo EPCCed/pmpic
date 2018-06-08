@@ -1,7 +1,7 @@
 !very basic parcel writing routine for basic debugging
 !just dumps x, y, z and the tag
 module writeparcels_mod
-  use datadefn_mod, only : DEFAULT_PRECISION
+  use datadefn_mod, only : DEFAULT_PRECISION, PARCEL_INTEGER
   use state_mod, only: model_state_type
   use monc_component_mod, only: component_descriptor_type
   use optionsdatabase_mod, only : options_get_integer
@@ -37,7 +37,8 @@ contains
   subroutine timestep_callback(state)
     type(model_state_type), intent(inout), target :: state
     character (len=20) :: filename
-    integer :: proc, nparcels
+    integer :: proc
+    integer(kind=PARCEL_INTEGER) :: nparcels
 
     if(mod(num,persteps) .eq. 0) then
 

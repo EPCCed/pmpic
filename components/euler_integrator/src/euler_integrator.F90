@@ -1,6 +1,6 @@
 !A basic Euler integrator component
 module euler_integrator_mod
-  use datadefn_mod, only : DEFAULT_PRECISION, PRECISION_TYPE
+  use datadefn_mod, only : DEFAULT_PRECISION, PRECISION_TYPE, PARCEL_INTEGER
   use state_mod, only: model_state_type
   use monc_component_mod, only: component_descriptor_type
   use optionsdatabase_mod, only : options_get_integer, options_get_logical, options_get_real, &
@@ -43,7 +43,7 @@ contains
     type(model_state_type), intent(inout), target :: state
 
     real(kind=DEFAULT_PRECISION) :: umax, vmax, wmax, maxdt, maxdtglobal, dt
-    integer :: nparcels, n
+    integer(kind=PARCEL_INTEGER) :: nparcels, n
 
     nparcels=state%parcels%numparcels_local
 

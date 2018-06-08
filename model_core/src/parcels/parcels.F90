@@ -1,5 +1,5 @@
 module parcel_mod
-  use datadefn_mod, only : DEFAULT_PRECISION
+  use datadefn_mod, only : DEFAULT_PRECISION, PARCEL_INTEGER
 
   implicit none
 
@@ -7,10 +7,10 @@ private
 
   type, public :: parcel_type
 
-    integer :: numparcels_global !number of active parcels (globally)
-    integer :: numparcels_local !number of active parcels (belonging to process)
-    integer :: maxparcels_global !maximum number of parcels globally
-    integer :: maxparcels_local !maximum number of parcels (beloning to process)
+    integer(kind=PARCEL_INTEGER) :: numparcels_global !number of active parcels (globally)
+    integer(kind=PARCEL_INTEGER) :: numparcels_local !number of active parcels (belonging to process)
+    integer(kind=PARCEL_INTEGER) :: maxparcels_global !maximum number of parcels globally
+    integer(kind=PARCEL_INTEGER) :: maxparcels_local !maximum number of parcels (beloning to process)
     integer :: n_properties = 17 ! number of parcel properties
 
     real (kind=DEFAULT_PRECISION), allocatable, dimension(:) :: &
