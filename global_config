@@ -25,8 +25,8 @@ start_group_type=entire
 integrator_group_type=entire
 last_group_type=entire
 
-start_group_contents=termination_check, halo_swapper
-last_group_contents=model_synopsis,writeparcels
+start_group_contents=writeparcels,termination_check, halo_swapper
+last_group_contents=model_synopsis
 
 # Component ordering for other stages
 
