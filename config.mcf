@@ -44,7 +44,8 @@ zmin=0
 zmax=6000
 
 #velocity profile properties
-velocity_profile=2
+velocity_profile=10
 
 #writeparcels properties
-dump_frequency=10
+parcel_dump_frequency=10
+grid_dump_frequency = 10

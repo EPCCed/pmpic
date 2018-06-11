@@ -14,15 +14,39 @@ if (len(sys.argv) != 3):
 def read_filename(filename):
     f=open(filename,"rb")
     time=np.fromfile(f,dtype=np.float64,count=1)
+
+    ranges=np.fromfile(f,dtype=np.float64,count=6)
     n=np.fromfile(f,dtype=np.int64,count=1)
 
     n=n[0]
 
-    print("Number of parcels = %d"%n)
+    print("Time= %f: Number of parcels = %d"%(time,n))
+    print("[xmin,xmax]=",ranges[0:2])
+    print("[ymin,ymax]=",ranges[2:4])
+    print("[zmin,zmax]=",ranges[4:6])
+
 
     x=np.fromfile(f,dtype=np.float64,count=n)
     y=np.fromfile(f,dtype=np.float64,count=n)
     z=np.fromfile(f,dtype=np.float64,count=n)
+
+    p=np.fromfile(f,dtype=np.float64,count=n)
+    q=np.fromfile(f,dtype=np.float64,count=n)
+    r=np.fromfile(f,dtype=np.float64,count=n)
+
+    dxdt=np.fromfile(f,dtype=np.float64,count=n)
+    dydt=np.fromfile(f,dtype=np.float64,count=n)
+    dzdt=np.fromfile(f,dtype=np.float64,count=n)
+
+    dpdt=np.fromfile(f,dtype=np.float64,count=n)
+    dqdt=np.fromfile(f,dtype=np.float64,count=n)
+    drdt=np.fromfile(f,dtype=np.float64,count=n)
+
+    h=np.fromfile(f,dtype=np.float64,count=n)
+    b=np.fromfile(f,dtype=np.float64,count=n)
+    vol=np.fromfile(f,dtype=np.float64,count=n)
+    stretch=np.fromfile(f,dtype=np.float64,count=n)
+
     tag=np.fromfile(f,dtype=np.float64,count=n)
 
     f.close()
