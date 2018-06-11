@@ -93,9 +93,9 @@ contains
     write(10) state%time
 
     write(10) x_coords(state%local_grid%local_domain_start_index(3))
-    write(10) x_coords(state%local_grid%local_domain_end_index(3))
+    write(10) x_coords(state%local_grid%local_domain_end_index(3)+1)
     write(10) y_coords(state%local_grid%local_domain_start_index(2))
-    write(10) y_coords(state%local_grid%local_domain_end_index(2))
+    write(10) y_coords(state%local_grid%local_domain_end_index(2)+1)
     write(10) z_coords(state%local_grid%local_domain_start_index(1))
     write(10) z_coords(state%local_grid%local_domain_end_index(1))
 
@@ -146,13 +146,13 @@ contains
     k2=state%local_grid%local_domain_end_index(3)
 
     x1=x_coords(k1)
-    x2=x_coords(k2)
+    x2=x_coords(k2+1)
 
-    y1=x_coords(j1)
-    y2=x_coords(j2)
+    y1=y_coords(j1)
+    y2=y_coords(j2+1)
 
-    z1=x_coords(i1)
-    z2=x_coords(i2)
+    z1=z_coords(i1)
+    z2=z_coords(i2)
 
     proc=state%parallel%my_rank
 
