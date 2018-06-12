@@ -37,7 +37,7 @@ contains
     prescribed_parcel_velocity_get_descriptor%version=0.1
     prescribed_parcel_velocity_get_descriptor%initialisation=>initialisation_callback
     prescribed_parcel_velocity_get_descriptor%timestep=>timestep_callback
-    prescribed_parcel_velocity_get_descriptor%finalisation=>finalisation_callback
+    !prescribed_parcel_velocity_get_descriptor%finalisation=>finalisation_callback
   end function prescribed_parcel_velocity_get_descriptor
 
 
@@ -239,11 +239,5 @@ contains
 
   end subroutine
 
-  subroutine finalisation_callback(state)
-    type(model_state_type), intent(inout), target :: state
-
-    print*, "Finalising velocity - nothing to see here"
-
-  end subroutine
 
 end module

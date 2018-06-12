@@ -30,9 +30,9 @@ last_group_contents=model_synopsis
 
 # Component ordering for other stages
 
-initialisation_stage_ordering=decomposition, setup_grid, parcelsetup, termination_check, model_synopsis, halo_swapper
+initialisation_stage_ordering=decomposition, setup_grid, parcelsetup, termination_check, model_synopsis, halo_swapper, writeparcels, prescribed_parcel_velocity, euler_integrator
 
-finalisation_stage_ordering=halo_swapper, basic_plume,  parcelsetup,model_synopsis
+finalisation_stage_ordering=halo_swapper, basic_plume,  parcelsetup,model_synopsis, writeparcels
 
 # Control configuration
 nn_timesteps=-1

@@ -22,20 +22,20 @@ contains
     euler_integrator_get_descriptor%version=0.1
     euler_integrator_get_descriptor%initialisation=>initialisation_callback
     euler_integrator_get_descriptor%timestep=>timestep_callback
-    euler_integrator_get_descriptor%finalisation=>finalisation_callback
+    !euler_integrator_get_descriptor%finalisation=>finalisation_callback
   end function euler_integrator_get_descriptor
 
 
   subroutine initialisation_callback(state)
     type(model_state_type), intent(inout), target :: state
 
-    print *, "In Euler Integrator Initialisation"
+    if (state%parallel%my_rank .eq. 0) print *, "In Euler Integrator Initialisation"
 
     originaldt= options_get_real(state%options_database,"dtm")
 
     state%dtm = originaldt
 
-    print *, "Starting dt=",originaldt
+    if (state%parallel%my_rank .eq. 0) print *, "Starting dt=",originaldt
 
   end subroutine
 
@@ -89,10 +89,6 @@ contains
 
   end subroutine
 
-  subroutine finalisation_callback(state)
-    type(model_state_type), intent(inout), target :: state
 
-    print *, "Integrator finalisation - nothing to see here"
-  end subroutine
 
 end module
