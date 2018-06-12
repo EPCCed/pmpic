@@ -31,6 +31,10 @@ dtm=10.0
 max_parcels=10000000
 parcels_per_cell_dir = 2
 
+restart=.false.
+
+initialisation_routine="basic"
+
 #grid properties
 nx=32
 ny=32

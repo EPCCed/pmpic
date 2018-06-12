@@ -153,7 +153,7 @@ contains
       else
         print *, "Selected initialisation routine '",trim(setup_routine),"' not valid"
         call MPI_Finalize(ierr)
-        stop
+        error stop "Select a valid initilisation routine"
       endif
 
     endif
