@@ -259,10 +259,10 @@ contains
      nsend=0
 
      ymax=y_coords(ny-hy+1)
-     ymin=y_coords(hy)
+     ymin=y_coords(hy+1)
 
      xmax=x_coords(nx-hx+1)
-     xmin=x_coords(hx)
+     xmin=x_coords(hx+1)
 
      if (dir .eq. N) then
        !looking for parcels y >= ymax within the x limits
