@@ -4,7 +4,7 @@ module writeparcels_mod
   use datadefn_mod, only : DEFAULT_PRECISION, PARCEL_INTEGER
   use state_mod, only: model_state_type
   use monc_component_mod, only: component_descriptor_type
-  use optionsdatabase_mod, only : options_get_integer
+  use optionsdatabase_mod, only : options_get_integer,options_get_logical
   use parcel_interpolation_mod, only : x_coords, y_coords, z_coords
 
   implicit none
@@ -30,7 +30,13 @@ contains
     ppersteps=options_get_integer(state%options_database,"parcel_dump_frequency")
     gpersteps=options_get_integer(state%options_database,"grid_dump_frequency")
 
-    num=0
+    if (options_get_logical(state%options_database,"restart")) then
+      print *, "RESTART WRITEFILES"
+      num=options_get_integer(state%options_database,"restart_num")
+      !stop
+    else
+      num=0
+    endif
     pwritten=0
     gwritten=0
 

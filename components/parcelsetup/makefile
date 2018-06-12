@@ -1,4 +1,4 @@
-SRCSF = src/parcelsetup.F90
+SRCSF = src/basicsetup.F90 src/readfromfile.F90 src/parcelsetup.F90
 
 BUILDDIR=build
 COREDIR=../../model_core/build

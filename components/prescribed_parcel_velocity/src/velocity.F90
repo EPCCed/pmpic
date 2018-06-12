@@ -58,28 +58,29 @@ contains
 
     !print*, "Velocity option read in as", profile_type, x0
 
-    !we now need to tag parcels according to the profile
+    !we now need to tag parcels according to the profile (unless we're restarting from previous run)
+    if (.not. options_get_logical(state%options_database,"restart")) then
+      if (state%parallel%processes .eq. 1) then
+        !$OMP PARALLEL do
+        do n=1,state%parcels%numparcels_local
+          state%parcels%tag(n) = 0
+          if (state%parcels%y(n) .gt. y0) then
+            state%parcels%tag(n) = state%parcels%tag(n) + 2
+          endif
+          if (state%parcels%x(n) .gt. x0) then
+            state%parcels%tag(n) = state%parcels%tag(n) + 1
+          endif
+        enddo
+        !$OMP END PARALLEL do
+      else
+        !$OMP PARALLEL DO
+        do n=1,state%parcels%numparcels_local
+          state%parcels%tag(n) = state%parallel%my_rank
+        enddo
+      endif
 
-    if (state%parallel%processes .eq. 1) then
-      !$OMP PARALLEL do
-      do n=1,state%parcels%numparcels_local
-        state%parcels%tag(n) = 0
-        if (state%parcels%y(n) .gt. y0) then
-          state%parcels%tag(n) = state%parcels%tag(n) + 2
-        endif
-        if (state%parcels%x(n) .gt. x0) then
-          state%parcels%tag(n) = state%parcels%tag(n) + 1
-        endif
-      enddo
-      !$OMP END PARALLEL do
-    else
-      !$OMP PARALLEL DO
-      do n=1,state%parcels%numparcels_local
-        state%parcels%tag(n) = state%parallel%my_rank
-      enddo
+      print*, "Tagged parcels"
     endif
-
-    print*, "Tagged parcels"
 
 
   end subroutine initialisation_callback
