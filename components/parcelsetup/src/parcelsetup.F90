@@ -80,6 +80,7 @@ contains
     allocate(current_state%parcels%vol(maxparcels_local))
     allocate(current_state%parcels%stretch(maxparcels_local))
     allocate(current_state%parcels%tag(maxparcels_local))
+    allocate(current_state%parcels%qvalues(current_state%parcels%qnum,maxparcels_local))
 
     !initialise parcel interpolation 'component' of model core
     call initialise_parcel_interp(current_state)
@@ -122,6 +123,7 @@ contains
     deallocate(current_state%parcels%vol)
     deallocate(current_state%parcels%stretch)
     deallocate(current_state%parcels%tag)
+    deallocate(current_state%parcels%qvalues)
 
     call finalise_parcel_interp(current_state)
 

@@ -47,6 +47,7 @@ module parcel_haloswap_mod
   integer, parameter :: VOL_INDEX=15
   integer, parameter :: STRETCH_INDEX=16
   integer, parameter :: TAG_INDEX=17
+  integer, parameter :: Q_START_INDEX=18
 
   integer :: destinations(8)
 
@@ -99,7 +100,7 @@ contains
     real (kind=DEFAULT_PRECISION), dimension(:,:), allocatable :: recv_buffer
 
     integer(kind=PARCEL_INTEGER) :: lastparcel  !the last parcel we replaced (initially set to 1)
-
+    integer :: q
     if (.not. initialised) error stop "parcel_haloswap not initialised"
 
     nparcels_initial = state%parcels%numparcels_local
@@ -127,14 +128,14 @@ contains
     nparcels_final = nparcels_final - sum(nsend)
 
     !allocate the send buffers
-    allocate(N_buff(nsend(N),state%parcels%n_properties))
-    allocate(NE_buff(nsend(NE),state%parcels%n_properties))
-    allocate(E_buff(nsend(E),state%parcels%n_properties))
-    allocate(SE_buff(nsend(SE),state%parcels%n_properties))
-    allocate(S_buff(nsend(S),state%parcels%n_properties))
-    allocate(SW_buff(nsend(SW),state%parcels%n_properties))
-    allocate(W_buff(nsend(W),state%parcels%n_properties))
-    allocate(NW_buff(nsend(NW),state%parcels%n_properties))
+    allocate(N_buff(nsend(N),state%parcels%n_properties+state%parcels%qnum))
+    allocate(NE_buff(nsend(NE),state%parcels%n_properties+state%parcels%qnum))
+    allocate(E_buff(nsend(E),state%parcels%n_properties+state%parcels%qnum))
+    allocate(SE_buff(nsend(SE),state%parcels%n_properties+state%parcels%qnum))
+    allocate(S_buff(nsend(S),state%parcels%n_properties+state%parcels%qnum))
+    allocate(SW_buff(nsend(SW),state%parcels%n_properties+state%parcels%qnum))
+    allocate(W_buff(nsend(W),state%parcels%n_properties+state%parcels%qnum))
+    allocate(NW_buff(nsend(NW),state%parcels%n_properties+state%parcels%qnum))
 
     !$OMP END MASTER
 
@@ -158,13 +159,13 @@ contains
       !$OMP MASTER
       call check_for_message(state,dir,nreceived,src)
 
-      allocate(recv_buffer(nreceived,state%parcels%n_properties))
+      allocate(recv_buffer(nreceived,state%parcels%n_properties+state%parcels%qnum))
 
       nparcels_final = nparcels_final + nreceived
 
       !print *, "reading message from dir=", dir
       call MPI_Recv(buf=recv_buffer,&
-                    count=nreceived*state%parcels%n_properties,&
+                    count=nreceived*(state%parcels%n_properties+state%parcels%qnum),&
                     datatype=PRECISION_TYPE,&
                     source=src,&
                     tag=dir,&
@@ -429,6 +430,8 @@ contains
 
      integer(kind=PARCEL_INTEGER) :: istart, i, num
 
+     integer :: q
+
      !$OMP SINGLE
 
      xshift=0
@@ -500,6 +503,12 @@ contains
      !$OMP END WORKSHARE
 
      !$OMP SINGLE
+     do q=1,state%parcels%qnum
+       buff(:,Q_START_INDEX+(q-1)) = state%parcels%qvalues(q,myindex)
+     enddo
+     !$OMP END SINGLE
+
+     !$OMP SINGLE
      deallocate(myindex)
      !$OMP END SINGLE
 
@@ -523,7 +532,7 @@ contains
 
      if (count .eq. 0) then !so as to not go out of bounds we send a dummy variable if the count is 0
        call MPI_ISend(buf=count,&
-                      count=count*state%parcels%n_properties,&
+                      count=count*(state%parcels%n_properties+state%parcels%qnum),&
                       datatype=PRECISION_TYPE,&
                       dest=destinations(dir),&
                       tag=dir,&
@@ -532,7 +541,7 @@ contains
                       ierror=ierr)
      else
        call MPI_ISend(buf=buff(1,1),&
-                      count=count*state%parcels%n_properties,&
+                      count=count*(state%parcels%n_properties+state%parcels%qnum),&
                       datatype=PRECISION_TYPE,&
                       dest=destinations(dir),&
                       tag=dir,&
@@ -565,7 +574,7 @@ contains
 
       call MPI_get_count(status=status,datatype=PRECISION_TYPE,count=nrecv,ierror=ierr)
 
-      nrecv=nrecv/state%parcels%n_properties
+      nrecv=nrecv/(state%parcels%n_properties+state%parcels%qnum)
 
       !print *, "message: src, tag, size=", src, dir, nrecv
 
@@ -582,6 +591,7 @@ contains
 
       integer(kind=PARCEL_INTEGER), dimension(:), allocatable, save :: myindex
       integer(kind=PARCEL_INTEGER) :: istart, i, num
+      integer :: q
 
       ! we need to create an index (myindex) saying where each parcel in the buffer will go
       !to do this we look through the main index to see where parcels have been removed and
@@ -629,6 +639,12 @@ contains
       !$OMP END WORKSHARE
 
       !$OMP SINGLE
+      do q=1,state%parcels%qnum
+        state%parcels%qvalues(q,myindex) =  buff(:,Q_START_INDEX+(q-1))
+      enddo
+      !$OMP END SINGLE
+
+      !$OMP SINGLE
       deallocate(myindex)
       !$OMP END SINGLE
 
@@ -646,6 +662,7 @@ contains
 
       integer(kind=PARCEL_INTEGER), dimension(:), allocatable, save :: from, to
       integer(kind=PARCEL_INTEGER) :: i, num
+      integer :: q
       !$OMP SINGLE
       !count number of existing parcels in region of array that will be removed
       !this is the number of parcels that needs to be swapped
@@ -709,6 +726,12 @@ contains
         state%parcels%stretch(to) = state%parcels%stretch(from)
         state%parcels%tag(to) = state%parcels%tag(from)
         !$OMP END WORKSHARE
+
+        !$OMP SINGLE
+        do q=1,state%parcels%qnum
+          state%parcels%qvalues(q,to) =  state%parcels%qvalues(q,from)
+        enddo
+        !$OMP END SINGLE
 
         !$OMP SINGLE
         deallocate(to)

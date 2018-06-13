@@ -1,7 +1,7 @@
 !very basic parcel writing routine for basic debugging
 !just dumps x, y, z and the tag
 module writeparcels_mod
-  use datadefn_mod, only : DEFAULT_PRECISION, PARCEL_INTEGER
+  use datadefn_mod, only : DEFAULT_PRECISION, PARCEL_INTEGER, LONG_INTEGER
   use state_mod, only: model_state_type
   use monc_component_mod, only: component_descriptor_type
   use optionsdatabase_mod, only : options_get_integer,options_get_logical
@@ -82,6 +82,7 @@ contains
     integer :: proc
     integer(kind=PARCEL_INTEGER) :: nparcels
 
+
     proc=state%parallel%my_rank
     nparcels=state%parcels%numparcels_local
 
@@ -130,6 +131,8 @@ contains
     write(10) state%parcels%stretch(1:nparcels)
 
     write(10) state%parcels%tag(1:nparcels)
+    write(10) state%parcels%qvalues(:,1:nparcels)
+
     close(10)
 
   end subroutine

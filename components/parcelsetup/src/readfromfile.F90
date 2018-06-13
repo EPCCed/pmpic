@@ -208,7 +208,7 @@ contains
     read(10) ninfile
     !print *, "ninfile=", ninfile
 
-    metadatasize=6*realsize+parcelsize
+    metadatasize=realsize+6*realsize+parcelsize
 
     !read in x, y and z positions of parcels in file
     !we don't want to read all properties so as to not waste memory
@@ -243,7 +243,7 @@ contains
     integer(kind=LONG_INTEGER) :: loc
 
     !position of x coordinate of nth parcel in file
-    loc = metadatasize+ (n*realsize) + 1
+    loc = metadatasize+ ((n-1)*realsize) + 1
 
     nparcels=nparcels+1
 
@@ -285,10 +285,15 @@ contains
     read(10, pos=loc) state%parcels%stretch(nparcels)
     loc=loc + (ninfile*realsize)
     read(10, pos=loc) state%parcels%tag(nparcels)
-    loc=loc + (ninfile*realsize)
 
-    !write(*,"(i2,2x,i4,2x,f10.3,1x,f10.3)") state%parallel%my_rank, nparcels,&
-    !state%parcels%vol(nparcels), state%parcels%tag(nparcels)
+
+    !qvalues are a bit different as their stride isn't realsize but qnum*realsize
+    loc = metadatasize + ninfile*realsize*state%parcels%n_properties &
+          + (n-1)*realsize*state%parcels%qnum + 1
+
+
+    read(10,pos=loc) state%parcels%qvalues(:,nparcels)
+    
 
   end subroutine
 

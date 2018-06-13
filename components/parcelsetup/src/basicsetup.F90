@@ -23,6 +23,7 @@ contains
     integer :: xstart, xstop, ystart, ystop, zstart, zstop
     real(kind=DEFAULT_PRECISION) :: ddx, ddy, ddz, xs, ys, zs
     integer :: ii, jj, kk
+    integer :: q
 
     nx = state%local_grid%size(3) + 2*state%local_grid%halo_size(3)
     ny = state%local_grid%size(2) + 2*state%local_grid%halo_size(2)
@@ -120,6 +121,8 @@ contains
       enddo
     enddo
 
+
+
     ! do n=1,8
     !   print *, state%parcels%x(n), state%parcels%y(n), state%parcels%z(n)
     ! enddo
@@ -131,6 +134,13 @@ contains
 
     !print *, n, nparcels
     if (n .ne. nparcels) error stop "incorrect parcel numbers"
+
+    !set up q values
+    do n=1,state%parcels%numparcels_local
+      do q=1,state%parcels%qnum
+        state%parcels%qvalues(q,n) = q
+      enddo
+    enddo
 
     if (state%parallel%my_rank .eq. 0) print*, "parcels initialised"
 
