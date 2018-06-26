@@ -22,7 +22,7 @@ basic_plume_enabled=.false.
 group_names= start, integrator, last
 
 start_group_type=entire
-integrator_group_type=entire
+integrator_group_type=rk_integrated
 last_group_type=entire
 
 start_group_contents=writeparcels,termination_check, halo_swapper
@@ -30,9 +30,9 @@ last_group_contents=model_synopsis
 
 # Component ordering for other stages
 
-initialisation_stage_ordering=decomposition, setup_grid, parcelsetup, termination_check, model_synopsis, halo_swapper, writeparcels, prescribed_parcel_velocity, euler_integrator
+initialisation_stage_ordering=decomposition, setup_grid, parcelsetup, termination_check, model_synopsis, halo_swapper, writeparcels, prescribed_parcel_velocity, euler_integrator,rk4_integrator
 
-finalisation_stage_ordering=halo_swapper, basic_plume,  parcelsetup,model_synopsis, writeparcels
+finalisation_stage_ordering=halo_swapper, basic_plume,  parcelsetup,model_synopsis, writeparcels,rk4_integrator
 
 # Control configuration
 nn_timesteps=-1

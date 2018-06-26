@@ -20,7 +20,8 @@ module registry_mod
 #endif
 
   integer, parameter :: GROUP_TYPE_WHOLE=0, & !< Execute the callbacks in this group once per timestep
-       GROUP_TYPE_COLUMN=1 !< Execute the callbacks in this group for each column per timestep
+       GROUP_TYPE_COLUMN=1,& !< Execute the callbacks in this group for each column per timestep
+       GROUP_TYPE_RK=3
 
   type(list_type), save :: field_information
 
@@ -42,18 +43,18 @@ module registry_mod
      integer :: type, & !< Type (execute once per timestep or per column)
           id, & !< Id number of the group which is also the order executed
           number_of_members
-  end type group_descriptor_type  
+  end type group_descriptor_type
 
-  type(map_type), save :: init_callbacks,&     !< Callback hooks for the initialisation stage       
+  type(map_type), save :: init_callbacks,&     !< Callback hooks for the initialisation stage
                     finalisation_callbacks,&   !< Callback hooks for the finalisation stage
                     component_descriptions,&   !< Copies of component descriptors
-                    group_descriptors,&        !< Group descriptors for each group, name->descriptor     
+                    group_descriptors,&        !< Group descriptors for each group, name->descriptor
                     component_groups, init_orderings, finalisation_orderings
   type(hashmap_type), save :: field_procedure_retrievals, field_procedure_sizings
 
   type(map_type), dimension(:), allocatable :: timestep_callbacks !< Callback hooks for the timestep stage
 
-  public GROUP_TYPE_WHOLE, GROUP_TYPE_COLUMN, group_descriptor_type, register_component, deregister_component, &
+  public GROUP_TYPE_WHOLE, GROUP_TYPE_COLUMN, GROUP_TYPE_RK, group_descriptor_type, register_component, deregister_component, &
        execute_initialisation_callbacks, execute_timestep_callbacks, &
        execute_finalisation_callbacks, get_component_info, get_all_registered_components, free_registry, init_registry, &
        order_all_callbacks, display_callbacks_in_order_at_each_stage, get_ordered_groups, &
@@ -75,7 +76,7 @@ contains
   !! at the end of execution to clean memory up or used to clear the registry
   subroutine free_registry()
     integer :: i, entries
-   
+
     entries = c_size(component_descriptions)
     do i=1, entries
       ! Key de registering key at element one as each deregister removes elements from map_type
@@ -122,7 +123,7 @@ contains
         call load_callback_hooks(registry_descriptor)
       end if
       call load_published_fields(descriptor)
-    end if    
+    end if
 
     description_data => registry_descriptor
     call c_put_generic(component_descriptions, descriptor%name, description_data, .false.)
@@ -135,7 +136,7 @@ contains
     character(len=*), intent(in) :: name
 
     is_component_field_available=c_contains(field_procedure_retrievals, name)
-  end function is_component_field_available  
+  end function is_component_field_available
 
   !> Retrieves the value wrapper of a components published field
   !! @param name The name of the field to look up
@@ -157,7 +158,7 @@ contains
       call log_master_log(LOG_ERROR, "Published field '"//trim(name)//"' is not found in any enabled components")
     end if
   end function get_component_field_value
-  
+
   !> Retrieves information about a components published field which includes its type and size
   !! @param name The name of the field to look up
   !! @returns The value wrapper that is associated with this field
@@ -177,7 +178,7 @@ contains
     else
       call log_master_log(LOG_ERROR, "Published field '"//trim(name)//"' is not found in any enabled components")
     end if
-  end function get_component_field_information  
+  end function get_component_field_information
 
   !> Retrieves all of the published field information
   !! @returns The list of published fields
@@ -185,7 +186,7 @@ contains
     type(list_type) :: get_all_component_published_fields
 
     get_all_component_published_fields=field_information
-  end function get_all_component_published_fields  
+  end function get_all_component_published_fields
 
   !> Loads the published fields information for an entire component into the registry's definition list
   !! @param descriptor The field descriptor to load in
@@ -266,7 +267,7 @@ contains
         type is(component_descriptor_type)
           call c_put_real(get_all_registered_components, description_data%name, description_data%version)
       end select
-    end do    
+    end do
   end function get_all_registered_components
 
   !> Calls all initialisation callbacks with the specified state
@@ -310,13 +311,13 @@ contains
       specific_ts=order_grouped_timstep_callbacks(i)
       call rebalance_callbacks(timestep_callbacks(i), specific_ts, "time stepping")
       call c_free(specific_ts)
-    end do    
+    end do
     call rebalance_callbacks(finalisation_callbacks, finalisation_orderings, "finalisation")
   end subroutine order_all_callbacks
 
   type(map_type) function order_grouped_timstep_callbacks(group_id)
     integer, intent(in) :: group_id
-    
+
     integer :: group_size, i
 
     type(group_descriptor_type) :: descriptor
@@ -325,7 +326,7 @@ contains
     group_size=descriptor%number_of_members
     do i=1, group_size
       call c_put_integer(order_grouped_timstep_callbacks, trim(descriptor%group_members(i)), i)
-    end do    
+    end do
   end function order_grouped_timstep_callbacks
 
   !> Determines whether or not a specific component is registered and enabled
@@ -333,7 +334,7 @@ contains
   logical function is_component_enabled(options_database, component_name)
     type(hashmap_type), intent(inout) :: options_database
     character(len=*), intent(in) :: component_name
-    
+
     if (c_contains(component_descriptions, component_name)) then
       if (options_has_key(options_database, trim(component_name)//"_enabled")) then
         is_component_enabled=options_get_logical(options_database, trim(component_name)//"_enabled")
@@ -341,7 +342,7 @@ contains
       end if
     end if
     is_component_enabled=.false.
-  end function is_component_enabled  
+  end function is_component_enabled
 
   !> Displays the registered callbacks of each stage in the order that they will be called
   subroutine display_callbacks_in_order_at_each_stage()
@@ -352,11 +353,11 @@ contains
     do i=1,size(timestep_callbacks)
       group_descriptor=get_group_descriptor_from_id(i)
       call display_callbacks_in_order(timestep_callbacks(i), "timestep group '"//trim(group_descriptor%name)//"'")
-    end do    
+    end do
     call display_callbacks_in_order(finalisation_callbacks, "finalisation")
   end subroutine display_callbacks_in_order_at_each_stage
 
-  !> Orders all the groups (in the order that they will be called in) and returns an array with these in order. 
+  !> Orders all the groups (in the order that they will be called in) and returns an array with these in order.
   !! This is useful for prefetching the groups in order so that per timestep we can just iterate through the array which is O(n)
   !! @returns An array of groups in the order that they will be executed in
   subroutine get_ordered_groups(ordered_groups)
@@ -367,7 +368,7 @@ contains
     allocate(ordered_groups(c_size(group_descriptors)))
     do i=1,c_size(group_descriptors)
       ordered_groups(i)=get_group_descriptor_from_id(i)
-    end do    
+    end do
   end subroutine get_ordered_groups
 
   !--------------------------------------------------------------------------
@@ -384,7 +385,7 @@ contains
 
     descriptor=get_group_descriptor_from_name(group_name)
     get_group_id=descriptor%id
-  end function get_group_id  
+  end function get_group_id
 
   !> Given a group name this returns the group descriptor corresponding to that or an error if none is found
   !! @param group_name Name of the group to look up
@@ -392,17 +393,17 @@ contains
   type(group_descriptor_type) function get_group_descriptor_from_name(group_name)
     character(len=*), intent(in) :: group_name
 
-    class(*), pointer :: generic       
+    class(*), pointer :: generic
 
     generic=>c_get_generic(group_descriptors, group_name)
     if (associated(generic)) then
       select type(generic)
         type is(group_descriptor_type)
           get_group_descriptor_from_name=generic
-      end select      
+      end select
     else
       call log_master_log(LOG_ERROR, "No configuration specified for group "//group_name)
-    end if    
+    end if
   end function get_group_descriptor_from_name
 
   !> Given the id of a group this will return the corresponding descriptor
@@ -426,9 +427,9 @@ contains
           end if
         end select
       end if
-    end do     
+    end do
   end function get_group_descriptor_from_id
-  
+
   !> Displays the registered callbacks of a specific stage in the order that they will be called
   !! @param stageCallbacks The registered callbacks for a stage
   !! @param stagetitle The title of the stage - used for printing out information
@@ -464,7 +465,7 @@ contains
       component_name=options_get_string(options_database, key, i)
       call c_put_integer(data_structure, trim(component_name), i)
     end do
-  end subroutine read_specific_orders  
+  end subroutine read_specific_orders
 
   subroutine read_group_configurations(options_database)
     type(hashmap_type), intent(inout) :: options_database
@@ -486,6 +487,8 @@ contains
           group_description%type=1
         else if (trim(group_type) .eq. "slice") then
           group_description%type=2
+        else if (trim(group_type) .eq. "rk_integrated") then
+          group_description%type=3
         else
           call log_master_log(LOG_ERROR, "Group type "//trim(group_type)//" for group "&
                //trim(group_description%name)//" not understood")
@@ -498,7 +501,7 @@ contains
         call log_master_log(LOG_ERROR, "No component contents specified for group "//trim(group_description%name))
       end if
       group_description%number_of_members=options_get_array_size(options_database, &
-           trim(group_description%name)//"_group_contents")    
+           trim(group_description%name)//"_group_contents")
       if (group_description%number_of_members == 0 .or. .not. options_has_key(options_database, &
            trim(group_description%name)//"_group_contentsa_size")) then
         if (options_has_key(options_database, trim(group_description%name)//"_group_contents")) then
@@ -518,8 +521,8 @@ contains
       end if
       allocate(generic_to_add, source=group_description)
       call c_put_generic(group_descriptors, group_description%name, generic_to_add, .false.)
-    end do    
-  end subroutine read_group_configurations  
+    end do
+  end subroutine read_group_configurations
 
   !> Will remove a specific descriptor from the registry table and uninstall the corresponding
   !! callback hooks for each state
@@ -546,7 +549,7 @@ contains
 
     if (associated(descriptor%initialisation)) call c_remove(init_callbacks, descriptor%name)
     if (associated(descriptor%timestep) .and. present(group_name)) &
-         call c_remove(timestep_callbacks(get_group_id(group_name)), descriptor%name)    
+         call c_remove(timestep_callbacks(get_group_id(group_name)), descriptor%name)
     if (associated(descriptor%finalisation)) call c_remove(finalisation_callbacks, descriptor%name)
   end subroutine unload_callback_hooks
 
@@ -575,7 +578,7 @@ contains
     type(map_type) :: ordered_callbacks
     integer :: i, entries_in_list, current_item
     class(*), pointer :: generic
-    
+
     entries_in_list=c_size(callbacks)
     do i=1, entries_in_list
       current_item=get_highest_callback_priority(callbacks, priorities)
@@ -594,7 +597,7 @@ contains
            " at stage "//stage_name//" not specified")
     end do
     callbacks=ordered_callbacks
-  end subroutine rebalance_callbacks  
+  end subroutine rebalance_callbacks
 
   integer function get_highest_callback_priority(callbacks, priorities)
     type(map_type), intent(inout) :: callbacks, priorities
@@ -613,7 +616,7 @@ contains
         if (priority .lt. min_priority) then
           min_priority=priority
           min_location=i
-        end if      
+        end if
       end if
     end do
     get_highest_callback_priority=min_location

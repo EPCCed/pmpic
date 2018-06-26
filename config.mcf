@@ -5,7 +5,8 @@ global_configuration=global_config
 simplesetup_enabled=.false.
 setup_grid_enabled=.true.
 grid2partest_enabled=.false.
-euler_integrator_enabled=.true.
+euler_integrator_enabled=.false.
+rk4_integrator_enabled=.true.
 prescribed_parcel_velocity_enabled=.true.
 writeparcels_enabled=.true.
 parcelswap_enabled=.false.
@@ -17,19 +18,19 @@ testcomponent_enabled=.false.
 
 initialisation_stage_ordering+=euler_integrator,prescribed_parcel_velocity,writeparcels
 
-integrator_group_contents=grid2partest,prescribed_parcel_velocity,euler_integrator,parcelswap
+integrator_group_contents=grid2partest,prescribed_parcel_velocity,euler_integrator,rk4_integrator
 
 finalisation_stage_ordering+=model_synopsis,euler_integrator,prescribed_parcel_velocity,writeparcels
 
 
 # Control configuration
 display_synopsis_frequency=10
-termination_time=1000
+termination_time=500
 dtm=10.0
 
 #initialisation options
 restart=.false.
-restart_num=50
+restart_num=40
 
 initialisation_routine="basic"
 
@@ -50,7 +51,7 @@ zmin=0
 zmax=6000
 
 #velocity profile properties
-velocity_profile=10
+velocity_profile=9
 
 #writeparcels properties
 parcel_dump_frequency=10

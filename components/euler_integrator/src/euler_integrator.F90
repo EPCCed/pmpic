@@ -37,6 +37,12 @@ contains
 
     if (state%parallel%my_rank .eq. 0) print *, "Starting dt=",originaldt
 
+    if (state%rksteps .ne. 0) then
+      print *, "Error - another integrator component is present. ABORTING"
+      stop
+    endif
+    state%rksteps = 1
+
   end subroutine
 
   subroutine timestep_callback(state)

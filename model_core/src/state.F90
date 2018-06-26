@@ -49,6 +49,7 @@ module state_mod
             absolute_new_dtm, &
             timestep_runtime,&
             dtm_new
+    integer :: rksteps=0
     integer :: timestep=1, start_timestep=1,  column_global_x, column_global_y, column_local_x, column_local_y,  termination_reason
     logical :: first_timestep_column, last_timestep_column, halo_column, first_nonhalo_timestep_column, update_dtm
     double precision :: model_start_wtime

@@ -128,14 +128,14 @@ contains
     nparcels_final = nparcels_final - sum(nsend)
 
     !allocate the send buffers
-    allocate(N_buff(nsend(N),state%parcels%n_properties+state%parcels%qnum))
-    allocate(NE_buff(nsend(NE),state%parcels%n_properties+state%parcels%qnum))
-    allocate(E_buff(nsend(E),state%parcels%n_properties+state%parcels%qnum))
-    allocate(SE_buff(nsend(SE),state%parcels%n_properties+state%parcels%qnum))
-    allocate(S_buff(nsend(S),state%parcels%n_properties+state%parcels%qnum))
-    allocate(SW_buff(nsend(SW),state%parcels%n_properties+state%parcels%qnum))
-    allocate(W_buff(nsend(W),state%parcels%n_properties+state%parcels%qnum))
-    allocate(NW_buff(nsend(NW),state%parcels%n_properties+state%parcels%qnum))
+    allocate(N_buff(nsend(N),state%parcels%n_properties+state%parcels%n_rk+state%parcels%qnum))
+    allocate(NE_buff(nsend(NE),state%parcels%n_properties+state%parcels%n_rk+state%parcels%qnum))
+    allocate(E_buff(nsend(E),state%parcels%n_properties+state%parcels%n_rk+state%parcels%qnum))
+    allocate(SE_buff(nsend(SE),state%parcels%n_properties+state%parcels%n_rk+state%parcels%qnum))
+    allocate(S_buff(nsend(S),state%parcels%n_properties+state%parcels%n_rk+state%parcels%qnum))
+    allocate(SW_buff(nsend(SW),state%parcels%n_properties+state%parcels%n_rk+state%parcels%qnum))
+    allocate(W_buff(nsend(W),state%parcels%n_properties+state%parcels%n_rk+state%parcels%qnum))
+    allocate(NW_buff(nsend(NW),state%parcels%n_properties+state%parcels%n_rk+state%parcels%qnum))
 
     !$OMP END MASTER
 
@@ -159,13 +159,13 @@ contains
       !$OMP MASTER
       call check_for_message(state,dir,nreceived,src)
 
-      allocate(recv_buffer(nreceived,state%parcels%n_properties+state%parcels%qnum))
+      allocate(recv_buffer(nreceived,state%parcels%n_properties+state%parcels%n_rk+state%parcels%qnum))
 
       nparcels_final = nparcels_final + nreceived
 
       !print *, "reading message from dir=", dir
       call MPI_Recv(buf=recv_buffer,&
-                    count=nreceived*(state%parcels%n_properties+state%parcels%qnum),&
+                    count=nreceived*(state%parcels%n_properties+state%parcels%n_rk+state%parcels%qnum),&
                     datatype=PRECISION_TYPE,&
                     source=src,&
                     tag=dir,&
@@ -508,6 +508,24 @@ contains
      enddo
      !$OMP END SINGLE
 
+     if (state%parcels%n_rk .gt. 0) then
+       !$OMP WORKSHARE
+       buff(:,Q_START_INDEX+q-1) = state%parcels%xo(myindex)
+       buff(:,Q_START_INDEX+q+0) = state%parcels%yo(myindex)
+       buff(:,Q_START_INDEX+q+1) = state%parcels%zo(myindex)
+       buff(:,Q_START_INDEX+q+2) = state%parcels%xf(myindex)
+       buff(:,Q_START_INDEX+q+3) = state%parcels%yf(myindex)
+       buff(:,Q_START_INDEX+q+4) = state%parcels%zf(myindex)
+       buff(:,Q_START_INDEX+q+5) = state%parcels%po(myindex)
+       buff(:,Q_START_INDEX+q+6) = state%parcels%qo(myindex)
+       buff(:,Q_START_INDEX+q+7) = state%parcels%ro(myindex)
+       buff(:,Q_START_INDEX+q+8) = state%parcels%pf(myindex)
+       buff(:,Q_START_INDEX+q+9) = state%parcels%qf(myindex)
+       buff(:,Q_START_INDEX+q+10)= state%parcels%rf(myindex)
+       !$OMP END WORKSHARE
+     endif
+
+
      !$OMP SINGLE
      deallocate(myindex)
      !$OMP END SINGLE
@@ -532,7 +550,7 @@ contains
 
      if (count .eq. 0) then !so as to not go out of bounds we send a dummy variable if the count is 0
        call MPI_ISend(buf=count,&
-                      count=count*(state%parcels%n_properties+state%parcels%qnum),&
+                      count=count*(state%parcels%n_properties+state%parcels%n_rk+state%parcels%qnum),&
                       datatype=PRECISION_TYPE,&
                       dest=destinations(dir),&
                       tag=dir,&
@@ -541,7 +559,7 @@ contains
                       ierror=ierr)
      else
        call MPI_ISend(buf=buff(1,1),&
-                      count=count*(state%parcels%n_properties+state%parcels%qnum),&
+                      count=count*(state%parcels%n_properties+state%parcels%n_rk+state%parcels%qnum),&
                       datatype=PRECISION_TYPE,&
                       dest=destinations(dir),&
                       tag=dir,&
@@ -574,7 +592,7 @@ contains
 
       call MPI_get_count(status=status,datatype=PRECISION_TYPE,count=nrecv,ierror=ierr)
 
-      nrecv=nrecv/(state%parcels%n_properties+state%parcels%qnum)
+      nrecv=nrecv/(state%parcels%n_properties+state%parcels%n_rk+state%parcels%qnum)
 
       !print *, "message: src, tag, size=", src, dir, nrecv
 
@@ -643,6 +661,23 @@ contains
         state%parcels%qvalues(q,myindex) =  buff(:,Q_START_INDEX+(q-1))
       enddo
       !$OMP END SINGLE
+
+      if (state%parcels%n_rk .gt. 0) then
+        !$OMP WORKSHARE
+         state%parcels%xo(myindex) = buff(:,Q_START_INDEX+q-1)
+         state%parcels%yo(myindex) = buff(:,Q_START_INDEX+q+0)
+         state%parcels%zo(myindex) = buff(:,Q_START_INDEX+q+1)
+         state%parcels%xf(myindex) = buff(:,Q_START_INDEX+q+2)
+         state%parcels%yf(myindex) = buff(:,Q_START_INDEX+q+3)
+         state%parcels%zf(myindex) = buff(:,Q_START_INDEX+q+4)
+         state%parcels%po(myindex) = buff(:,Q_START_INDEX+q+5)
+         state%parcels%qo(myindex) = buff(:,Q_START_INDEX+q+6)
+         state%parcels%ro(myindex) = buff(:,Q_START_INDEX+q+7)
+         state%parcels%pf(myindex) = buff(:,Q_START_INDEX+q+8)
+         state%parcels%qf(myindex) = buff(:,Q_START_INDEX+q+9)
+         state%parcels%rf(myindex) = buff(:,Q_START_INDEX+q+10)
+        !$OMP END WORKSHARE
+      endif
 
       !$OMP SINGLE
       deallocate(myindex)
@@ -732,6 +767,24 @@ contains
           state%parcels%qvalues(q,to) =  state%parcels%qvalues(q,from)
         enddo
         !$OMP END SINGLE
+
+        if (state%parcels%n_rk .gt. 0) then
+          !$OMP WORKSHARE
+           state%parcels%xo(to) = state%parcels%xo(from)
+           state%parcels%yo(to) = state%parcels%yo(from)
+           state%parcels%zo(to) = state%parcels%zo(from)
+           state%parcels%xf(to) = state%parcels%xf(from)
+           state%parcels%yf(to) = state%parcels%yf(from)
+           state%parcels%zf(to) = state%parcels%zf(from)
+           state%parcels%po(to) = state%parcels%po(from)
+           state%parcels%qo(to) = state%parcels%qo(from)
+           state%parcels%ro(to) = state%parcels%ro(from)
+           state%parcels%pf(to) = state%parcels%pf(from)
+           state%parcels%qf(to) = state%parcels%qf(from)
+           state%parcels%rf(to) = state%parcels%rf(from)
+          !$OMP END WORKSHARE
+        endif
+
 
         !$OMP SINGLE
         deallocate(to)

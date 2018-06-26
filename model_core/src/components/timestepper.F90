@@ -4,8 +4,8 @@
 module timestepper_mod
   use state_mod, only : model_state_type
   use grids_mod, only : X_INDEX, Y_INDEX
-  use registry_mod, only : GROUP_TYPE_WHOLE, GROUP_TYPE_COLUMN, group_descriptor_type, get_ordered_groups, &
-       execute_timestep_callbacks
+  use registry_mod, only : GROUP_TYPE_WHOLE, GROUP_TYPE_COLUMN, GROUP_TYPE_RK, group_descriptor_type,&
+   get_ordered_groups, execute_timestep_callbacks
   implicit none
 
 #ifndef TEST_MODE
@@ -21,7 +21,7 @@ contains
   !! execution in the timestep calls
   subroutine init_timestepper()
     call get_ordered_groups(group_descriptors)
-  end subroutine init_timestepper  
+  end subroutine init_timestepper
 
   !> Performs a timestep, which is comprised of executing each group of components in the order that they have been configured
   !! in. The components in a group can be called, depending on the type, just once per timestep (WHOLE) or per column (COLUMN).
@@ -31,21 +31,23 @@ contains
 
     integer :: i
 
-    do i=1,size(group_descriptors)      
+    do i=1,size(group_descriptors)
       if (group_descriptors(i)%type == GROUP_TYPE_WHOLE) then
         call timestep_whole(current_state, group_descriptors(i))
       else if (group_descriptors(i)%type == GROUP_TYPE_COLUMN) then
         call timestep_column(current_state, group_descriptors(i))
+      else if (group_descriptors(i)%type == GROUP_TYPE_RK) then
+        call timestep_rk(current_state, group_descriptors(i))
       end if
-    end do    
+    end do
   end subroutine timestep
 
   !> Finalises the timestepper by cleaning up allocated memory
   subroutine finalise_timestepper()
     deallocate(group_descriptors)
-  end subroutine finalise_timestepper  
+  end subroutine finalise_timestepper
 
-  !> Performs timestepping for a group of components on a per column basis. Each component in the group is executed 
+  !> Performs timestepping for a group of components on a per column basis. Each component in the group is executed
   !! for every column.
   !! @param current_state The current model state
   !! @param group_descriptor Description of the group of components to execute
@@ -68,7 +70,7 @@ contains
       end do
       current_state%column_global_x = current_state%column_global_x + 1
       current_state%column_local_x = current_state%column_local_x + 1
-    end do    
+    end do
   end subroutine timestep_column
 
   !> Executes a timestep for components in a group which are designed to be executed once per timestep
@@ -81,6 +83,28 @@ contains
     call execute_timestep_callbacks(current_state, group_descriptor%id)
   end subroutine timestep_whole
 
+  !> Executes components in this group rksteps times in a timestep
+  !! @param current_state The current model state
+  !! @param group_descriptor Description of the group of components to execute
+  subroutine timestep_rk(current_state, group_descriptor)
+    type(model_state_type), intent(inout) :: current_state
+    type(group_descriptor_type), intent(in) :: group_descriptor
+    integer :: i
+
+    if (current_state%rksteps .lt. 1) then
+      if (current_state%parallel%my_rank .eq. 0) then
+        print *, "Error: number of RK steps has not been defined."
+        print *, "Perhaps you have not enabled an RK integrator component?"
+      endif
+      stop
+    endif
+
+    do i=1,current_state%rksteps
+      call execute_timestep_callbacks(current_state, group_descriptor%id)
+    enddo
+
+  end subroutine timestep_rk
+
   !> Updates the states situation flags for easy retrieval in the components that are
   !! run per timestep
   !! @param state The current model state
@@ -90,7 +114,7 @@ contains
     current_state%first_timestep_column = (current_state%column_local_x == 1 .and. current_state%column_local_y == 1)
     current_state%last_timestep_column = (current_state%column_global_x == &
          current_state%local_grid%end(X_INDEX) + current_state%local_grid%halo_size(X_INDEX) .and. &
-         current_state%column_global_y == current_state%local_grid%end(Y_INDEX) + current_state%local_grid%halo_size(Y_INDEX))   
+         current_state%column_global_y == current_state%local_grid%end(Y_INDEX) + current_state%local_grid%halo_size(Y_INDEX))
 
     current_state%first_nonhalo_timestep_column = (current_state%column_local_x == current_state%local_grid%halo_size(X_INDEX)+1 &
        .and. current_state%column_local_y == current_state%local_grid%halo_size(Y_INDEX)+1)
