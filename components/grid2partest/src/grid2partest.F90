@@ -9,6 +9,7 @@ module grid2partest_mod
      options_get_integer_array, options_get_real_array
   use MPI
   use parcel_haloswap_mod, only: parcel_haloswap
+  use timer_mod
 
   implicit none
 
@@ -16,6 +17,8 @@ module grid2partest_mod
   real(kind=DEFAULT_PRECISION) :: dx, dy, dz!, xmin, xmax, ymin, ymax, zmin,zmax
 
   integer :: ierr
+
+  integer :: handle_g2p, handle_p2g
 
 contains
 
@@ -38,6 +41,8 @@ contains
 
     !set up grid
 
+    current_state%rksteps = 1
+
     dx = current_state%global_grid%resolution(3)
     dy = current_state%global_grid%resolution(2)
     dz = current_state%global_grid%resolution(1)
@@ -46,6 +51,9 @@ contains
     call setup_parcels(current_state)
 
     call setup_grid(current_state)
+
+    call register_routine_for_timing("verify_grid2par",handle_g2p,current_state)
+    call register_routine_for_timing("verify_par2grid",handle_p2g,current_state)
 
 
   end subroutine
@@ -62,7 +70,7 @@ contains
       print*, "grid2partest:"
     endif
 
-    call parcel_haloswap(current_state)
+    !call parcel_haloswap(current_state)
 
     !cache interpolation weights for parcels
     call cache_parcel_interp_weights(current_state)
@@ -70,7 +78,6 @@ contains
     if (current_state%parallel%my_rank .eq. 0) print*, "Testing in x direction"
     call grid2par(current_state,current_state%u,current_state%parcels%dxdt)
     call check_parcels(current_state,current_state%parcels%dxdt,current_state%parcels%x)
-
     call par2grid(current_state,current_state%parcels%p,current_state%p)
     call check_grid(current_state,current_state%p,current_state%u)
 
@@ -164,6 +171,8 @@ contains
     real(kind=DEFAULT_PRECISION) :: diff
     integer(kind=PARCEL_INTEGER) :: n, nparcels
 
+    call timer_start(handle_g2p)
+
     nparcels=state%parcels%numparcels_local
 
     do n=1,nparcels
@@ -187,6 +196,8 @@ contains
 
     if (state%parallel%my_rank .eq. 0) print*, "grid2par result: verified"
 
+    call timer_stop(handle_g2p)
+
   end subroutine
 
     !compares interpolated values with reference values
@@ -200,6 +211,8 @@ contains
     integer :: xstart, ystart, zstart
     integer :: xstop, ystop, zstop
     integer :: i, j, k
+
+    call timer_start(handle_p2g)
 
     !again, answer will be incorrect on the edges of the global grid due to periodicity
     !so we don't want to check cells on the edge of the grid
@@ -246,6 +259,8 @@ contains
     call MPI_Barrier(state%parallel%monc_communicator,ierr)
 
     if (state%parallel%my_rank .eq. 0) print*, "par2grid result: verified"
+
+    call timer_stop(handle_p2g)
 
   end subroutine
 

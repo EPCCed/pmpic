@@ -6,10 +6,13 @@ module writeparcels_mod
   use monc_component_mod, only: component_descriptor_type
   use optionsdatabase_mod, only : options_get_integer,options_get_logical
   use parcel_interpolation_mod, only : x_coords, y_coords, z_coords
+  use timer_mod, only: register_routine_for_timing, timer_start, timer_stop
 
   implicit none
 
   integer :: num, ppersteps, gpersteps, pwritten, gwritten
+
+  integer :: handlep, handleg
 
 contains
 
@@ -40,6 +43,11 @@ contains
     pwritten=0
     gwritten=0
 
+    call register_routine_for_timing("write_parcels",handlep,state)
+    call register_routine_for_timing("write_grids",handleg,state)
+
+
+
   end subroutine
 
 
@@ -49,14 +57,19 @@ contains
     integer :: proc
     integer(kind=PARCEL_INTEGER) :: nparcels
 
+
     if(mod(num,ppersteps) .eq. 0) then
+      call timer_start(handlep)
       call write_parcels_to_file(state)
       pwritten=pwritten+1
+      call timer_stop(handlep)
     endif
 
     if (mod(num,gpersteps) .eq. 0 .and. num .ne. 0) then
+      call timer_start(handleg)
       call write_grids_to_file(state)
       gwritten=gwritten+1
+      call timer_stop(handleg)
     endif
 
     num=num+1

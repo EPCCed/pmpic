@@ -93,8 +93,8 @@ contains
 
     if (current_state%rksteps .lt. 1) then
       if (current_state%parallel%my_rank .eq. 0) then
-        print *, "Error: number of RK steps has not been defined."
-        print *, "Perhaps you have not enabled an RK integrator component?"
+        print *, "Error: number of integrator steps has not been defined."
+        print *, "Perhaps you have not enabled an integrator?"
       endif
       stop
     endif

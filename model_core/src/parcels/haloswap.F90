@@ -4,6 +4,7 @@ module parcel_haloswap_mod
   use state_mod, only : model_state_type
   use datadefn_mod, only : DEFAULT_PRECISION, PRECISION_TYPE, MPI_PARCEL_INT, PARCEL_INTEGER
   use MPI
+  use timer_mod
 
   implicit none
 
@@ -51,6 +52,15 @@ module parcel_haloswap_mod
 
   integer :: destinations(8)
 
+  integer :: handle
+  integer :: handle_count
+  integer :: handle_buffer
+  integer :: handle_send
+  integer :: handle_recv
+  integer :: handle_unpack
+  integer :: handle_backfill
+  integer :: handle_sanity
+
 
 
 contains
@@ -61,6 +71,16 @@ contains
     if (initialised) then
       error stop "parcel haloswaping is initially initialised, cannot re-initialise"
     endif
+
+    call register_routine_for_timing("Par_HSWP_entire",handle,state)
+    call register_routine_for_timing("Par_HSWP_count",handle_count,state)
+    call register_routine_for_timing("Par_HSWP_buffer",handle_buffer,state)
+    call register_routine_for_timing("Par_HSWP_send",handle_send,state)
+    call register_routine_for_timing("Par_HSWP_recv",handle_recv,state)
+    call register_routine_for_timing("Par_HSWP_unpack",handle_unpack,state)
+    call register_routine_for_timing("Par_HSWP_backfill",handle_backfill,state)
+    call register_routine_for_timing("Par_HSWP_sanity_chk",handle_sanity,state)
+
 
     !determine neighbours
 
@@ -103,6 +123,8 @@ contains
     integer :: q
     if (.not. initialised) error stop "parcel_haloswap not initialised"
 
+    call timer_start(handle)
+
     nparcels_initial = state%parcels%numparcels_local
     nparcels_final = nparcels_initial
     lastparcel=state%parcels%numparcels_local
@@ -110,11 +132,15 @@ contains
     global_initial = state%parcels%numparcels_global
 
     index(1:nparcels_initial) = 0
-    index(nparcels_initial+1:state%parcels%maxparcels_local) = -1
+    !!index(nparcels_initial+1:state%parcels%maxparcels_local) = -1
 
     lastparcel=1
 
     !$OMP PARALLEL default(shared)
+
+    !$OMP MASTER
+    call timer_start(handle_count)
+    !$OMP END MASTER
 
     !count the parcels to send, and also create an index if what parcel to send where
     !$OMP DO schedule(dynamic,1)
@@ -124,6 +150,8 @@ contains
     !$OMP END DO
 
     !$OMP MASTER
+    call timer_stop(handle_count)
+
 
     nparcels_final = nparcels_final - sum(nsend)
 
@@ -137,6 +165,8 @@ contains
     allocate(W_buff(nsend(W),state%parcels%n_properties+state%parcels%n_rk+state%parcels%qnum))
     allocate(NW_buff(nsend(NW),state%parcels%n_properties+state%parcels%n_rk+state%parcels%qnum))
 
+
+    call timer_start(handle_buffer)
     !$OMP END MASTER
 
     !$OMP BARRIER
@@ -148,15 +178,19 @@ contains
 
 
     !$OMP MASTER
+    call timer_stop(handle_buffer)
+    call timer_start(handle_send)
     do dir=1,8
       call send_buffers(state,dir,requests(dir),nsend(dir))
     enddo
+    call timer_stop(handle_send)
     !$OMP END MASTER
 
 
     do i=1,8
       !see if a message has come in, who it came from and what its size is
       !$OMP MASTER
+      call timer_start(handle_recv)
       call check_for_message(state,dir,nreceived,src)
 
       allocate(recv_buffer(nreceived,state%parcels%n_properties+state%parcels%n_rk+state%parcels%qnum))
@@ -173,12 +207,14 @@ contains
                     status=recv_status,&
                     ierror=ierr)
 
+      call timer_stop(handle_recv)
+
       !$OMP END MASTER
 
       !$OMP BARRIER
 
        !unpacks parcels into state%parcels, backfilling where possible
-       if (nreceived .gt. 0) call unpack_parcels(state,recv_buffer,nreceived, lastparcel)
+       if (nreceived .gt. 0) call unpack_parcels(state,recv_buffer,nreceived, lastparcel,nparcels_initial)
 
 
 
@@ -193,11 +229,18 @@ contains
 
      ! if we end out with fewer parcels than we started with then we need to backfill
      if (nparcels_final .lt. nparcels_initial) then
+       !$OMP SINGLE
+       call timer_start(handle_backfill)
+       !$OMP END SINGLE
        call backfill(state,index,nparcels_initial-nparcels_final)
+       !$OMP SINGLE
+       call timer_stop(handle_backfill)
+       !$OMP END SINGLE
      endif
 
      !$OMP MASTER
      !check that all our messages have been received
+     call timer_start(handle_sanity)
      call MPI_Waitall(count=8,&
                       array_of_requests=requests,&
                       array_of_statuses=send_statuses,&
@@ -216,6 +259,8 @@ contains
      !update parcel number
      state%parcels%numparcels_local = nparcels_final
 
+
+
      !a sanity check. We're moving parcels around so the total number across all processes shouldn't change
      call MPI_Allreduce(sendbuf=state%parcels%numparcels_local,&
                         recvbuf=state%parcels%numparcels_global,&
@@ -225,6 +270,8 @@ contains
                         comm=state%parallel%monc_communicator,&
                         ierror=ierr)
 
+      call timer_stop(handle_sanity)
+
       if (global_initial .ne. state%parcels%numparcels_global) then
         print *, "parcel number not conserved"
         call MPI_Finalize(ierr)
@@ -233,6 +280,8 @@ contains
 
       !$OMP END MASTER
       !$OMP END PARALLEL
+
+      call timer_stop(handle)
 
    end subroutine
 
@@ -508,13 +557,15 @@ contains
      enddo
      !$OMP END SINGLE
 
+     q=state%parcels%qnum+1
+
      if (state%parcels%n_rk .gt. 0) then
        !$OMP WORKSHARE
-       buff(:,Q_START_INDEX+q-1) = state%parcels%xo(myindex)
-       buff(:,Q_START_INDEX+q+0) = state%parcels%yo(myindex)
+       buff(:,Q_START_INDEX+q-1) = state%parcels%xo(myindex) + xshift
+       buff(:,Q_START_INDEX+q+0) = state%parcels%yo(myindex) + yshift
        buff(:,Q_START_INDEX+q+1) = state%parcels%zo(myindex)
-       buff(:,Q_START_INDEX+q+2) = state%parcels%xf(myindex)
-       buff(:,Q_START_INDEX+q+3) = state%parcels%yf(myindex)
+       buff(:,Q_START_INDEX+q+2) = state%parcels%xf(myindex) + xshift
+       buff(:,Q_START_INDEX+q+3) = state%parcels%yf(myindex) + yshift
        buff(:,Q_START_INDEX+q+4) = state%parcels%zf(myindex)
        buff(:,Q_START_INDEX+q+5) = state%parcels%po(myindex)
        buff(:,Q_START_INDEX+q+6) = state%parcels%qo(myindex)
@@ -601,28 +652,32 @@ contains
 
 
 
-    subroutine unpack_parcels(state,buff,nrecv,lastparcel)
+    subroutine unpack_parcels(state,buff,nrecv,lastparcel,n_initial)
       type(model_state_type), intent(inout) :: state
       real(kind=DEFAULT_PRECISION), dimension(:,:), intent(in) :: buff
       integer, intent(in) :: nrecv
       integer(kind=PARCEL_INTEGER), intent(inout) :: lastparcel !the last parcel we replaced +1
+      integer(kind=PARCEL_INTEGER), intent(in) :: n_initial
 
       integer(kind=PARCEL_INTEGER), dimension(:), allocatable, save :: myindex
       integer(kind=PARCEL_INTEGER) :: istart, i, num
       integer :: q
+
+
 
       ! we need to create an index (myindex) saying where each parcel in the buffer will go
       !to do this we look through the main index to see where parcels have been removed and
       !arrange to put the buffer parcels in these places
 
       !$OMP SINGLE
-
+      call timer_start(handle_unpack)
       allocate(myindex(nrecv))
 
       istart=lastparcel
       do num=1,nrecv
         do i=istart,state%parcels%maxparcels_local
-          if (index(i) .ne. 0) then !this parcel location is free to be overwritten
+          if (i .gt. n_initial .or. index(i) .ne. 0) then !this parcel location is free to be overwritten
+          !if (index(i) .ne. 0) then !this parcel location is free to be
             myindex(num) = i
             index(i) = 0
             istart=i+1
@@ -662,6 +717,8 @@ contains
       enddo
       !$OMP END SINGLE
 
+      q=state%parcels%qnum+1
+
       if (state%parcels%n_rk .gt. 0) then
         !$OMP WORKSHARE
          state%parcels%xo(myindex) = buff(:,Q_START_INDEX+q-1)
@@ -681,6 +738,7 @@ contains
 
       !$OMP SINGLE
       deallocate(myindex)
+      call timer_stop(handle_unpack)
       !$OMP END SINGLE
 
     end subroutine

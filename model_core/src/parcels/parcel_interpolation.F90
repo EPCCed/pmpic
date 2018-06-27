@@ -13,6 +13,7 @@ module parcel_interpolation_mod
        init_halo_communication, finalise_halo_communication, initiate_nonblocking_halo_swap, complete_nonblocking_halo_swap, &
        blocking_halo_swap, get_single_field_per_halo_cell,copy_corner_to_buffer,copy_buffer_to_corner
   use mpi
+  use timer_mod
 
 
   implicit none
@@ -37,6 +38,8 @@ module parcel_interpolation_mod
   !real(kind=DEFAULT_PRECISION), allocatable, dimension(:) :: z, dz
 
   real(kind=default_precision), allocatable, dimension(:) :: x_coords, y_coords, z_coords
+
+  integer :: grid2par_handle, par2grid_handle, cache_handle
 
 
 contains
@@ -199,6 +202,10 @@ contains
      hy=state%local_grid%halo_size(2)
      hz=state%local_grid%halo_size(1)
 
+     call register_routine_for_timing("grid2par",grid2par_handle,state)
+     call register_routine_for_timing("par2grid",par2grid_handle,state)
+     call register_routine_for_timing("cache_weights",cache_handle,state)
+
      halo_depth = options_get_integer(state%options_database, "halo_depth")
      call init_halo_communication(state, get_single_field_per_halo_cell, halo_swap_state, &
           halo_depth, .true.)
@@ -241,6 +248,8 @@ contains
     integer :: i, j, k
     real(kind=DEFAULT_PRECISION) :: delx, dely, delz
     real(kind=DEFAULT_PRECISION) :: xp, yp, zp
+
+    call timer_start(cache_handle)
 
 
     nparcels=state%parcels%numparcels_local
@@ -306,6 +315,8 @@ contains
 
     !$OMP END PARALLEL
 
+    call timer_stop(cache_handle)
+
     !print *, "weights cached"
 
   end subroutine
@@ -326,6 +337,8 @@ contains
 
     integer :: i, j, k
     real(kind=DEFAULT_PRECISION) :: delx, dely, delz
+
+    call timer_start(grid2par_handle)
 
     call perform_halo_swap(state,grid%data,perform_sum=.false.)
 
@@ -373,6 +386,8 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
+    call timer_stop(grid2par_handle)
+
   end subroutine
 
 
@@ -394,7 +409,7 @@ contains
     integer :: i,j,k
     integer :: xhalo, yhalo, zhalo
 
-
+    call timer_start(par2grid_handle)
 
     allocate(weights(nz,ny,nx))
     allocate(data(nz,ny,nx))
@@ -511,6 +526,8 @@ contains
 
     deallocate(weights)
     deallocate(data)
+
+    call timer_stop(par2grid_handle)
 
   end subroutine
 

@@ -19,6 +19,7 @@ module monc_mod
   use science_constants_mod, only : initialise_science_constants
   use mpi, only : MPI_COMM_WORLD, MPI_THREAD_MULTIPLE, MPI_THREAD_SERIALIZED, MPI_THREAD_SINGLE, MPI_THREAD_FUNNELED, mpi_wtime
   use datadefn_mod, only : DEFAULT_PRECISION, init_data_defn
+  use timer_mod
   implicit none
 
 #ifndef TEST_MODE
@@ -56,7 +57,7 @@ contains
     integer :: ierr, myrank, size, io_server_placement_period, provided_threading, selected_threading_mode
     logical :: i_am_monc_process
     character(len=LONG_STRING_LENGTH) :: io_server_config_file
-    
+
     selected_threading_mode=get_mpi_threading_mode()
     call mpi_init_thread(selected_threading_mode, provided_threading, ierr)
     if (selected_threading_mode .gt. provided_threading) then
@@ -64,16 +65,16 @@ contains
            trim(mpi_threading_level_to_string(selected_threading_mode))//&
            "' but the maximum level your MPI implementation can provide is '"//&
            trim(mpi_threading_level_to_string(provided_threading))//"'")
-    end if    
+    end if
     call load_model_configuration(state, state%options_database)
 
     !state%io_server_enabled=determine_if_io_server_enabled(state%options_database)
-    
+
     call init_data_defn()
     ! Set up the logging with comm world PIDs initially for logging from the configuration parsing
     call mpi_comm_rank(MPI_COMM_WORLD, myrank, ierr)
     call initialise_logging(myrank)
-    
+
     call log_set_logging_level(options_get_integer(state%options_database, "logging"))
 
     !if (state%io_server_enabled) then
@@ -83,10 +84,10 @@ contains
     !  call get_io_configuration(state%options_database, io_server_config_file, io_server_placement_period)
     !  call split_communicator_into_monc_and_io(io_server_placement_period, state%parallel%monc_communicator, &
     !       state%parallel%io_communicator, i_am_monc_process, state%parallel%corresponding_io_server_process)
-      !if (.not. i_am_monc_process) then        
+      !if (.not. i_am_monc_process) then
       !  call io_server_run(state%options_database, state%parallel%io_communicator, provided_threading, &
       !       size, state%continuation_run, io_server_config_file)
-     ! !else  
+     ! !else
      !   call monc_run(component_descriptions, state)
       !end if
     !else
@@ -105,9 +106,9 @@ contains
 
     determine_if_io_server_enabled=options_get_logical(options_database, "enable_io_server")
     if (determine_if_io_server_enabled) then
-      determine_if_io_server_enabled=options_get_logical(options_database, "iobridge_enabled")      
-    end if    
-  end function determine_if_io_server_enabled  
+      determine_if_io_server_enabled=options_get_logical(options_database, "iobridge_enabled")
+    end if
+  end function determine_if_io_server_enabled
 
   !> Loads the configuration into the options database, either from a file or checkpoint
   !! @param options_database The options database
@@ -130,7 +131,7 @@ contains
     end if
     ! Reload command line arguments to override any stuff in the configuration files
     call load_command_line_into_options_database(options_database)
-  end subroutine load_model_configuration 
+  end subroutine load_model_configuration
 
   !> Called by MONC processes to run the MONC model
   !! @param componentDescriptions Descriptions of existing components which should be registered
@@ -138,6 +139,7 @@ contains
   subroutine monc_run(component_descriptions, state)
     type(list_type), intent(inout) :: component_descriptions
     type(model_state_type), intent(inout) :: state
+    integer :: handle
 
     integer :: ierr, total_size
     double precision :: end_time, timestepping_time, modeldump_time
@@ -147,14 +149,18 @@ contains
     call mpi_comm_size(state%parallel%monc_communicator, state%parallel%processes, ierr)
     call mpi_comm_size(MPI_COMM_WORLD, total_size, ierr)
 
+    call init_timing(state)
+    call register_routine_for_timing("MONC",handle,state)
+    call timer_start(handle)
+
     call initialise_logging(state%parallel%my_rank)
-    
+
     call log_master_log(LOG_INFO,"MONC running with "//trim(conv_to_string(state%parallel%processes))//" processes, "// &
          trim(conv_to_string(total_size-state%parallel%processes))// " IO server(s)")
 
 #ifdef DEBUG_MODE
     call log_master_log(LOG_WARN,"MONC compiled with debug options, you probably want to recompile without for production runs")
-#endif    
+#endif
 
     call init_registry(state%options_database) ! Initialise the registry
 
@@ -163,7 +169,7 @@ contains
     call order_all_callbacks()
     ! If the option has been provided then display the registered component information
     if (is_present_and_true(state%options_database, "registered") .and. state%parallel%my_rank==0) &
-         call display_registed_components()    
+         call display_registed_components()
     if (is_present_and_true(state%options_database, "showcallbacks") .and. state%parallel%my_rank==0) &
          call display_callbacks_in_order_at_each_stage()
 
@@ -178,7 +184,11 @@ contains
            "ms (timestepping="//trim(conv_to_string(int(timestepping_time * 1000)))//"ms, modeldump="//&
            trim(conv_to_string(int(modeldump_time * 1000)))//"ms, misc="//trim(conv_to_string((&
            int((end_time-state%model_start_wtime) * 1000)) - (int(timestepping_time * 1000) + int(modeldump_time * 1000))))//"ms)")
-    end if    
+    end if
+
+    call timer_stop(handle)
+    call finalize_timing(state)
+
   end subroutine monc_run
 
   !> Will run through the actual model stages and call the appropriate callbacks at each stage
@@ -233,7 +243,7 @@ contains
     end_time=mpi_wtime()
     call log_log(LOG_DEBUG, "Timestep "//trim(conv_to_string(timestep))//" completed in "//&
          trim(conv_to_string(int((end_time-start_time) * 1000)))//"ms")
-  end subroutine display_timestep_information  
+  end subroutine display_timestep_information
 
   !> Registers each supplied component description
   subroutine fill_registry_with_components(options_database, component_descriptions)
@@ -263,7 +273,7 @@ contains
   logical function is_present_and_true(options_database, key)
     type(hashmap_type), intent(inout) :: options_database
     character(len=*), intent(in) :: key
-    
+
     if (options_has_key(options_database, key)) then
       is_present_and_true=options_get_logical(options_database, key)
       return
@@ -283,7 +293,7 @@ contains
     do while (c_has_next(iterator))
       map_entry=c_next_mapentry(iterator)
       call log_log(LOG_INFO, trim(map_entry%key)//" "//trim(conv_to_string(c_get_real(map_entry))))
-    end do    
+    end do
   end subroutine display_registed_components
 
   !> Splits the MPI_COMM_WORLD communicator into MONC and IO separate communicators. The size of each depends
@@ -322,7 +332,7 @@ contains
         else
           members_monc_group(monc_index)=i
           monc_index=monc_index+1
-        end if        
+        end if
         io_index=io_index+1
         if (my_rank == i) am_i_monc_process=.false.
         if (my_rank .gt. i .and. my_rank .lt. i+io_stride) then
@@ -341,12 +351,12 @@ contains
 
     if (am_i_monc_process .and. corresponding_io_server_process .lt. 0) then
       call log_log(LOG_ERROR, "MONC can not deduce its IO server rank, try with a different number of IO to MONC setting")
-    end if    
+    end if
 
     if (log_get_logging_level() .ge. LOG_DEBUG) then
       call log_log(LOG_DEBUG, "IO server assignment, rank="//conv_to_string(my_rank)//" IO server="//&
            conv_to_string(corresponding_io_server_process)//" am I a MONC="//conv_to_string(am_i_monc_process))
-    end if    
+    end if
 
     call mpi_comm_group(MPI_COMM_WORLD, global_group, ierr)
     call mpi_group_incl(global_group, monc_processes, members_monc_group, monc_group, ierr)
@@ -356,7 +366,7 @@ contains
     deallocate(members_io_group, members_monc_group)
   end subroutine split_communicator_into_monc_and_io
 
-  !> Based upon the total number of processes and the IO process id stride determines the number of 
+  !> Based upon the total number of processes and the IO process id stride determines the number of
   !! processes that will be used for the IO server. The MONC processes is total processes - io processes
   !! @param total_ranks Total number of processes in use
   !! @param io_stride The absolute process id stride for IO processes
@@ -378,7 +388,7 @@ contains
     type(hashmap_type), intent(inout) :: options_database
     character(len=LONG_STRING_LENGTH), intent(out) :: ioserver_configuration_file
     integer, intent(out) :: moncs_per_io_server
-   
+
     integer :: myrank, ierr
 
     ioserver_configuration_file=options_get_string(options_database, "ioserver_configuration_file")
@@ -390,7 +400,7 @@ contains
       call mpi_barrier(MPI_COMM_WORLD) ! All other processes barrier here to ensure 0 displays the message before quit
       stop
     end if
-  end subroutine get_io_configuration  
+  end subroutine get_io_configuration
 
   !> Retrives the configured MPI threading mode, this is serialized by default but can be overridden via environment variable
   !! @returns The MONC MPI threading mode
@@ -428,5 +438,5 @@ contains
     else
       mpi_threading_level_to_string="unknown"
     end if
-  end function mpi_threading_level_to_string  
+  end function mpi_threading_level_to_string
 end module monc_mod

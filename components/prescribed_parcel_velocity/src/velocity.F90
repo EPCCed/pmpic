@@ -11,6 +11,7 @@ module prescribed_parcel_velocity_mod
   use optionsdatabase_mod, only : options_get_integer, options_get_logical, options_get_real, &
      options_get_integer_array, options_get_real_array
   use parcel_interpolation_mod, only: nx, ny, nz, dx, dy, dz
+  use timer_mod
 
   implicit none
 
@@ -28,6 +29,8 @@ module prescribed_parcel_velocity_mod
   integer, parameter :: NORTH_WEST=8
   integer, parameter :: CYLINDRICAL=9
   integer, parameter :: EVACUATE=10
+
+  integer :: handle
 
 
 contains
@@ -80,6 +83,8 @@ contains
       endif
 
       print*, "Tagged parcels"
+
+      call register_routine_for_timing("Prescribed_velocity",handle,state)
     endif
 
 
@@ -90,6 +95,8 @@ contains
     type(model_state_type), intent(inout), target :: state
     integer :: n
     real(kind=DEFAULT_PRECISION) :: x, y, z, v0, theta, r2, xc1, yc1, xc2, yc2, r1
+
+    call timer_start(handle)
 
     if (profile_type .eq. SHEAR) then
 
@@ -233,6 +240,8 @@ contains
       print *, "profile_type = ", profile_type
       error stop "invalid velocity option"
     endif
+
+    call timer_stop(handle)
 
     !print*, "velocities set"
 

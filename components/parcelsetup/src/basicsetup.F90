@@ -7,6 +7,7 @@ module basicsetup_mod
   use optionsdatabase_mod, only: options_get_integer
   use parcel_interpolation_mod, only: x_coords, y_coords, z_coords
   use MPI
+  use timer_mod
 
 contains
 
@@ -24,6 +25,10 @@ contains
     real(kind=DEFAULT_PRECISION) :: ddx, ddy, ddz, xs, ys, zs
     integer :: ii, jj, kk
     integer :: q
+    integer :: handle
+
+    call register_routine_for_timing("Basic_Setup",handle,state)
+    call timer_start(handle)
 
     nx = state%local_grid%size(3) + 2*state%local_grid%halo_size(3)
     ny = state%local_grid%size(2) + 2*state%local_grid%halo_size(2)
@@ -143,6 +148,8 @@ contains
     enddo
 
     if (state%parallel%my_rank .eq. 0) print*, "parcels initialised"
+
+    call timer_stop(handle)
 
   end subroutine
 

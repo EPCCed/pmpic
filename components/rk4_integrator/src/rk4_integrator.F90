@@ -8,6 +8,7 @@ module rk4_integrator_mod
   use parcel_interpolation_mod, only: nx, ny, nz, dx, dy, dz
   use parcel_haloswap_mod, only: parcel_haloswap
   use MPI
+  use timer_mod
 
   implicit none
 
@@ -16,6 +17,8 @@ module rk4_integrator_mod
   integer :: ierr
 
   integer :: rkstep
+
+  integer :: handle, handle1, handle2, handle3, handle4
 
 contains
 
@@ -45,6 +48,8 @@ contains
     endif
     state%rksteps = 4
 
+    state%parcels%n_rk=12
+
     !allocate RK variables
     allocate(state%parcels%xo(state%parcels%maxparcels_local))
     allocate(state%parcels%yo(state%parcels%maxparcels_local))
@@ -60,6 +65,12 @@ contains
     allocate(state%parcels%rf(state%parcels%maxparcels_local))
 
     rkstep=1
+
+    call register_routine_for_timing("RK4_all_steps",handle,state)
+    call register_routine_for_timing("RK4_step_1",handle1,state)
+    call register_routine_for_timing("RK4_step_2",handle2,state)
+    call register_routine_for_timing("RK4_step_3",handle3,state)
+    call register_routine_for_timing("RK4_step_4",handle4,state)
 
 
   end subroutine
@@ -95,6 +106,10 @@ contains
     !$OMP PARALLEL
     if (rkstep .eq. 1) then
       !$OMP SINGLE
+
+      call timer_start(handle)
+      call timer_start(handle1)
+
       if (state%parallel%my_rank .eq. 0) write(*,"('RK4 integrator: t= ',f10.2,'s -> ',f10.2,'s')") state%time, state%time+dt
       !$OMP END SINGLE
 
@@ -143,10 +158,18 @@ contains
       state%parcels%r(1:nparcels) = state%parcels%ro(1:nparcels) &
                                   + dt2*state%parcels%drdt(1:nparcels)
       !$OMP END WORKSHARE
+      !$OMP BARRIER
+      !$OMP SINGLE
+      call timer_pause(handle)
+      call timer_stop(handle1)
+      !$OMP END SINGLE
 
 
     else if (rkstep .eq. 2) then
       !$OMP SINGLE
+
+      call timer_resume(handle)
+      call timer_start(handle2)
       !if (state%parallel%my_rank .eq. 0) print *, "rkstep 2: t=", state%time
       !$OMP END SINGLE
       !dxdt * dt = k2
@@ -181,10 +204,17 @@ contains
       state%parcels%r(1:nparcels) = state%parcels%ro(1:nparcels) &
                                   + dt2*state%parcels%drdt(1:nparcels)
       !$OMP END WORKSHARE
+      !$OMP BARRIER
+      !$OMP SINGLE
+      call timer_pause(handle)
+      call timer_stop(handle2)
+      !$OMP END SINGLE
 
 
     else if (rkstep .eq. 3) then
       !$OMP SINGLE
+      call timer_resume(handle)
+      call timer_start(handle3)
       !if (state%parallel%my_rank .eq. 0) print *, "rkstep 3: t=", state%time
       !$OMP END SINGLE
 
@@ -220,10 +250,17 @@ contains
       state%parcels%r(1:nparcels) = state%parcels%ro(1:nparcels) &
                                   + dt*state%parcels%drdt(1:nparcels)
       !$OMP END WORKSHARE
+      !$OMP BARRIER
+      !$OMP SINGLE
+      call timer_pause(handle)
+      call timer_stop(handle3)
+      !$OMP END SINGLE
 
 
     else if (rkstep .eq. 4) then
       !$OMP SINGLE
+      call timer_resume(handle)
+      call timer_start(handle4)
       !if (state%parallel%my_rank .eq. 0) print *, "rkstep 4: t=", state%time
       !$OMP END SINGLE
 
@@ -245,6 +282,11 @@ contains
       state%parcels%rf(1:nparcels) = state%parcels%rf(1:nparcels) &
                                    + dt6*state%parcels%drdt(1:nparcels)
       !$OMP END WORKSHARE
+      !$OMP BARRIER
+      !$OMP SINGLE
+      call timer_stop(handle)
+      call timer_stop(handle4)
+      !$OMP END SINGLE
 
     else
       print *, "Error: rkstep beyond maximum value (4)"

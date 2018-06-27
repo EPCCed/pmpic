@@ -5,6 +5,7 @@ module readfromfile_mod
   use optionsdatabase_mod, only: options_get_integer
   use parcel_interpolation_mod, only: x_coords, y_coords, z_coords
   use MPI
+  use timer_mod
 
 implicit none
 
@@ -23,6 +24,10 @@ contains
     real(kind=DEFAULT_PRECISION), allocatable, dimension(:,:) :: ranges
     real (kind=DEFAULT_PRECISION) :: time
     integer(kind=PARCEL_INTEGER) :: nparcels, total, filetotal
+    integer :: handle
+
+    call register_routine_for_timing("read_parcels",handle,state)
+    call timer_start(handle)
 
     file_number = options_get_integer(state%options_database,"restart_num")
 
@@ -123,6 +128,8 @@ contains
          error stop
        endif
     endif
+
+    call timer_stop(handle)
 
     !call MPI_Barrier(state%parallel%monc_communicator,ierr)
     !print *, my_rank, state%parcels%numparcels_local
@@ -293,7 +300,7 @@ contains
 
 
     read(10,pos=loc) state%parcels%qvalues(:,nparcels)
-    
+
 
   end subroutine
 
