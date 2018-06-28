@@ -39,6 +39,8 @@ contains
     originaldt= options_get_real(state%options_database,"dtm")
 
     state%dtm = originaldt
+    !at present we don't want to update the timestep
+    state%update_dtm = .false.
 
     if (state%parallel%my_rank .eq. 0) print *, "Starting dt=",originaldt
 
