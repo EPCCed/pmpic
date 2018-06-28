@@ -1,13 +1,14 @@
 !Allows parts of MONC/MPIC to be timed, and provides statistics at the end of the run
 module timer_mod
 
-  use MPI, only: MPI_Wtime
+  use MPI, only: MPI_Wtime, MPI_Gather, MPI_DOUBLE_PRECISION
   use state_mod, only: model_state_type
 
   implicit none
 
   integer, parameter :: max_entries = 100
   integer :: num !number of active entries
+  integer :: idum
 
   type timing_data_type
     character (len=20) :: name
@@ -17,6 +18,7 @@ module timer_mod
     double precision :: dt
     double precision :: dt2 ! the sum of dt^2 (to calculate standard deviation)
     double precision :: max, min
+    double precision :: mean
     integer :: unit = -1
     logical :: paused
     logical :: running
@@ -137,31 +139,34 @@ contains
   subroutine finalize_timing(state)
      type(model_state_type), intent(in) :: state
      integer :: n
-     double precision :: mean, percentage, imbalance, stddev
-     double precision :: maxtime
+     double precision :: mean, percentage, imbalance, stddev, mxtime
+     double precision, allocatable, dimension(:) :: maxtime, meantime, load_imb, tdiff
+     integer, allocatable, dimension(:) :: fastest, slowest
      integer, allocatable, dimension(:) :: index
      double precision, allocatable, dimension(:) :: values
+     double precision, allocatable, dimension(:,:) :: rank_times
      integer :: i
 
-     maxtime=timings(1)%t
+     mxtime=timings(1)%t
 
      allocate(index(num), values(num))
 
      do n=1,num
-       index(n) = n
        values(n) = timings(n)%t
      enddo
 
-     call sort_values(values,index)
+     call sort_values(values,index,num)
+
+     !now print stats from rank 0
 
      if (state%parallel%my_rank .eq. 0) then
 
        print *, ""
-       print *, "Summary of times for Rank 1 (sorted from longest to shortest time):"
+       print *, "Summary of times for the master rank (sorted from longest to shortest time):"
 
          write(*,'(" ------------------------------------------------------------------------------ ")')
-         write(*,'("|     Function       |   #   |   Total   |  % of  |  Mean   |  Max    | stddev |")')
-         write(*,'("|       Name         | Calls |   Time    |  Time  |Duration |Duration |    %   |")')
+         write(*,'("|     Function       |   #    |  Total   |  % of  |  Mean   |  Max    | stddev |")')
+         write(*,'("|       Name         | Calls  |  Time    |  Time  |Duration |Duration |    %   |")')
          write(*,'("|------------------------------------------------------------------------------|")')
 
        do i=1,num
@@ -178,34 +183,131 @@ contains
            stddev=0.
            imbalance=0.
          endif
-         percentage= timings(n)%t/maxtime*100
+         percentage= timings(n)%t/mxtime*100
 
          !print *, timings(n)%max, mean, timings(n)%max-mean
 
-         write(*,"('|',a,'|', i7,'|', f10.3,'s', '| ', f6.2,'%','|', f8.3,'s|',f8.3, 's|', f7.2,'%|')")  &
+         write(*,"('|',a,'|', i8,'|', f9.3,'s', '| ', f6.2,'%','|', f8.3,'s|',f8.3, 's|', f7.2,'%|')")  &
          timings(n)%name, timings(n)%n,timings(n)%t, percentage , mean, timings(n)%max ,imbalance
       enddo
        write(*,'(" ------------------------------------------------------------------------------  ")')
      endif
+
+
+     if (state%parallel%processes .gt. 1) then
+       !if (state%parallel%my_rank .eq. 0) print *, "We have more than one rank!"
+
+       allocate(rank_times(state%parallel%processes, num))
+       allocate(slowest(num), fastest(num), meantime(num), maxtime(num), tdiff(num), load_imb(num))
+
+       if (state%parallel%my_rank .eq. 0) then
+
+         print *, ""
+         print *, "Load imbalances over processes (sorted by difference in time):"
+
+         write(*,'(" ------------------------------------------------------------------------------ ")')
+         write(*,'("|     Function       |   Mean   |   Max    |Difference |    %    | Slow | Fast |")')
+         write(*,'("|       Name         |   Time   |   Time   |(max-mean) |Imbalance| Proc | Proc |")')
+         write(*,'("|------------------------------------------------------------------------------|")')
+       endif
+
+       !get all the data
+       do i=1,num
+
+         !n=index(i)
+         call MPI_Gather(sendbuf=timings(i)%t,&
+                         sendcount=1,&
+                         sendtype=MPI_DOUBLE_PRECISION,&
+                         recvbuf=rank_times(1,i),&
+                         recvcount=1,&
+                         recvtype=MPI_DOUBLE_PRECISION,&
+                         root=0,&
+                         comm=state%parallel%monc_communicator,&
+                         ierror=idum)
+
+
+
+         meantime(i)=sum(rank_times(:,i))/state%parallel%processes
+
+         if (meantime(i) .gt. 0) then
+
+           maxtime(i)=maxval(rank_times(:,i))
+
+           tdiff(i)=maxtime(i)-meantime(i)
+
+           load_imb(i) = (maxtime(i)-meantime(i))/meantime(i) * 100
+
+           slowest(i)=maxloc(rank_times(:,i), dim=1)-1
+           fastest(i)=minloc(rank_times(:,i), dim=1)-1
+         else
+           load_imb(i) = 0.
+         endif
+
+
+       enddo
+
+       values=tdiff
+       call sort_values(values,index,num)
+
+       do i=1,num
+
+         n=index(i)
+
+          if (meantime(n) .gt. 0) then
+            if (state%parallel%my_rank .eq. 0) then
+              write(*,"('|',a,'|', f9.3,'s|', f9.3,'s', '| 'f9.5,'s| ', f7.2,'%','|', i6,'|',i6, '|')")  &
+              timings(n)%name, meantime(n), maxtime(n) ,tdiff(n), load_imb(n), slowest(n) ,fastest(n)
+            endif
+          else
+
+            maxtime=0.
+            tdiff=0.
+
+            if (state%parallel%my_rank .eq. 0) then
+              write(*,"('|',a,'|', f9.3,'s|', f9.3,'s', '| 'f9.3,'s|   N/A   |  N/A |  N/A |')")  &
+              timings(n)%name, meantime(n), maxtime(n), tdiff(n)
+            endif
+
+          endif
+
+       enddo
+
+       if (state%parallel%my_rank .eq. 0) then
+          write(*,'(" ------------------------------------------------------------------------------  ")')
+          print *, ""
+       endif
+
+       deallocate(rank_times)
+
+
+
+     endif
+
+
   end subroutine
 
 
   !return index of sorted values
   ! as the number is small (~100) we just use bubble sort as it's not worth the effort to use
   ! a fancier sort algorithm such as merge sort
-  subroutine sort_values(values,index)
+  subroutine sort_values(values,index,n)
     double precision, intent(inout) :: values(:)
     integer, intent(inout) :: index(:)
+    integer, intent(in) :: n !number of items in the array
 
     integer :: i
     integer :: check
     double precision :: valdum
     integer :: idxdum
 
+    do i=1,n
+      index(i) = i
+    enddo
+
     check=0
     do while (check .lt. num-1)
       check = 0
-      do i=1,num-1
+      do i=1,n-1
         if (values(i) .lt. values(i+1)) then
           valdum = values(i)
           idxdum = index(i)
