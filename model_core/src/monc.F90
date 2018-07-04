@@ -17,7 +17,8 @@ module monc_mod
   use configuration_file_parser_mod, only : parse_configuration_file
   !use configuration_checkpoint_netcdf_parser_mod, only : parse_configuration_checkpoint_netcdf
   use science_constants_mod, only : initialise_science_constants
-  use mpi, only : MPI_COMM_WORLD, MPI_THREAD_MULTIPLE, MPI_THREAD_SERIALIZED, MPI_THREAD_SINGLE, MPI_THREAD_FUNNELED, mpi_wtime
+  use mpi, only : MPI_COMM_WORLD, MPI_THREAD_MULTIPLE, MPI_THREAD_SERIALIZED, MPI_THREAD_SINGLE,&
+   MPI_THREAD_FUNNELED, mpi_wtime,MPI_Barrier
   use datadefn_mod, only : DEFAULT_PRECISION, init_data_defn
   use timer_mod
   implicit none
@@ -115,6 +116,7 @@ contains
   subroutine load_model_configuration(state, options_database)
     type(model_state_type), intent(inout) :: state
     type(hashmap_type), intent(inout) :: options_database
+    integer :: ierr
 
     call load_command_line_into_options_database(options_database)
     if (options_has_key(options_database, "config")) then
@@ -126,7 +128,7 @@ contains
     !       options_get_string(options_database, "checkpoint"), MPI_COMM_WORLD)
     else
       call log_master_log(LOG_ERROR, "You must either provide a configuration file or checkpoint to restart from")
-      call mpi_barrier(MPI_COMM_WORLD) ! All other processes barrier here to ensure 0 displays the message before quit
+      call mpi_barrier(MPI_COMM_WORLD,ierr) ! All other processes barrier here to ensure 0 displays the message before quit
       stop
     end if
     ! Reload command line arguments to override any stuff in the configuration files
@@ -397,7 +399,7 @@ contains
     if (moncs_per_io_server == -1 .or. ioserver_configuration_file == "") then
       call mpi_comm_rank(MPI_COMM_WORLD, myrank, ierr)
       if (myrank == 0) call log_log(LOG_ERROR, "To run an IO server you must provide the placement period and configuration file")
-      call mpi_barrier(MPI_COMM_WORLD) ! All other processes barrier here to ensure 0 displays the message before quit
+      call mpi_barrier(MPI_COMM_WORLD,ierr) ! All other processes barrier here to ensure 0 displays the message before quit
       stop
     end if
   end subroutine get_io_configuration

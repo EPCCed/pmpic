@@ -1,14 +1,24 @@
 !Allows parts of MONC/MPIC to be timed, and provides statistics at the end of the run
 module timer_mod
-
-  use MPI, only: MPI_Wtime, MPI_Gather, MPI_DOUBLE_PRECISION
+  use fileunits_mod, only: get_free_file_unit, file_exists
+  use datadefn_mod, only: STRING_LENGTH
+  use MPI, only: MPI_Wtime, MPI_Gather, MPI_DOUBLE_PRECISION, MPI_Barrier
   use state_mod, only: model_state_type
+  use optionsdatabase_mod, only: options_has_key, options_get_array_size, options_get_string_array, &
+                                options_get_logical
 
   implicit none
 
   integer, parameter :: max_entries = 100
   integer :: num !number of active entries
   integer :: idum
+  character (len=STRING_LENGTH), dimension(:), allocatable :: routines_to_log
+  character (len=*), parameter :: timing_dir="timing_data"
+
+  logical :: logging=.false.
+  logical :: record =.false.
+
+  double precision :: start_time
 
   type timing_data_type
     character (len=20) :: name
@@ -30,13 +40,69 @@ contains
 
   !initialise the timing system
   subroutine init_timing(state)
-    type(model_state_type), intent(in) :: state
+    type(model_state_type), intent(inout) :: state
+    integer :: n, unit
     allocate(timings(max_entries))
     num=0
 
-    if (state%parallel%my_rank .eq. 0) then
-      write(*,"('Self-timing initialised with a maximum of',i4,' tracable routines')") max_entries
+    record=options_get_logical(state%options_database,"timing_enabled")
+    if (record) then
+
+      if (state%parallel%my_rank .eq. 0) then
+        write(*,"('Self-timing initialised with a maximum of',i4,' tracable routines')") max_entries
+      endif
+
+      if (options_has_key(state%options_database,"timing_logging")) then
+        !write(*,*) "Logging option is present"
+        logging=options_get_logical(state%options_database,"timing_logging")
+        !write(*,*) "logging option=", logging
+        if (logging) then
+          n=options_get_array_size(state%options_database,"logging_routines")
+          !print *, "array size=",n
+
+
+
+          allocate(routines_to_log(n))
+          call options_get_string_array(state%options_database,"logging_routines",routines_to_log)
+
+          if (state%parallel%my_rank .eq. 0) then
+            !make timing directory
+            if (file_exists(timing_dir)) then
+              print *, "Timing dir exists - removing its contents"
+              call system("rm -r timing_data/*")
+            else
+              print *, "Creating timing data directory"
+              call system("mkdir timing_data")
+            endif
+            print *, "Will write timing log files for the following routines:"
+            do n=1,size(routines_to_log)
+              print *, "- ",trim(routines_to_log(n))
+            enddo
+
+            !create index file in timing_data directory
+            unit=get_free_file_unit()
+            open(unit=unit, file=timing_dir//"/INDEX")
+            write(unit,"('# Index of the routines being recorded and number of processes')")
+            write(unit,"('nprocs = ',i5)") state%parallel%processes
+            do n=1,size(routines_to_log)
+              write(unit,"('routine=',a)") trim(routines_to_log(n))
+            enddo
+            close(unit)
+          endif
+        else
+          if (state%parallel%my_rank .eq. 0) print *, "No timing log files will be created"
+        endif
+
+      else
+        if (state%parallel%my_rank .eq. 0) print *, "No timing log files will be created"
+      endif
+    else
+      if (state%parallel%my_rank .eq. 0) print *, 'Timing data will not be collected.'
     endif
+
+    call MPI_Barrier(state%parallel%monc_communicator, n)
+    start_time=MPI_Wtime()
+
   end subroutine
 
 
@@ -45,6 +111,8 @@ contains
     character (len=*), intent(in) :: name
     integer, intent(out) :: handle
     type(model_state_type), intent(in) :: state
+    integer :: i
+    character (len=STRING_LENGTH) :: fname
 
     integer :: length
 
@@ -77,6 +145,26 @@ contains
       write(*,"('Registered routine `',a,'` for timing with handle =',i4)") &
        timings(handle)%name,handle
     endif
+
+    if (logging) then
+      !check if the routine has been marked to be logged
+      do i=1,size(routines_to_log)
+        if (name .eq. routines_to_log(i)(1:len(name))) then
+          !we have a match and need to create a file
+          timings(handle)%unit = get_free_file_unit()
+          write(fname,"(a,'_',i5.5,'.log')") name, state%parallel%my_rank
+          write(*,*) "opening logfile '",trim(fname),"' in unit number", timings(handle)%unit
+
+          open(unit=timings(handle)%unit,file=timing_dir//"/"//fname)
+          write(timings(handle)%unit,"('# Timing information for routine `',a,'` on rank ',i5)"), name,state%parallel%my_rank
+          write(timings(handle)%unit,"('#')")
+          !write(timings(handle)%unit,*) "12345678901234567890"
+          write(timings(handle)%unit,"('#  Event     , Time from program start (seconds)')")
+          exit
+        endif
+      enddo
+
+    endif
   end subroutine
 
   subroutine timer_start(handle)
@@ -87,16 +175,24 @@ contains
     timings(handle)%tstart = MPI_Wtime()
     timings(handle)%running = .true.
     timings(handle)%dt = 0.
+
+    if (logging .and. timings(handle)%unit .gt. 0) then
+      write(timings(handle)%unit,"(a,f15.6)") "TIMER_START  ,",timings(handle)%tstart-start_time
+    endif
   end subroutine
 
 
   subroutine timer_pause(handle)
     integer, intent(in) :: handle
+    double precision :: t
 
     if (timings(handle)%paused) error stop "Timer is already paused"
-
-    timings(handle)%dt = timings(handle)%dt + (MPI_Wtime() - timings(handle)%tstart)
+    t=MPI_Wtime()
+    timings(handle)%dt = timings(handle)%dt + (t - timings(handle)%tstart)
     timings(handle)%paused = .true.
+    if (logging .and. timings(handle)%unit .gt. 0) then
+      write(timings(handle)%unit,"(a,f15.6)") "TIMER_PAUSE  ,",t-start_time
+    endif
   end subroutine
 
   subroutine timer_resume(handle)
@@ -106,15 +202,21 @@ contains
 
     timings(handle)%paused = .false.
     timings(handle)%tstart = MPI_Wtime()
+    if (logging .and. timings(handle)%unit .gt. 0) then
+      write(timings(handle)%unit,"(a,f15.6)") "TIMER_RESUME ,",timings(handle)%tstart-start_time
+    endif
   end subroutine
 
 
   subroutine timer_stop(handle)
     integer, intent(in) :: handle
+    double precision :: t
 
     if (timings(handle)%paused) error stop "cannot stop as it is paused"
 
-    timings(handle)%dt = timings(handle)%dt + (MPI_Wtime()-timings(handle)%tstart)
+    t=MPI_Wtime()
+
+    timings(handle)%dt = timings(handle)%dt + (t-timings(handle)%tstart)
     timings(handle)%t = timings(handle)%t + timings(handle)%dt
 
     timings(handle)%dt2 = timings(handle)%dt2 + timings(handle)%dt*timings(handle)%dt
@@ -134,6 +236,12 @@ contains
     timings(handle)%dt = 0.
     timings(handle)%n = timings(handle)%n + 1
 
+    if (logging .and. timings(handle)%unit .gt. 0) then
+      write(timings(handle)%unit,"(a,f15.6)") "TIMER_STOP   ,",t-start_time
+    endif
+
+
+
   end subroutine
 
   subroutine finalize_timing(state)
@@ -151,8 +259,12 @@ contains
 
      allocate(index(num), values(num))
 
+     !create values array and close any open file units
      do n=1,num
        values(n) = timings(n)%t
+       if (timings(n)%unit .gt. 0) then
+         close(timings(n)%unit)
+       endif
      enddo
 
      call sort_values(values,index,num)

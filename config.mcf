@@ -41,7 +41,7 @@ parcels_per_cell_dir = 2
 #grid properties
 nx=32
 ny=32
-nz=1
+nz=32
 
 xmin=0
 xmax=6000
@@ -56,3 +56,8 @@ velocity_profile=9
 #writeparcels properties
 parcel_dump_frequency=10
 grid_dump_frequency = 10
+
+#timing logging options
+timing_enabled=.true.
+timing_logging=.true.
+logging_routines=RK4_all_steps,Par_HSWP_entire
