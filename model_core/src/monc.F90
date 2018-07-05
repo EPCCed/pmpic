@@ -223,6 +223,7 @@ contains
       if (state%continue_timestep) then
         state%timestep = state%timestep+1
         state%time = state%time + state%dtm
+        state%iterations=state%iterations+1
       end if
     end do
     end_time=mpi_wtime()

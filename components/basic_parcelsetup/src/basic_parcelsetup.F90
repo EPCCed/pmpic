@@ -1,18 +1,26 @@
 !basic parcel setup - parcels are created to fill the volume with n_per_dir parcels per
 !grid cell per direction. Only x, y and z and vol. All the other proeprties are zero
 
-module basicsetup_mod
+module basic_parcelsetup_mod
   use datadefn_mod, only : DEFAULT_PRECISION, PARCEL_INTEGER, MPI_PARCEL_INT
   use state_mod, only: model_state_type
   use optionsdatabase_mod, only: options_get_integer
   use parcel_interpolation_mod, only: x_coords, y_coords, z_coords
   use MPI
   use timer_mod
+  use monc_component_mod, only: component_descriptor_type
 
 contains
 
-  subroutine basicsetup(state)
-    type(model_state_type), intent(inout) :: state
+  type(component_descriptor_type) function basic_parcelsetup_get_descriptor()
+    basic_parcelsetup_get_descriptor%name="basic_parcelsetup"
+    basic_parcelsetup_get_descriptor%version=0.1
+    basic_parcelsetup_get_descriptor%initialisation=>initialisation_callback
+
+  end function basic_parcelsetup_get_descriptor
+
+  subroutine initialisation_callback(state)
+    type(model_state_type), intent(inout), target :: state
     integer :: n_per_dir
     integer :: n_per_cell
     integer :: nx, ny, nz

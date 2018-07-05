@@ -1,6 +1,6 @@
 !reads in parcel options from config file and allocates memory
 !also places uniformly placed parcels in cells
-module parcelsetup_mod
+module parcelsetup_base_mod
   use datadefn_mod, only : DEFAULT_PRECISION, PARCEL_INTEGER, MPI_PARCEL_INT, STRING_LENGTH
   use state_mod, only: model_state_type
   use monc_component_mod, only: component_descriptor_type
@@ -10,8 +10,7 @@ module parcelsetup_mod
   use MPI
   use parcel_haloswap_mod, only: initialise_parcel_haloswapping
 
-  use basicsetup_mod
-  use readfromfile_mod
+
 
 
   implicit none
@@ -24,12 +23,12 @@ module parcelsetup_mod
 
 contains
 
-  type(component_descriptor_type) function parcelsetup_get_descriptor()
-    parcelsetup_get_descriptor%name="parcelsetup"
-    parcelsetup_get_descriptor%version=0.1
-    parcelsetup_get_descriptor%initialisation=>initialisation_callback
-    parcelsetup_get_descriptor%finalisation=>finalisation_callback
-  end function parcelsetup_get_descriptor
+  type(component_descriptor_type) function parcelsetup_base_get_descriptor()
+    parcelsetup_base_get_descriptor%name="parcelsetup_base"
+    parcelsetup_base_get_descriptor%version=0.1
+    parcelsetup_base_get_descriptor%initialisation=>initialisation_callback
+    parcelsetup_base_get_descriptor%finalisation=>finalisation_callback
+  end function parcelsetup_base_get_descriptor
 
 
   subroutine initialisation_callback(current_state)
@@ -41,7 +40,7 @@ contains
 
     if (myrank .eq. 0) then
        print *, ""
-       print *, "Parcel Setup:"
+       print *, "Base Parcel Setup:"
     endif
 
     !get options from config file
@@ -88,12 +87,8 @@ contains
     !initialise parcel haloswapping
     call initialise_parcel_haloswapping(current_state)
 
-    !set up the parcels. Depending on the config file, we either read in from
-    !existing files, or set up new parcels according to a custom subroutine
-    call setup_parcels(current_state)
 
-
-  !  if (myrank .eq. 0) print *, "parcel setup done"
+    if (myrank .eq. 0) print *, "Base Parcel Setup Complete"
 
 
   end subroutine initialisation_callback
@@ -134,46 +129,46 @@ contains
 
 
 
-  !set up the parcels. Depending on the config file, we either read in from
-  !existing files, or set up new parcels according to a custom subroutine
-  subroutine setup_parcels(state)
-    type(model_state_type), intent(inout) :: state
-    logical :: restart
-    character (len=STRING_LENGTH) :: setup_routine
-
-    restart=options_get_logical(state%options_database,"restart")
-
-
-    if (restart) then
-      call read_parcels_from_file(state)
-    else
-
-      setup_routine=options_get_string(state%options_database,"initialisation_routine")
-
-      if (setup_routine .eq. "basic") then
-        call basicsetup(state)
-      else
-        print *, "Selected initialisation routine '",trim(setup_routine),"' not valid"
-        call MPI_Finalize(ierr)
-        error stop "Select a valid initilisation routine"
-      endif
-
-    endif
-
-
-  end subroutine
-
-
-
-
-
-  subroutine read_configuration(state)
-    type(model_state_type), intent(inout) :: state
-
-    maxparcels_global=options_get_integer(state%options_database,"max_parcels")
-  !  n_per_dir=options_get_integer(state%options_database,"parcels_per_cell_dir")
-
-  end subroutine read_configuration
+  ! !set up the parcels. Depending on the config file, we either read in from
+  ! !existing files, or set up new parcels according to a custom subroutine
+  ! subroutine setup_parcels(state)
+  !   type(model_state_type), intent(inout) :: state
+  !   logical :: restart
+  !   character (len=STRING_LENGTH) :: setup_routine
+  !
+  !   restart=options_get_logical(state%options_database,"restart")
+  !
+  !
+  !   if (restart) then
+  !     call read_parcels_from_file(state)
+  !   else
+  !
+  !     setup_routine=options_get_string(state%options_database,"initialisation_routine")
+  !
+  !     if (setup_routine .eq. "basic") then
+  !       call basicsetup(state)
+  !     else
+  !       print *, "Selected initialisation routine '",trim(setup_routine),"' not valid"
+  !       call MPI_Finalize(ierr)
+  !       error stop "Select a valid initilisation routine"
+  !     endif
+  !
+  !   endif
+  !
+  !
+  ! end subroutine
+  !
+  !
+  !
+  !
+  !
+  ! subroutine read_configuration(state)
+  !   type(model_state_type), intent(inout) :: state
+  !
+  !   maxparcels_global=options_get_integer(state%options_database,"max_parcels")
+  ! !  n_per_dir=options_get_integer(state%options_database,"parcels_per_cell_dir")
+  !
+  ! end subroutine read_configuration
 
 
 

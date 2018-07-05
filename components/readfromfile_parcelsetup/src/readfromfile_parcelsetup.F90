@@ -1,4 +1,4 @@
-module readfromfile_mod
+module readfromfile_parcelsetup_mod
   use state_mod, only : model_state_type
   use datadefn_mod, only: DEFAULT_PRECISION, PRECISION_TYPE, STRING_LENGTH,&
    LONG_INTEGER, DOUBLE_PRECISION, PARCEL_INTEGER, MPI_PARCEL_INT
@@ -6,6 +6,7 @@ module readfromfile_mod
   use parcel_interpolation_mod, only: x_coords, y_coords, z_coords
   use MPI
   use timer_mod
+  use monc_component_mod, only: component_descriptor_type
 
 implicit none
 
@@ -13,8 +14,15 @@ integer(kind=LONG_INTEGER) :: loc, realsize, parcelsize, metadatasize
 
 contains
 
-  subroutine read_parcels_from_file(state)
-    type(model_state_type), intent(inout) :: state
+  type(component_descriptor_type) function readfromfile_parcelsetup_get_descriptor()
+    readfromfile_parcelsetup_get_descriptor%name="readfromfile_parcelsetup"
+    readfromfile_parcelsetup_get_descriptor%version=0.1
+    readfromfile_parcelsetup_get_descriptor%initialisation=>initialisation_callback
+
+  end function readfromfile_parcelsetup_get_descriptor
+
+  subroutine initialisation_callback(state)
+    type(model_state_type), intent(inout), target :: state
     integer :: file_number
     character (len=20) :: filename
     integer:: my_rank, rank
@@ -30,6 +38,7 @@ contains
     call timer_start(handle)
 
     file_number = options_get_integer(state%options_database,"restart_num")
+    state%iterations=file_number
 
     my_rank = state%parallel%my_rank
 

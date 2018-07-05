@@ -28,7 +28,7 @@ termination_time=0
 dtm=10.0
 
 #parcel properties
-max_parcels=10000000
+max_parcels=20000000
 parcels_per_cell_dir = 2
 
 restart=.false.
@@ -36,9 +36,9 @@ restart=.false.
 initialisation_routine="basic"
 
 #grid properties
-nx=32
-ny=32
-nz=32
+nx=64
+ny=64
+nz=64
 
 xmin=0
 xmax=6000
@@ -52,3 +52,6 @@ velocity_profile=2
 
 #writeparcels properties
 dump_frequency=10
+
+#timing config
+timing_enabled=.true.

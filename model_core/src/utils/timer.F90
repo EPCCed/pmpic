@@ -323,6 +323,8 @@ contains
          write(*,'("|------------------------------------------------------------------------------|")')
        endif
 
+       !call MPI_Barrier(state%parallel%monc_communicator,idum)
+
        !get all the data
        do i=1,num
 
@@ -337,56 +339,61 @@ contains
                          comm=state%parallel%monc_communicator,&
                          ierror=idum)
 
+        if (state%parallel%my_rank .eq. 0) then
 
+           meantime(i)=sum(rank_times(:,i))/state%parallel%processes
 
-         meantime(i)=sum(rank_times(:,i))/state%parallel%processes
+           if (meantime(i) .gt. 0) then
 
-         if (meantime(i) .gt. 0) then
+             maxtime(i)=maxval(rank_times(:,i))
 
-           maxtime(i)=maxval(rank_times(:,i))
+             tdiff(i)=maxtime(i)-meantime(i)
 
-           tdiff(i)=maxtime(i)-meantime(i)
+             load_imb(i) = (maxtime(i)-meantime(i))/meantime(i) * 100
 
-           load_imb(i) = (maxtime(i)-meantime(i))/meantime(i) * 100
+             slowest(i)=maxloc(rank_times(:,i), dim=1)-1
+             fastest(i)=minloc(rank_times(:,i), dim=1)-1
+           else
+             load_imb(i) = 0.
+           endif
+       endif
 
-           slowest(i)=maxloc(rank_times(:,i), dim=1)-1
-           fastest(i)=minloc(rank_times(:,i), dim=1)-1
-         else
-           load_imb(i) = 0.
-         endif
-
-
-       enddo
-
-       values=tdiff
-       call sort_values(values,index,num)
-
-       do i=1,num
-
-         n=index(i)
-
-          if (meantime(n) .gt. 0) then
-            if (state%parallel%my_rank .eq. 0) then
-              write(*,"('|',a,'|', f9.3,'s|', f9.3,'s', '| 'f9.5,'s| ', f7.2,'%','|', i6,'|',i6, '|')")  &
-              timings(n)%name, meantime(n), maxtime(n) ,tdiff(n), load_imb(n), slowest(n) ,fastest(n)
-            endif
-          else
-
-            maxtime=0.
-            tdiff=0.
-
-            if (state%parallel%my_rank .eq. 0) then
-              write(*,"('|',a,'|', f9.3,'s|', f9.3,'s', '| 'f9.3,'s|   N/A   |  N/A |  N/A |')")  &
-              timings(n)%name, meantime(n), maxtime(n), tdiff(n)
-            endif
-
-          endif
 
        enddo
 
        if (state%parallel%my_rank .eq. 0) then
-          write(*,'(" ------------------------------------------------------------------------------  ")')
-          print *, ""
+
+         values=tdiff
+         call sort_values(values,index,num)
+
+         do i=1,num
+
+           n=index(i)
+
+            if (meantime(n) .gt. 0) then
+              if (state%parallel%my_rank .eq. 0) then
+                write(*,"('|',a,'|', f9.3,'s|', f9.3,'s', '| 'f9.5,'s| ', f7.2,'%','|', i6,'|',i6, '|')")  &
+                timings(n)%name, meantime(n), maxtime(n) ,tdiff(n), load_imb(n), slowest(n) ,fastest(n)
+              endif
+            else
+
+              maxtime=0.
+              tdiff=0.
+
+              if (state%parallel%my_rank .eq. 0) then
+                write(*,"('|',a,'|', f9.3,'s|', f9.3,'s', '| 'f9.3,'s|   N/A   |  N/A |  N/A |')")  &
+                timings(n)%name, meantime(n), maxtime(n), tdiff(n)
+              endif
+
+            endif
+
+         enddo
+
+         if (state%parallel%my_rank .eq. 0) then
+            write(*,'(" ------------------------------------------------------------------------------  ")')
+            print *, ""
+         endif
+
        endif
 
        deallocate(rank_times)

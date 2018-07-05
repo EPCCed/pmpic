@@ -33,13 +33,7 @@ contains
     ppersteps=options_get_integer(state%options_database,"parcel_dump_frequency")
     gpersteps=options_get_integer(state%options_database,"grid_dump_frequency")
 
-    if (options_get_logical(state%options_database,"restart")) then
-      print *, "RESTART WRITEFILES"
-      num=options_get_integer(state%options_database,"restart_num")
-      !stop
-    else
-      num=0
-    endif
+    num=state%iterations
     pwritten=0
     gwritten=0
 
@@ -56,6 +50,8 @@ contains
     character (len=20) :: filename
     integer :: proc
     integer(kind=PARCEL_INTEGER) :: nparcels
+
+    num=state%iterations
 
 
     if(mod(num,ppersteps) .eq. 0) then

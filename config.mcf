@@ -2,53 +2,59 @@
 global_configuration=global_config
 
 # Override global component defaults
-simplesetup_enabled=.false.
 setup_grid_enabled=.true.
-grid2partest_enabled=.false.
+writeparcels_enabled=.true.
+parcelsetup_base_enabled=.true.
+
+#parcel setup routines
+basic_parcelsetup_enabled=.true.
+plume_parcelsetup_enabled=.false.
+readfromfile_parcelsetup_enabled=.false.
+
+#integrator routines
 euler_integrator_enabled=.false.
 rk4_integrator_enabled=.true.
+
+#parcel velocity routines
 prescribed_parcel_velocity_enabled=.true.
-writeparcels_enabled=.true.
-parcelswap_enabled=.false.
 
-testcomponent_enabled=.false.
 
-#initialisation_stage_ordering+=basic_plume
-#initialisation_stage_ordering+=grid2partest
+#component ordering
 
-initialisation_stage_ordering+=euler_integrator,prescribed_parcel_velocity,writeparcels
+#initialisation_stage_ordering+=euler_integrator,prescribed_parcel_velocity,writeparcels
 
 integrator_group_contents=grid2partest,prescribed_parcel_velocity,euler_integrator,rk4_integrator
 
-finalisation_stage_ordering+=model_synopsis,euler_integrator,prescribed_parcel_velocity,writeparcels
+#finalisation_stage_ordering+=model_synopsis,euler_integrator,prescribed_parcel_velocity,writeparcels
 
 
 # Control configuration
 display_synopsis_frequency=10
 termination_time=500
-dtm=10.0
 
-#initialisation options
-restart=.false.
-restart_num=40
-
-initialisation_routine="basic"
-
-#parcel properties
-max_parcels=10000000
-parcels_per_cell_dir = 2
 
 #grid properties
 nx=32
 ny=32
 nz=32
-
 xmin=0
 xmax=6000
 ymin=0
 ymax=6000
 zmin=0
 zmax=6000
+
+#base parcelsetup properties
+max_parcels=10000000
+
+#readfromfile_options
+restart_num=40
+
+#basic_parcelsetup options
+parcels_per_cell_dir = 2
+
+#integrator properties
+dtm=10.0
 
 #velocity profile properties
 velocity_profile=9
@@ -60,4 +66,4 @@ grid_dump_frequency = 10
 #timing logging options
 timing_enabled=.true.
 timing_logging=.true.
-logging_routines=RK4_all_steps,Par_HSWP_entire
+logging_routines=RK4_all_steps,Par_HSWP_entire,Prescribed_velocity,write_parcels

@@ -62,7 +62,7 @@ contains
     !print*, "Velocity option read in as", profile_type, x0
 
     !we now need to tag parcels according to the profile (unless we're restarting from previous run)
-    if (.not. options_get_logical(state%options_database,"restart")) then
+    if (state%iterations .eq. 0) then
       if (state%parallel%processes .eq. 1) then
         !$OMP PARALLEL do
         do n=1,state%parcels%numparcels_local
@@ -84,8 +84,11 @@ contains
 
       print*, "Tagged parcels"
 
-      call register_routine_for_timing("Prescribed_velocity",handle,state)
+
+
     endif
+
+    call register_routine_for_timing("Prescribed_velocity",handle,state)
 
 
   end subroutine initialisation_callback

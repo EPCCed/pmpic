@@ -2,12 +2,17 @@
 # unless you know what you are doing. These have to be on
 # for MONC to run
 
+#core components
 decomposition_enabled=.true.
 model_synopsis_enabled=.true.
 termination_check_enabled=.true.
 halo_swapper_enabled=.false.
-parcelsetup_enabled=.true.
+parcelsetup_base_enabled=.true.
 setup_grid_enabled=.true.
+
+basic_parcelsetup_enabled=.true.
+readfromfile_parcelsetup_enabled=.false.
+plume_parcelsetup_enabled=.false.
 writeparcels_enabled=.true.
 
 # Component enable configuration
@@ -30,9 +35,9 @@ last_group_contents=model_synopsis
 
 # Component ordering for other stages
 
-initialisation_stage_ordering=decomposition, setup_grid, parcelsetup, termination_check, model_synopsis, halo_swapper, writeparcels, prescribed_parcel_velocity, euler_integrator,rk4_integrator
+initialisation_stage_ordering=decomposition, setup_grid, parcelsetup_base, basic_parcelsetup, readfromfile_parcelsetup,termination_check, model_synopsis, halo_swapper, writeparcels, prescribed_parcel_velocity, euler_integrator,rk4_integrator
 
-finalisation_stage_ordering=halo_swapper, basic_plume,  parcelsetup,model_synopsis, writeparcels,rk4_integrator
+finalisation_stage_ordering=halo_swapper, basic_plume,  parcelsetup_base,model_synopsis, writeparcels,rk4_integrator
 
 # Control configuration
 nn_timesteps=-1
