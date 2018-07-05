@@ -109,7 +109,7 @@ contains
     ! xmin, xmax, ymin, ymax, zmin, zmax
     ! n_parcels
     ! data
-    open(unit=10,file=filename,form="unformatted",access="stream")
+    open(unit=10,file=filename,form="unformatted",access="stream",status="replace")
     write(10) state%time
 
     write(10) x_coords(state%local_grid%local_domain_start_index(3))
@@ -197,7 +197,7 @@ contains
     ! xmin, xmax, ymin, ymax, zmin, zmax
     ! nx, ny, nz
     ! data
-    open(unit=10,file=filename,form="unformatted",access="stream")
+    open(unit=10,file=filename,form="unformatted",access="stream", status="replace")
     write(10) state%time
     write(10) x_coords(state%local_grid%local_domain_start_index(3))
     write(10) x_coords(state%local_grid%local_domain_end_index(3))
