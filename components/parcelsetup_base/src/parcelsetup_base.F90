@@ -44,18 +44,14 @@ contains
     endif
 
     !get options from config file
-    maxparcels_global=options_get_integer(current_state%options_database,"max_parcels")
+    maxparcels_local=options_get_integer(current_state%options_database,"max_parcels")
 
-    if (myrank .eq. 0) print *, "maxparcels_global=",maxparcels_global
+    if (myrank .eq. 0) print *, "maxparcels_local  =",maxparcels_local
 
-    if (mod(maxparcels_global,nprocs) .ne. 0) then
-      error stop "Error: maxparcels not divisible by number of processes"
-    endif
-
-    maxparcels_local=maxparcels_global/nprocs
+    maxparcels_global=maxparcels_local*nprocs
 
 
-    if (myrank .eq. 0) print *, "maxparcels_local=",maxparcels_local
+    if (myrank .eq. 0) print *, "maxparcels_global =",maxparcels_global
 
     current_state%parcels%maxparcels_global=maxparcels_global
     current_state%parcels%maxparcels_local=maxparcels_local
