@@ -18,12 +18,14 @@ rk4_integrator_enabled=.true.
 #parcel velocity routines
 prescribed_parcel_velocity_enabled=.true.
 
+vort2vel_enabled=.true.
+
 
 #component ordering
 
 #initialisation_stage_ordering+=euler_integrator,prescribed_parcel_velocity,writeparcels
 
-integrator_group_contents=grid2partest,prescribed_parcel_velocity,euler_integrator,rk4_integrator
+integrator_group_contents=grid2partest,prescribed_parcel_velocity,vort2vel,euler_integrator,rk4_integrator
 
 #finalisation_stage_ordering+=model_synopsis,euler_integrator,prescribed_parcel_velocity,writeparcels
 
@@ -36,7 +38,7 @@ termination_time=500
 #grid properties
 nx=32
 ny=32
-nz=1
+nz=32
 xmin=0
 xmax=6000
 ymin=0

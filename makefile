@@ -46,10 +46,10 @@ endif
 COMPILERFFLAGS=-fopenmp #-O3
 COMPILERRECURSIVE=
 ACTIVE=-DU_ACTIVE -DV_ACTIVE -DW_ACTIVE -DUSE_MAKE
-DEBUG_FLAGS=-g -fopenmp -fcheck=all -ffpe-trap=invalid,zero,overflow,denormal -fbacktrace -DDEBUG_MODE
+DEBUG_FLAGS=-g -fopenmp -fcheck=all -fbacktrace -DDEBUG_MODE #-ffpe-trap=invalid,overflow,denormal,zero
 
-FFLAGS=-I $(CORE_DIR)/$(BUILD_DIR) -I $(COMPONENTS_DIR)/$(BUILD_DIR) -I $(TESTCASE_DIR)/$(BUILD_DIR) $(COMPILERFFLAGS)
-LFLAGS=
+FFLAGS=-I $(CORE_DIR)/$(BUILD_DIR) -I $(COMPONENTS_DIR)/$(BUILD_DIR) -I $(TESTCASE_DIR)/$(BUILD_DIR) -I /usr/include $(COMPILERFFLAGS)
+LFLAGS= -lfftw3
 EXEC_NAME=monc
 
 local: FTN=mpif90

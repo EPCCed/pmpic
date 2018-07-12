@@ -2,13 +2,13 @@ SRC_COMMON= src/datadefn.F90
 SRC_SPECIAL=src/utils/conversions.F90
 SRCS_UTIL= src/utils/fileunits.F90 src/utils/logging.F90 src/utils/collections.F90 src/utils/maths.F90 src/utils/q_indices.F90 src/utils/naming_conventions.F90 src/utils/string_utils.F90
 SRCS_COMPONENTS=src/components/monc_component.F90 src/components/registry.F90 src/components/timestepper.F90
-SRCSF = $(SRCS_UTIL) src/grid/grids.F90 src/grid/prognostics.F90 src/grid/stencil.F90 src/grid/interpolation.F90 src/communication/communicationtypes.F90 src/parcels/parcels.F90 src/state.F90 src/communication/halocommunication.F90 src/physics/saturation.F90 src/configuration/optionsdatabase.F90 src/utils/timer.F90  $(SRCS_COMPONENTS) src/configuration/configurationfileparser.F90 src/physics/scienceconstants.F90 src/parcels/parcel_interpolation.F90 src/parcels/haloswap.F90 src/monc.F90
+SRCSF = $(SRCS_UTIL) src/grid/grids.F90 src/grid/prognostics.F90 src/grid/stencil.F90 src/grid/interpolation.F90 src/communication/communicationtypes.F90 src/parcels/parcels.F90 src/state.F90 src/communication/halocommunication.F90 src/physics/saturation.F90 src/configuration/optionsdatabase.F90 src/utils/timer.F90  $(SRCS_COMPONENTS) src/configuration/configurationfileparser.F90 src/physics/scienceconstants.F90 src/parcels/parcel_interpolation.F90 src/parcels/haloswap.F90 src/fft/fftw.F90 src/fft/pencilfft.F90 src/monc.F90
 
 BUILDDIR=build
 IO_BUILDDIR=../io/build
 
 FFLAGS=-I $(BUILDDIR) -I $(NETCDF_DIR)/include $(COMPILERRECURSIVE) $(COMPILERFFLAGS)
-FFLAGS=-I $(BUILDDIR)  $(COMPILERRECURSIVE) $(COMPILERFFLAGS)
+FFLAGS=-I $(BUILDDIR)  $(COMPILERRECURSIVE) $(COMPILERFFLAGS) -I/usr/include
 
 OBJS = $(patsubst %.F90,$(BUILDDIR)/%.o,$(SRCSF))
 OBJS_SPECIAL= $(patsubst %.F90,$(BUILDDIR)/%.o,$(SRC_SPECIAL))
