@@ -15,6 +15,7 @@ module vort2vel_mod
   use MPI
   use parcel_interpolation_mod, only: x_coords, y_coords, z_coords
   use timer_mod, only: register_routine_for_timing, timer_start, timer_stop
+  use fftops_mod, only: fftops_init, diffx, diffy
   implicit none
 
 #ifndef TEST_MODE
@@ -56,6 +57,10 @@ contains
     PI=4.0_DEFAULT_PRECISION*atan(1.0_DEFAULT_PRECISION)
 
     fourier_space_sizes=initialise_pencil_fft(current_state, my_y_start, my_x_start)
+
+    call fftops_init(current_state,my_x_start,my_y_start,fourier_space_sizes)
+
+    print *, "rank, my x/y start=", current_state%parallel%my_rank,my_y_start,my_x_start
 
     !call init_halo_communication(current_state, get_single_field_per_halo_cell, halo_swap_state, 1, .false.)
 
@@ -173,7 +178,20 @@ contains
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)), p_s)
 
     !calculate q=dp/dx in spectral space ( q_s = 2*pi*i*kx * p_s)
-    call diffx(p_s,q_s,kx)
+    !call diffx(p_s,q_s,kx)
+
+    q_s(:,:,:) = current_state%parallel%my_rank+1
+    call diffx(current_state,q_s,r_s)
+
+
+
+
+
+    call diffy(current_state,q_s,r_s)
+
+
+
+
 
     call perform_backwards_3dfft(current_state, q_s, current_state%q%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
@@ -181,20 +199,20 @@ contains
     !print *, "value of gradient (numerically derived)=",current_state%q%data(1,3,3:10), current_state%q%data(1,3,xf-5:xf)
 
     !output some data for graphing
-    open(unit=10,file="fft.dat")
-    do i=xi,xf
-      !print *, x_coords(i), current_state%r%data(5,5,i), current_state%q%data(5,5,i),&
-       !abs(current_state%r%data(5,5,i)-current_state%q%data(5,5,i))
-       write(10,*) x_coords(i), current_state%r%data(5,5,i), current_state%q%data(5,5,i),&
-        abs(current_state%r%data(5,5,i)-current_state%q%data(5,5,i))
-    enddo
-    close(10)
+    ! open(unit=10,file="fft.dat")
+    ! do i=xi,xf
+    !   !print *, x_coords(i), current_state%r%data(5,5,i), current_state%q%data(5,5,i),&
+    !    !abs(current_state%r%data(5,5,i)-current_state%q%data(5,5,i))
+    !    write(10,*) x_coords(i), current_state%r%data(5,5,i), current_state%q%data(5,5,i),&
+    !     abs(current_state%r%data(5,5,i)-current_state%q%data(5,5,i))
+    ! enddo
+    ! close(10)
 
    call timer_stop(handle)
 
 
-    ! call MPI_Finalize(ierr)
-    ! stop
+     call MPI_Finalize(ierr)
+     stop
 
     ! call blocking_halo_swap(current_state, halo_swap_state, copy_p_to_halo_buffer, &
     !      perform_local_data_copy_for_p, copy_halo_buffer_to_p)
@@ -216,50 +234,5 @@ contains
   end subroutine finalisation_callback
 
 
-  ! calculates i*k_x * in
-  subroutine diffx(in, out, kx)
-    real(kind=DEFAULT_PRECISION), dimension(:,:,:), intent(in) :: in
-    real(kind=DEFAULT_PRECISION), dimension(:), intent(in) :: kx
-    real(kind=DEFAULT_PRECISION), dimension(:,:,:), intent(out) :: out
-    integer :: oddeven
-    integer :: i, j, k, nx, ny, nz
-    real(kind=DEFAULT_PRECISION), parameter :: twopi=2.*3.1415926535
-
-    !we have 3 cases...
-    ! 1) size(k) is even -No haloswapping needed
-    ! 2) size(k) is odd - we need haloswapping
-    !     a) first element is the imaginary point - haloswap down
-    !     b) first element is the real part - haloswap up
-
-    oddeven=mod(size(kx),2)
-
-    nx=size(in,X_INDEX)
-    ny=size(in,Y_INDEX)
-    nz=size(in,Z_INDEX)
-
-    select case(oddeven)
-    case(0) !we're even
-
-      !print *, kx
-
-      do i=1,nx,2
-        do j=1,ny
-          do k=1,nz
-            out(k,j,i+1) = in(k,j,i)*kx(i)*twopi
-            out(k,j,i) = -1.*in(k,j,i+1)*kx(i+1)*twopi
-          enddo
-        enddo
-      enddo
-
-
-
-
-    case(1) !we're odd
-      error stop "Not implemented yet"
-
-    end select
-
-
-  end subroutine
 
 end module
