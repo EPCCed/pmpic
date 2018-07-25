@@ -1,4 +1,17 @@
 !Module containing routines that act on semi-spectral data
+! The data is spectral in the x and y directions, and is stored as real arrays, but with alternating
+! elements corresponding to the real and imaginary parts of complex numbers
+! So for an array x(2n), then x(1) is the real component of a complex number, and x(2) is the
+! imaginary component et cetera.
+!
+! Current routines:
+! - diffx (differentiate wrt x using wavenumber multiplication)
+! - diffy (differentiate wrt x using wavenumber multiplication)
+!
+! Planned Routines:
+! - tridiag - solve a tridiagonal series of equations
+! - diffz - differentiate wrt z using tridiagonal
+! - laplinv - invert laplacian using tridiagonal method
 module fftops_mod
   use fftw_mod
   use state_mod
@@ -7,6 +20,8 @@ module fftops_mod
 
 
 implicit none
+
+real(kind=DEFAULT_PRECISION), parameter :: twopi=8.d0*atan(1.d0)
 
 real(kind=DEFAULT_PRECISION), allocatable, dimension(:,:,:) :: kx, ky, kz, k2, filter
 
@@ -94,9 +109,9 @@ contains
     !set up wavenumber arrays
 
     do i=1,nx
-      xval = ((x_start+i-1)/2) / (state%global_grid%resolution(3)*state%global_grid%size(3))
+      xval = ((x_start+i-2)/2) /(state%global_grid%resolution(3)*state%global_grid%size(3))
       do j=1,ny
-        yval = ((y_start+j-1)/2) / (state%global_grid%resolution(2)*state%global_grid%size(2))
+        yval = ((y_start+j-2)/2) / (state%global_grid%resolution(2)*state%global_grid%size(2))
         do k=1,nz
           kx(k,j,i) = xval
           ky(k,j,i) = yval
@@ -121,6 +136,10 @@ contains
   end subroutine
 
   !gives spectral derivative in the x direction: out = i*kx*in
+  !This requires us to swap the real and imaginary parts of the numbers around - essentially swap
+  !even and odd array elements around. The catch is that these arrays are decomposed between
+  !processes and some complex number pairs may be split between processes, so we sometimes need to
+  !send messages between processes to swap these pairs round
   subroutine diffx(state,in,out)
     type(model_state_type), intent(inout) :: state
     real(kind=DEFAULT_PRECISION), intent(in) :: in(:,:,:)
@@ -203,7 +222,7 @@ contains
 
     !multiply by k
 
-    out(:,:,:) = out(:,:,:) * kx(:,:,:)
+    out(:,:,:) = out(:,:,:) * kx(:,:,:)*twopi
 
   end subroutine
 
@@ -289,7 +308,7 @@ contains
 
     !multiply by k
 
-    out(:,:,:) = out(:,:,:) * ky(:,:,:)
+    out(:,:,:) = out(:,:,:) * ky(:,:,:) *twopi
 
   end subroutine
 end module

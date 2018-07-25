@@ -58,9 +58,9 @@ contains
 
     fourier_space_sizes=initialise_pencil_fft(current_state, my_y_start, my_x_start)
 
+    !initialise spectral derivatives module
     call fftops_init(current_state,my_x_start,my_y_start,fourier_space_sizes)
 
-    print *, "rank, my x/y start=", current_state%parallel%my_rank,my_y_start,my_x_start
 
     !call init_halo_communication(current_state, get_single_field_per_halo_cell, halo_swap_state, 1, .false.)
 
@@ -70,143 +70,81 @@ contains
     allocate(lambda_s(fourier_space_sizes(Z_INDEX), fourier_space_sizes(Y_INDEX), fourier_space_sizes(X_INDEX)))
 
     rank=current_state%parallel%my_rank
-    !call MPI_Barrier(current_state%parallel%monc_communicator,ierr)
-    !print *, rank, "Fourier sizes=", fourier_space_sizes
-    !call MPI_Barrier(current_state%parallel%monc_communicator,ierr)
-    !print *, rank, "real sizes   =", current_state%local_grid%size
-    !call MPI_Barrier(current_state%parallel%monc_communicator,ierr)
-
-    current_state%p%data(:,:,:) = 1.
-
-    !construct k vectors. First we construct them globally, then the local ones
-
-    nx=current_state%global_grid%size(X_INDEX)
-    ny=current_state%global_grid%size(Y_INDEX)
-    nz=current_state%global_grid%size(Z_INDEX)
-
-    allocate(kx_global( (nx/2+1)*2 ))
-    allocate(ky_global( (ny/2+1)*2 ))
-    allocate(kz_global(nz))
-
-    do i=0,nx/2
-      kx_global(2*i+1)=i/dble(nx)/current_state%global_grid%resolution(X_INDEX)
-      kx_global(2*i+2)=i/dble(nx)/current_state%global_grid%resolution(X_INDEX)
+    !specify p and r p=exp(-((x-x0)/r0)^2), r=dp/dx = -2(x-xo)/r0^2*exp(-((x-x0)/r0)^2)
+    do i=1,size(current_state%p%data,3)
+      current_state%p%data(:,:,i) = exp(-((x_coords(i)-3000.)/1000.)**2)
+      current_state%r%data(:,:,i) = exp(-((x_coords(i)-3000.)/1000.)**2)*(-2.)*(x_coords(i)-3000.)/1000./1000.
     enddo
 
-    do i=0,ny/2
-      ky_global(2*i+1)=i/dble(ny)/current_state%global_grid%resolution(Y_INDEX)
-      ky_global(2*i+2)=i/dble(ny)/current_state%global_grid%resolution(Y_INDEX)
-    enddo
-
-    kz_global(:) = 0.
-
-    allocate(kx(fourier_space_sizes(X_INDEX)))
-    allocate(ky(fourier_space_sizes(Y_INDEX)))
-    allocate(kz(fourier_space_sizes(Z_INDEX)))
-
-    kx(:) = kx_global(my_x_start:my_x_start+fourier_space_sizes(X_INDEX)-1)
-    ky(:) = ky_global(my_y_start:my_y_start+fourier_space_sizes(Y_INDEX)-1)
-    kz(:) = kz_global(:)
-
-    kxmax=maxval(kx_global)
-    kymax=maxval(ky_global)
-    kzmax=maxval(kz_global)
-
-    allocate(k2(fourier_space_sizes(Z_INDEX), fourier_space_sizes(Y_INDEX), fourier_space_sizes(X_INDEX)))
-
-    deallocate(kx_global, ky_global, kz_global)
-
-    !get k^2 array
-    do i=1,fourier_space_sizes(X_INDEX)
-      do j=1,fourier_space_sizes(Y_INDEX)
-        do k=1,fourier_space_sizes(Z_INDEX)
-          k2(k,j,i) = kz(k)*kz(k) + ky(j)*ky(j) + kx(i)*kx(i)
-        enddo
-      enddo
+    do j=1,size(current_state%p%data,2)
+      current_state%p%data(:,j,:)= current_state%p%data(:,j,:) + exp(-((y_coords(j)-3000.)/1000.)**2)
+      current_state%r%data(:,j,:) = exp(-((y_coords(j)-3000.)/1000.)**2)*(-2.)*(y_coords(j)-3000.)/1000./1000.
     enddo
 
     call register_routine_for_timing("vort2vel",handle,current_state)
 
   end subroutine initialisation_callback
 
+
+
+
+
+
   !> Timestep call back, which will transform to Fourier space, do a tridiagonal solve and then back into time space
   !! @param current_state The current model state
   subroutine timestep_callback(current_state)
     type(model_state_type), target, intent(inout) :: current_state
 
-    integer :: start_loc(3), end_loc(3), i
+    integer :: start_loc(3), end_loc(3), i,j
     real(kind=DEFAULT_PRECISION) :: L, pi
 
-    integer :: xi, xf, yi, yf, zi, zf
+
 
 
     call timer_start(handle)
-
 
     do i=1,3
       start_loc(i)=current_state%local_grid%local_domain_start_index(i)
       end_loc(i)=current_state%local_grid%local_domain_end_index(i)
     end do
 
-    xi=start_loc(X_INDEX)
-    xf=  end_loc(X_INDEX)
-    yi=start_loc(y_INDEX)
-    yf=  end_loc(y_INDEX)
-    zi=start_loc(z_INDEX)
-    zf=  end_loc(z_INDEX)
 
-    pi=3.141592
 
-    L = current_state%global_grid%top(X_INDEX)-current_state%global_grid%bottom(X_INDEX)
 
-    !the current aim just takes p, differentiates it in spectral space via wavenumber multiplication,
-    ! then returns this (in real space) as q
 
-    ! p = input array, set to sin(2*pi*x/L) where L is the length of the domain in the x direction
-    ! q = output from dp/dx
-    ! r reference values for dp/dz = 2*pi/L * cos(2*pi*x/L)
-
-    do i=1,size(current_state%p%data,X_INDEX)
-      current_state%p%data(:,:,i) = sin(2*pi*x_coords(i)/L)
-      current_state%r%data(:,:,i) = 2*pi/L*cos(2*pi*x_coords(i)/L)
-    enddo
-
-  !  print *, "Gradient should be (analytically derived)", current_state%r%data(1,3,3:10),current_state%r%data(1,3,xf-5:xf)
-
+  ! get fft of p
 
     call perform_forward_3dfft(current_state, current_state%p%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)), p_s)
 
     !calculate q=dp/dx in spectral space ( q_s = 2*pi*i*kx * p_s)
-    !call diffx(p_s,q_s,kx)
+    call diffy(current_state,p_s,q_s)
 
-    q_s(:,:,:) = current_state%parallel%my_rank+1
-    call diffx(current_state,q_s,r_s)
-
-
-
-
-
-    call diffy(current_state,q_s,r_s)
-
-
-
-
-
+    ! undo fft of q and put it into q
     call perform_backwards_3dfft(current_state, q_s, current_state%q%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
+    !undo fft of p_s and put it in p
+    call perform_backwards_3dfft(current_state, p_s, current_state%p%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
+        start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
 
-    !print *, "value of gradient (numerically derived)=",current_state%q%data(1,3,3:10), current_state%q%data(1,3,xf-5:xf)
 
-    !output some data for graphing
-    ! open(unit=10,file="fft.dat")
-    ! do i=xi,xf
-    !   !print *, x_coords(i), current_state%r%data(5,5,i), current_state%q%data(5,5,i),&
-    !    !abs(current_state%r%data(5,5,i)-current_state%q%data(5,5,i))
-    !    write(10,*) x_coords(i), current_state%r%data(5,5,i), current_state%q%data(5,5,i),&
-    !     abs(current_state%r%data(5,5,i)-current_state%q%data(5,5,i))
-    ! enddo
-    ! close(10)
+
+    !output some data for graphing/verification
+    do j=0,current_state%parallel%processes-1
+      call MPI_Barrier(current_state%parallel%monc_communicator,ierr)
+      if (current_state%parallel%my_rank .eq. j) then
+        if (current_state%parallel%my_rank .eq. 0) then
+           open(unit=10,file="fft.dat")
+        else
+           open(unit=10,file="fft.dat",access="append")
+        endif
+        do i=3,current_state%local_grid%size(2)+2
+          write(10,*) y_coords(i), current_state%p%data(5,i,5), current_state%q%data(5,i,5),&
+           current_state%r%data(5,i,5)
+        enddo
+        close(10)
+      endif
+    enddo
 
    call timer_stop(handle)
 
