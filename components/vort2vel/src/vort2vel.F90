@@ -15,7 +15,7 @@ module vort2vel_mod
   use MPI
   use parcel_interpolation_mod, only: x_coords, y_coords, z_coords
   use timer_mod, only: register_routine_for_timing, timer_start, timer_stop
-  use fftops_mod, only: fftops_init, diffx, diffy
+  use fftops_mod, only: fftops_init, diffx, diffy, diffz
   implicit none
 
 #ifndef TEST_MODE
@@ -95,7 +95,7 @@ contains
   subroutine timestep_callback(current_state)
     type(model_state_type), target, intent(inout) :: current_state
 
-    integer :: start_loc(3), end_loc(3), i,j
+    integer :: start_loc(3), end_loc(3), i,j,k
     real(kind=DEFAULT_PRECISION) :: L, pi
 
 
@@ -145,6 +145,22 @@ contains
         close(10)
       endif
     enddo
+
+
+    do k=1,size(p_s,1)
+      p_s(k,:,:) = p_s(k,:,:) + exp(-((z_coords(k)-3000.)/1000.)**2)
+      r_s(k,:,:) = exp(-((z_coords(k)-3000.)/1000.)**2)*(-2.)*(z_coords(k)-3000.)/1000./1000.
+    enddo
+
+    call diffz(p_s,q_s)
+
+    open(unit=10,file="fft.dat")
+    do k=1,size(p_s,1)
+      print *, z_coords(k),p_s(k,5,5), q_s(k,5,5), r_s(k,5,5)
+      write(10,*) z_coords(k),p_s(k,5,5), q_s(k,5,5), r_s(k,5,5)
+    enddo
+    close(10)
+
 
    call timer_stop(handle)
 
