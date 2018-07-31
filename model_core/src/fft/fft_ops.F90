@@ -33,7 +33,7 @@ integer :: x_start, y_start, x_stop, y_stop
 integer :: left, right, up, down
 integer :: nx, ny, nz
 logical :: initialised = .false.
-integer :: ierr
+integer :: ierr, comm
 
 logical :: x_start_swap, x_end_swap, y_start_swap, y_end_swap !do we need to swap the first/last array elements with neighbouring processes
 
@@ -130,6 +130,10 @@ contains
     left=state%local_grid%neighbours(3,1) ! in -x direction
     right=state%local_grid%neighbours(3,3) ! in +x direction
 
+    !cache monc communicator
+    comm=state%parallel%monc_communicator
+
+
 
     !cache dz
     dz=state%global_grid%resolution(1)
@@ -147,8 +151,7 @@ contains
   !even and odd array elements around. The catch is that these arrays are decomposed between
   !processes and some complex number pairs may be split between processes, so we sometimes need to
   !send messages between processes to swap these pairs round
-  subroutine diffx(state,in,out)
-    type(model_state_type), intent(inout) :: state
+  subroutine diffx(in,out)
     real(kind=DEFAULT_PRECISION), intent(in) :: in(:,:,:)
     real(kind=DEFAULT_PRECISION), intent(out) :: out(:,:,:)
     integer :: left_sendrequest, left_recvrequest, right_sendrequest, right_recvrequest
@@ -170,7 +173,7 @@ contains
                      datatype=PRECISION_TYPE,&
                      dest=left,&
                      tag=0,&
-                     comm=state%parallel%monc_communicator,&
+                     comm=comm,&
                      request=requests(1),&
                      ierror=ierr)
       call MPI_irecv(buf=left_recvbuff,&
@@ -178,7 +181,7 @@ contains
                      datatype=PRECISION_TYPE,&
                      source=left,&
                      tag=1,&
-                     comm=state%parallel%monc_communicator,&
+                     comm=comm,&
                      request=requests(2),&
                      ierror=ierr)
       istart=2
@@ -191,7 +194,7 @@ contains
                      datatype=PRECISION_TYPE,&
                      dest=right,&
                      tag=1,&
-                     comm=state%parallel%monc_communicator,&
+                     comm=comm,&
                      request=requests(3),&
                      ierror=ierr)
       call MPI_irecv(buf=right_recvbuff,&
@@ -199,7 +202,7 @@ contains
                      datatype=PRECISION_TYPE,&
                      source=right,&
                      tag=0,&
-                     comm=state%parallel%monc_communicator,&
+                     comm=comm,&
                      request=requests(4),&
                      ierror=ierr)
       iend=nx-1
@@ -234,8 +237,7 @@ contains
   end subroutine
 
   !gives spectral derivative in the y direction: out = 2*pi*i*ky*in
-  subroutine diffy(state,in,out)
-    type(model_state_type), intent(inout) :: state
+  subroutine diffy(in,out)
     real(kind=DEFAULT_PRECISION), intent(in) :: in(:,:,:)
     real(kind=DEFAULT_PRECISION), intent(out) :: out(:,:,:)
     integer :: jstart, jend
@@ -256,7 +258,7 @@ contains
                      datatype=PRECISION_TYPE,&
                      dest=down,&
                      tag=0,&
-                     comm=state%parallel%monc_communicator,&
+                     comm=comm,&
                      request=requests(1),&
                      ierror=ierr)
       call MPI_irecv(buf=down_recvbuff,&
@@ -264,7 +266,7 @@ contains
                      datatype=PRECISION_TYPE,&
                      source=down,&
                      tag=1,&
-                     comm=state%parallel%monc_communicator,&
+                     comm=comm,&
                      request=requests(2),&
                      ierror=ierr)
       jstart=2
@@ -277,7 +279,7 @@ contains
                      datatype=PRECISION_TYPE,&
                      dest=up,&
                      tag=1,&
-                     comm=state%parallel%monc_communicator,&
+                     comm=comm,&
                      request=requests(3),&
                      ierror=ierr)
       call MPI_irecv(buf=up_recvbuff,&
@@ -285,7 +287,7 @@ contains
                      datatype=PRECISION_TYPE,&
                      source=up,&
                      tag=0,&
-                     comm=state%parallel%monc_communicator,&
+                     comm=comm,&
                      request=requests(4),&
                      ierror=ierr)
       jend=ny-1
@@ -323,7 +325,7 @@ contains
 
   ! 4th order accurate derivative in the z direction (returns df/dz)
   ! Solves the tridigonal problem:
-  ! 1/6 dfdz(i-1) + 2/3 dfdz(i) + 1/6 dfdz(j+1) = (f(j+1)-f(j-1))/2 for i=2,n-1
+  ! 1/6 dfdz(i-1) + 2/3 dfdz(i) + 1/6 dfdz(i+1) = (f(i+1)-f(i-1))/2 for i=2,n-1
   !
   ! If the optional argument "laplacian" is left out then it assumes zero gradient
   ! the boundaries:

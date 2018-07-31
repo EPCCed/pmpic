@@ -118,7 +118,7 @@ contains
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)), p_s)
 
     !calculate q=dp/dx in spectral space ( q_s = 2*pi*i*kx * p_s)
-    call diffy(current_state,p_s,q_s)
+    call diffy(p_s,q_s)
 
     ! undo fft of q and put it into q
     call perform_backwards_3dfft(current_state, q_s, current_state%q%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
