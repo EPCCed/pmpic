@@ -103,6 +103,9 @@ contains
     ny=fourier_space_sizes(Y_INDEX)
     nz=fourier_space_sizes(Z_INDEX)
 
+    z_coords=z_coords/z_coords(nz)
+    z_coords=z_coords*lz
+
     !setup k arrays
     do i=1,nx
       kx(i) = ((my_x_start+i-2)/2) /(lz)
@@ -139,14 +142,32 @@ contains
                        + p1*p2 + p1*p3 + p2*p3) - k2(j,i)*Aref(:,j,i)
           q_s(:,j,i) = 2*beta*(6*z_coords(:)*z_coords(:) - 3*(q1+q2+q3)*z_coords(:) &
                        + q1*q2 + q1*q3 + q2*q3) - k2(j,i)*Bref(:,j,i)
+        else if ( (mod(my_x_start+i-1,2) .eq. 0) .and. (mod(my_y_start+i-1,2) .eq. 0)) then
+          !imaginary parts
+          Cref(:,j,i) = -kx(i)*alpha*z_coords(:)**2 &
+                        * ( 0.2*z_coords(:)**3 - 0.25*(p1+p2+p3)*z_coords(:)**2 &
+                        +  1./3.*(p1*p2 + p2*p3 + p1*p3)*z_coords(:) - 0.5*p1*p2*p3) &
+                        -ky(j)*beta*z_coords(:)**2 &
+                        * ( 0.2*z_coords(:)**3 - 0.25*(q1+q2+q3)*z_coords(:)**2 &
+                        +  1./3.*(q1*q2 + q2*q3 + q1*q3)*z_coords(:) - 0.5*q1*q2*q3) + 20.
+          r_s(:,j,i) = -kx(i)*alpha &
+                        * ( 4.*z_coords(:)**3 - 3.*(p1+p2+p3)*z_coords(:)**2 &
+                        +  2.*(p1*p2 + p2*p3 + p1*p3)*z_coords(:) - p1*p2*p3) &
+                        -ky(j)*beta &
+                        * ( 4.*z_coords(:)**3 - 3.*(q1+q2+q3)*z_coords(:)**2 &
+                        +  2.*(q1*q2 + q2*q3 + q1*q3)*z_coords(:) - q1*q2*q3) &
+                        - k2(j,i)*Cref(:,j,i)
         endif
+
+
+
       enddo
     enddo
 
     !write vorticities to file as they will be overwritten during solving the laplacian
     open(unit=10,file="vort.txt")
     do i=1,nz
-      write(10,*) z_coords(i), p_s(i,5,3), q_s(i,5,3)
+      write(10,*) z_coords(i), p_s(i,5,3), q_s(i,5,3), r_s(i,6,4)
     enddo
     close(10)
 
@@ -169,11 +190,12 @@ contains
 
     call laplinv(p_s, f_zero_on_boundary=.true.)
     call laplinv(q_s, f_zero_on_boundary=.true.)
+    call laplinv(r_s, df_zero_on_boundary=.true.)
 
-    !write computed A and B (stored in p and q) as well as the reference (analytical) values 
+    !write computed A and B (stored in p and q) as well as the reference (analytical) values
     open(unit=10,file="pot.dat")
     do i=1,size(p_s,1)
-      write(10,*) z_coords(i), p_s(i,5,3), Aref(i,5,3), q_s(i,5,3), Bref(i,5,3)
+      write(10,*) z_coords(i), p_s(i,5,3), Aref(i,5,3), q_s(i,5,3), Bref(i,5,3), r_s(i,6,4), Cref(i,6,4)
     enddo
     close(10)
 
