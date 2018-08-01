@@ -18,14 +18,15 @@ rk4_integrator_enabled=.true.
 #parcel velocity routines
 prescribed_parcel_velocity_enabled=.true.
 
-vort2vel_enabled=.true.
+vort2vel_enabled=.false.
+laplinv_test_enabled=.true.
 
 
 #component ordering
 
 #initialisation_stage_ordering+=euler_integrator,prescribed_parcel_velocity,writeparcels
 
-integrator_group_contents=grid2partest,prescribed_parcel_velocity,vort2vel,euler_integrator,rk4_integrator
+integrator_group_contents=grid2partest,prescribed_parcel_velocity,vort2vel,laplinv_test,euler_integrator,rk4_integrator
 
 #finalisation_stage_ordering+=model_synopsis,euler_integrator,prescribed_parcel_velocity,writeparcels
 
