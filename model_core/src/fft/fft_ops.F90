@@ -471,7 +471,7 @@ contains
           c(1)=0.
           d(1)=0.
           a(nz)=0.
-          b(nz)=0.
+          b(nz)=1.
           c(nz)=0.
           d(nz)=0.
         else !df/dz is zero on boundary
