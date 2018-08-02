@@ -464,6 +464,7 @@ contains
     !loop over all columns
     do i=1,nx
       do j=1,ny
+        if (k2(1,j,i) .eq. 0) cycle !We don't want to calculate the case where k^2=0
         !specify a, b, c and d on column
         if (f0) then !f is zero on boundary
           a(1)=0.
@@ -534,6 +535,10 @@ contains
     do i=2,n
       cp(i) = c(i-1) / denominator !cp(i) is c'(i-1)
       denominator = b(i) - a(i) * cp(i)
+      if (denominator .eq. 0) then
+        print "Error in tridiagonal solver: divide by zero"
+        error stop
+      endif
       f(i) = (d(i) - a(i)*f(i-1))/(denominator)
     enddo
 
