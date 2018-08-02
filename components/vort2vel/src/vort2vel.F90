@@ -15,7 +15,7 @@ module vort2vel_mod
   use MPI
   use parcel_interpolation_mod, only: x_coords, y_coords, z_coords
   use timer_mod, only: register_routine_for_timing, timer_start, timer_stop
-  use fftops_mod, only: fftops_init, diffx, diffy, diffz
+  use fftops_mod, only: fftops_init, diffx, diffy, diffz, laplinv, spectral_filter
   implicit none
 
 #ifndef TEST_MODE
@@ -24,12 +24,15 @@ module vort2vel_mod
 
   !real(kind=DEFAULT_PRECISION), dimension(:), allocatable :: cos_x, cos_y
   real(kind=DEFAULT_PRECISION) :: PI
-  real(kind=DEFAULT_PRECISION), dimension(:,:,:), allocatable :: p_s, q_s, r_s, lambda_s
+  real(kind=DEFAULT_PRECISION), dimension(:,:,:), allocatable :: a, b, c, d, e, f
   real(kind=DEFAULT_PRECISION), dimension(:), allocatable :: kx, ky, kz
   real(kind=DEFAULT_PRECISION), dimension(:,:,:), allocatable :: k2
   integer :: fourier_space_sizes(3)
   integer :: ierr
   integer :: handle
+  integer :: nx, ny, nz
+  real(kind=DEFAULT_PRECISION) :: dz, hdzi
+  logical :: k2eq0
   !type(halo_communication_type), save :: halo_swap_state
 
   public vort2vel_get_descriptor
@@ -48,7 +51,6 @@ contains
   !> This initialisation callback sets up the pencil fft module, allocates data for the fourier space variables
   subroutine initialisation_callback(current_state)
     type(model_state_type), target, intent(inout) :: current_state
-    integer :: nx, ny, nz
     real(kind=DEFAULT_PRECISION), dimension(:), ALLOCATABLE :: kx_global, ky_global, kz_global
     real(kind=DEFAULT_PRECISION) :: kzmax, kymax, kxmax
 
@@ -58,28 +60,37 @@ contains
 
     fourier_space_sizes=initialise_pencil_fft(current_state, my_y_start, my_x_start)
 
+    if (my_x_start .eq. 1 .and. my_y_start .eq. 1) then
+      k2eq0 = .true.
+    else
+      k2eq0 = .false.
+    endif
+
     !initialise spectral derivatives module
     call fftops_init(current_state,my_x_start,my_y_start,fourier_space_sizes)
 
 
     !call init_halo_communication(current_state, get_single_field_per_halo_cell, halo_swap_state, 1, .false.)
 
-    allocate(p_s(fourier_space_sizes(Z_INDEX), fourier_space_sizes(Y_INDEX), fourier_space_sizes(X_INDEX)))
-    allocate(q_s(fourier_space_sizes(Z_INDEX), fourier_space_sizes(Y_INDEX), fourier_space_sizes(X_INDEX)))
-    allocate(r_s(fourier_space_sizes(Z_INDEX), fourier_space_sizes(Y_INDEX), fourier_space_sizes(X_INDEX)))
-    allocate(lambda_s(fourier_space_sizes(Z_INDEX), fourier_space_sizes(Y_INDEX), fourier_space_sizes(X_INDEX)))
+    nx=fourier_space_sizes(X_INDEX)
+    ny=fourier_space_sizes(Y_INDEX)
+    nz=fourier_space_sizes(Z_INDEX)
 
-    rank=current_state%parallel%my_rank
-    !specify p and r p=exp(-((x-x0)/r0)^2), r=dp/dx = -2(x-xo)/r0^2*exp(-((x-x0)/r0)^2)
-    do i=1,size(current_state%p%data,3)
-      current_state%p%data(:,:,i) = exp(-((x_coords(i)-3000.)/1000.)**2)
-      current_state%r%data(:,:,i) = exp(-((x_coords(i)-3000.)/1000.)**2)*(-2.)*(x_coords(i)-3000.)/1000./1000.
-    enddo
+    dz=current_state%global_grid%resolution(Z_INDEX)
+    hdzi = 1./2./dz
 
-    do j=1,size(current_state%p%data,2)
-      current_state%p%data(:,j,:)= current_state%p%data(:,j,:) + exp(-((y_coords(j)-3000.)/1000.)**2)
-      current_state%r%data(:,j,:) = exp(-((y_coords(j)-3000.)/1000.)**2)*(-2.)*(y_coords(j)-3000.)/1000./1000.
-    enddo
+    allocate(a(fourier_space_sizes(Z_INDEX), fourier_space_sizes(Y_INDEX), fourier_space_sizes(X_INDEX)))
+    allocate(b(fourier_space_sizes(Z_INDEX), fourier_space_sizes(Y_INDEX), fourier_space_sizes(X_INDEX)))
+    allocate(c(fourier_space_sizes(Z_INDEX), fourier_space_sizes(Y_INDEX), fourier_space_sizes(X_INDEX)))
+    allocate(d(fourier_space_sizes(Z_INDEX), fourier_space_sizes(Y_INDEX), fourier_space_sizes(X_INDEX)))
+    allocate(e(fourier_space_sizes(Z_INDEX), fourier_space_sizes(Y_INDEX), fourier_space_sizes(X_INDEX)))
+    allocate(f(fourier_space_sizes(Z_INDEX), fourier_space_sizes(Y_INDEX), fourier_space_sizes(X_INDEX)))
+
+    allocate(current_state%u_s%data(nz,ny,nx))
+    allocate(current_state%v_s%data(nz,ny,nx))
+    allocate(current_state%w_s%data(nz,ny,nx))
+
+
 
     call register_routine_for_timing("vort2vel",handle,current_state)
 
@@ -97,8 +108,14 @@ contains
 
     integer :: start_loc(3), end_loc(3), i,j,k
     real(kind=DEFAULT_PRECISION) :: L, pi
+    real(kind=DEFAULT_PRECISION), allocatable, dimension(:,:) :: atop, abot, btop,bbot
+    real(kind=DEFAULT_PRECISION), ALLOCATABLE, dimension(:) :: ubar, vbar
+    real(kind=DEFAULT_PRECISION) :: uavg, vavg
 
-
+    allocate(atop(ny,nx), abot(ny,nx), btop(ny,nx), bbot(ny,nx))
+    if (k2eq0) then
+      allocate(ubar(nz), vbar(nz))
+    endif
 
 
     call timer_start(handle)
@@ -108,65 +125,170 @@ contains
       end_loc(i)=current_state%local_grid%local_domain_end_index(i)
     end do
 
+    !Take fft of vorticities to get them into semi-spectral space
 
-
-
-
-  ! get fft of p
-
+    ! get fft of p and put it in a
     call perform_forward_3dfft(current_state, current_state%p%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
-         start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)), p_s)
+         start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)), a)
 
-    !calculate q=dp/dx in spectral space ( q_s = 2*pi*i*kx * p_s)
-    call diffy(p_s,q_s)
+    ! get fft of q and put it in b
+    call perform_forward_3dfft(current_state, current_state%q%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
+        start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)), b)
 
-    ! undo fft of q and put it into q
-    call perform_backwards_3dfft(current_state, q_s, current_state%q%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
+    ! get fft of r and put it in c
+    call perform_forward_3dfft(current_state, current_state%r%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
+        start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)), c)
+
+
+    ! we now want to correct vorticity so div(vort) = 0
+    ! To do this we introduce a scalar lambda where vort = vort_p - grad(lambda)
+    ! (this doesn't affect the velocity as curl(gradient) = 0)
+    ! Thus div(vort) = div(vort_p) - laplacian(lambda) = 0, hence laplacian(lambda) = div(vort)
+
+    ! First we calculate div(vort_p)
+    call diffx(a,d) !d = da/dx
+    call diffy(b,e) !e = db/dy
+
+    !f = dc/dz
+    f(1,:,:) = hdzi * ( 4.*c(2,:,:) - c(3,:,:) - 3.*c(1,:,:) )
+    f(2:nz-1,:,:) = (c(3:nz,:,:) - c(1:nz-2,:,:))*hdzi
+    f(nz,:,:) = hdzi * ( c(nz-2,:,:) + 3.*c(nz,:,:) - 4.*c(nz-1,:,:) )
+
+    !f -> d + e + f    (f = div(vort))
+    f(:,:,:) = d(:,:,:) + e(:,:,:) + f(:,:,:)
+
+    if (k2eq0) f(:,1:2, 1:2) = 0.0 !set constant part of f to zero
+
+    ! invert laplacian (f = div(vort) -> f = lambda)
+    call laplinv(f,df_zero_on_boundary=.true.)
+
+    !spectrally filter lambda
+    call spectral_filter(f)
+
+    ! now we want to correct vorticity: vort -> vort - grad(lambda)
+
+    ! d = df/dx
+    call diffx(f,d)
+    a(:,:,:) = a(:,:,:) - d(:,:,:)
+
+    !d = df/dy
+    call diffy(f,d)
+    b(:,:,:) = b(:,:,:) - d(:,:,:)
+
+    !d = df/dz (df/fz=0 on boundaries)
+    call diffz(f,d)
+    c(:,:,:) = c(:,:,:) - d(:,:,:)
+
+    !spectrally filter a, b and c
+    call spectral_filter(a,out=d)
+    call spectral_filter(b,out=e)
+    call spectral_filter(c,out=f)
+
+    !cache top and bottom of a and b for use with z derivatives of A and B potentials later
+    atop(:,:) = a(nz,:,:)
+    abot(:,:) = a(1,:,:)
+    btop(:,:) = b(nz,:,:)
+    bbot(:,:) = b(1,:,:)
+
+    !inverse fft corrected and filtered vorticities to physical space
+    call perform_backwards_3dfft(current_state, d, current_state%p%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
-    !undo fft of p_s and put it in p
-    call perform_backwards_3dfft(current_state, p_s, current_state%p%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
-        start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
+    call perform_backwards_3dfft(current_state, e, current_state%q%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
+         start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
+    call perform_backwards_3dfft(current_state, f, current_state%r%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
+         start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
+
+    !if we are the process at the bottom left hand corner then calculate the mean velocity
+    if (k2eq0) then
+      ubar(1)=0
+      vbar(1)=0
+      do k=1,nz-1
+        ubar(k+1) = ubar(k) + dz/2. * (e(k,1,1)+e(k+1,1,1))
+        vbar(k+1) = vbar(k) - dz/2. * (d(k,1,1)+d(k+1,1,1))
+      enddo
+      uavg=1./nz * sum(ubar(1:nz-1)+0.5*ubar(nz))
+      vavg=1./nz * sum(vbar(1:nz-1)+0.5*vbar(nz))
+      ubar(:) = ubar(:) - uavg
+      vbar(:) = vbar(:) - vavg
+    endif
+
+    !invert vorticity (not filtered!!) to get potentials a, b and c
+    call laplinv(a, f_zero_on_boundary=.true.)
+    call laplinv(b, f_zero_on_boundary=.true.)
+    call laplinv(c, df_zero_on_boundary=.true.)
+
+    ! Now we want to compute the velocity
+
+    ! u = db/dz - dc/dy
+
+    ! e=db/dz, d=dc/dy
+    call diffz(b,e,bbot,btop)
+    call diffy(c,d)
+
+    f(:,:,:) = e(:,:,:) - d(:,:,:)
+
+    if (k2eq0) then
+      f(:,1,1) = ubar(:)
+      !these steps should be unneccessary but let's put them in to be safe
+      f(:,1,2) = 0.
+      f(:,2,1) = 0.
+      f(:,2,2) = 0.
+    endif
+
+    call spectral_filter(f, out=current_state%u_s%data)
+
+    call perform_backwards_3dfft(current_state, f, current_state%u%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
+         start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
+
+
+    ! v = dc/dx - da/dz
+
+    ! e=db/dz, d=dc/dy
+    call diffz(a,e,abot,atop)
+    call diffx(c,d)
+
+    f(:,:,:) =  d(:,:,:) - e(:,:,:)
+
+    if (k2eq0) then
+      f(:,1,1) = vbar(:)
+      !these steps should be unneccessary but let's put them in to be safe
+      f(:,1,2) = 0.
+      f(:,2,1) = 0.
+      f(:,2,2) = 0.
+    endif
+
+    call spectral_filter(f, out=current_state%v_s%data)
+
+    call perform_backwards_3dfft(current_state, f, current_state%v%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
+         start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
+
+
+    ! w = da/dy - db/dx
+
+    ! d=db/dx, e=da/dy
+    call diffx(b,d)
+    call diffy(a,e)
+
+    f(:,:,:) = e(:,:,:) - d(:,:,:)
+
+
+    call spectral_filter(f, out=current_state%w_s%data)
+
+    call perform_backwards_3dfft(current_state, f, current_state%w%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
+         start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
 
 
 
-    !output some data for graphing/verification
-    do j=0,current_state%parallel%processes-1
-      call MPI_Barrier(current_state%parallel%monc_communicator,ierr)
-      if (current_state%parallel%my_rank .eq. j) then
-        if (current_state%parallel%my_rank .eq. 0) then
-           open(unit=10,file="fft.dat")
-        else
-           open(unit=10,file="fft.dat",access="append")
-        endif
-        do i=3,current_state%local_grid%size(2)+2
-          write(10,*) y_coords(i), current_state%p%data(5,i,5), current_state%q%data(5,i,5),&
-           current_state%r%data(5,i,5)
-        enddo
-        close(10)
-      endif
-    enddo
+    call timer_stop(handle)
+
+    deallocate(atop, abot, btop, bbot)
+    if (k2eq0) then
+      deallocate(ubar, vbar)
+    endif
 
 
-    do k=1,size(p_s,1)
-      p_s(k,:,:) = p_s(k,:,:) + exp(-((z_coords(k)-3000.)/1000.)**2)
-      r_s(k,:,:) = exp(-((z_coords(k)-3000.)/1000.)**2)*(-2.)*(z_coords(k)-3000.)/1000./1000.
-    enddo
-
-    call diffz(p_s,q_s)
-
-    open(unit=10,file="fft.dat")
-    do k=1,size(p_s,1)
-      print *, z_coords(k),p_s(k,5,5), q_s(k,5,5), r_s(k,5,5)
-      write(10,*) z_coords(k),p_s(k,5,5), q_s(k,5,5), r_s(k,5,5)
-    enddo
-    close(10)
-
-
-   call timer_stop(handle)
-
-
-     call MPI_Finalize(ierr)
-     stop
+    call MPI_Finalize(ierr)
+    stop
 
     ! call blocking_halo_swap(current_state, halo_swap_state, copy_p_to_halo_buffer, &
     !      perform_local_data_copy_for_p, copy_halo_buffer_to_p)
@@ -183,7 +305,8 @@ contains
     type(model_state_type), target, intent(inout) :: current_state
 
     call finalise_pencil_fft(current_state%parallel%monc_communicator)
-    deallocate(p_s, q_s, r_s, lambda_s)
+    deallocate(a, b, c, d, e, f)
+    deallocate(current_state%u_s%data, current_state%v_s%data, current_state%w_s%data)
 
   end subroutine finalisation_callback
 

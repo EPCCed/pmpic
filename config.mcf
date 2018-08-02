@@ -18,8 +18,8 @@ rk4_integrator_enabled=.true.
 #parcel velocity routines
 prescribed_parcel_velocity_enabled=.true.
 
-vort2vel_enabled=.false.
-laplinv_test_enabled=.true.
+vort2vel_enabled=.true.
+laplinv_test_enabled=.false.
 
 
 #component ordering

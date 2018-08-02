@@ -60,6 +60,8 @@ module state_mod
                                    b, hg, hgliq, & ! buoyancy, humidity fraction, condensed humidity
                                    vol !volume fraction
 
+    type(prognostic_field_type) :: u_s, v_s, w_s !semi-spectral velocities
+
     type(parcel_type) :: parcels
 
   end type model_state_type

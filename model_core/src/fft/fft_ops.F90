@@ -10,6 +10,7 @@
 ! - tridiagonal - solve set of tridiagonal equations
 ! - diffz - differentiate wrt z using tridiagonal method
 ! - laplinv - invert laplacian using tridiagonal method
+! - spectral_filter - filter spectral data according to the 2/3 rule
 module fftops_mod
   use fftw_mod
   use state_mod
@@ -46,7 +47,7 @@ contains
     type(model_state_type), intent(inout) :: state
     integer, intent(in) :: xs, ys, sizes(:)
     integer :: i, j, k
-    real(kind=DEFAULT_PRECISION) :: xval, yval
+    real(kind=DEFAULT_PRECISION) :: xval, yval, ksqmax, lx, ly
 
     if (initialised) then
       print *, "Error fft_ops is already initialised"
@@ -63,7 +64,7 @@ contains
     x_stop = x_start+nx-1
     y_stop = y_start+ny-1
 
-    allocate(kx(nz,ny,nx), ky(nz,ny,nx), k2(nz,ny,nx))
+    allocate(kx(nz,ny,nx), ky(nz,ny,nx), k2(nz,ny,nx), filter(nz,ny,nx))
 
     !determine structure of array (i.e. are all the complex numbers on the array, or are some truncated)
 
@@ -106,13 +107,16 @@ contains
       allocate(up_sendbuff(nz,nx),up_recvbuff(nz,nx))
     endif
 
+   !set up wavenumber arrays K = n/l
+    lx = state%global_grid%resolution(3)*state%global_grid%size(3)
+    ly = state%global_grid%resolution(2)*state%global_grid%size(2)
 
-    !set up wavenumber arrays
-
+    ksqmax = (state%global_grid%size(3)/2./lx)**2 + (state%global_grid%size(2)/2./ly)**2
+    ksqmax = ksqmax * 2./9. !set limit to (2/3)^2 * kmax^2
     do i=1,nx
-      xval = ((x_start+i-2)/2) /(state%global_grid%resolution(3)*state%global_grid%size(3))
+      xval = ((x_start+i-2)/2) /(lx)
       do j=1,ny
-        yval = ((y_start+j-2)/2) / (state%global_grid%resolution(2)*state%global_grid%size(2))
+        yval = ((y_start+j-2)/2) / (ly)
         do k=1,nz
           kx(k,j,i) = xval
           ky(k,j,i) = yval
@@ -121,6 +125,12 @@ contains
       enddo
     enddo
 
+    !assign filter
+    where( k2 .gt. ksqmax)
+      filter = 0.
+    elsewhere
+      filter = 1.
+    endwhere
 
 
     !determine neighbours
@@ -146,6 +156,24 @@ contains
 
   end subroutine
 
+  !spectrally filters f according to the 2/3 rule:
+  ! -wavenumbers greater than 2/3 of the maximum wavenumber are set to zero
+  ! Arguments:
+  ! - f               = array to be filtered
+  ! - out (OPTIONAL)  = array to have filtered f returned to. If this input is not
+  !                     present then the filter is done in-place
+  subroutine spectral_filter(f,out)
+    real(kind=DEFAULT_PRECISION), dimension(:,:,:), intent(inout) :: f
+    real(kind=DEFAULT_PRECISION), dimension(:,:,:), intent(out), optional :: out
+
+    if (present(out)) then
+      out(:,:,:) = f(:,:,:)*filter(:,:,:)
+    else
+      f(:,:,:) = f(:,:,:)*filter(:,:,:)
+    endif
+
+  end subroutine
+
   !gives spectral derivative in the x direction: out = 2*pi*i*kx*in
   !This requires us to swap the real and imaginary parts of the numbers around - essentially swap
   !even and odd array elements around. The catch is that these arrays are decomposed between
@@ -162,8 +190,6 @@ contains
 
     istart=1
     iend=nx
-
-    print *, "enter diffx"
 
     !send/recv start/end values of arrays if needed (non-blocking)
     if (x_start_swap) then
@@ -248,8 +274,6 @@ contains
     jstart=1
     jend=nx
 
-    print *, "enter diffy"
-
     !send/recv start/end values of arrays if needed (non-blocking)
     if (y_start_swap) then
       down_sendbuff(:,:) = in(:,1,:)
@@ -327,20 +351,20 @@ contains
   ! Solves the tridigonal problem:
   ! 1/6 dfdz(i-1) + 2/3 dfdz(i) + 1/6 dfdz(i+1) = (f(i+1)-f(i-1))/2 for i=2,n-1
   !
-  ! If the optional argument "laplacian" is left out then it assumes zero gradient
+  ! If the optional arguments "bot" and "top" are left out then it assumes zero gradient
   ! the boundaries:
   ! dfdz(1) = 0
   ! dfdz(n) = 0
   !
-  ! If laplacian is included, then it assumes that f must be zero at the boundaries,
+  ! If "bot" and "top" are included, then it assumes that f must be zero at the boundaries,
   ! and the boundary values are:
-  ! 2/3 dfdz(1) + 1/3 dfdz(2) = f(2)/dz - 1/6 laplacian(1)*dz
-  ! 1/3 dfdz(n-1) + 2/3 dfdz(n) = -f(n-1)/dz + 1/6 laplacian(n) * dz
+  ! 2/3 dfdz(1) + 1/3 dfdz(2) = f(2)/dz - 1/6 bot(1)*dz
+  ! 1/3 dfdz(n-1) + 2/3 dfdz(n) = -f(n-1)/dz + 1/6 top(n) * dz
   !
-  subroutine diffz(f,dfdz,laplacian)
+  subroutine diffz(f,dfdz,bot,top)
     real(kind=DEFAULT_PRECISION), intent(in) :: f(:,:,:)
     real(kind=DEFAULT_PRECISION), intent(out) :: dfdz(:,:,:)
-    real(kind=DEFAULT_PRECISION), intent(in), optional :: laplacian(:,:,:)
+    real(kind=DEFAULT_PRECISION), intent(in), optional :: bot(:,:), top(:,:)
 
     integer :: nz,nx,ny,i,j,k
     real(kind=DEFAULT_PRECISION), allocatable :: d(:), a(:), b(:), c(:)
@@ -366,7 +390,7 @@ contains
     b(nz)=bn
     c(nz)=cn
 
-    if (present(laplacian)) then
+    if (present(bot) .and. present(top)) then
       c(1)=cl
       a(nz)=al
     endif
@@ -375,9 +399,9 @@ contains
     do i=1,nx
       do j=1,ny
         !set up d array for column
-        if (present(laplacian)) then
-          d(1) = f(2,j,i)/dz - a1* laplacian(1,j,i)*dz
-          d(nz)=-f(nz-1,j,i)/dz + a1 * laplacian(nz,j,i) * dz
+        if (present(bot) .and. present(top)) then
+          d(1) = f(2,j,i)/dz - a1* bot(j,i)*dz
+          d(nz)=-f(nz-1,j,i)/dz + a1 * top(j,i) * dz
         else
           d(1)=0.d0
           d(nz)=0.d0
@@ -536,7 +560,7 @@ contains
       cp(i) = c(i-1) / denominator !cp(i) is c'(i-1)
       denominator = b(i) - a(i) * cp(i)
       if (denominator .eq. 0) then
-        print "Error in tridiagonal solver: divide by zero"
+        print *, "Error in tridiagonal solver: divide by zero"
         error stop
       endif
       f(i) = (d(i) - a(i)*f(i-1))/(denominator)
