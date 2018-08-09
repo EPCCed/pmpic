@@ -6,14 +6,8 @@ module vort2vel_mod
   use state_mod, only : model_state_type
   use monc_component_mod, only : component_descriptor_type
   use pencil_fft_mod, only : initialise_pencil_fft, finalise_pencil_fft, perform_forward_3dfft, perform_backwards_3dfft
-  !use communication_types_mod, only : halo_communication_type, neighbour_description_type, field_data_wrapper_type
-  !use halo_communication_mod, only : copy_buffer_to_field, copy_field_to_buffer, perform_local_data_copy_for_field, &
-  !     init_halo_communication, finalise_halo_communication, blocking_halo_swap, get_single_field_per_halo_cell
-  !use registry_mod, only : is_component_enabled
-  !use logging_mod, only : LOG_ERROR, log_master_log
-  !use mpi, only : MPI_REQUEST_NULL, MPI_STATUSES_IGNORE, mpi_wtime
   use MPI
-  use parcel_interpolation_mod, only: x_coords, y_coords, z_coords
+  use parcel_interpolation_mod, only: x_coords, y_coords, z_coords, par2grid, cache_parcel_interp_weights
   use timer_mod, only: register_routine_for_timing, timer_start, timer_stop
   use fftops_mod, only: fftops_init, diffx, diffy, diffz, laplinv, spectral_filter
   implicit none
@@ -22,7 +16,6 @@ module vort2vel_mod
   private
 #endif
 
-  !real(kind=DEFAULT_PRECISION), dimension(:), allocatable :: cos_x, cos_y
   real(kind=DEFAULT_PRECISION) :: PI
   real(kind=DEFAULT_PRECISION), dimension(:,:,:), allocatable :: a, b, c, d, e, f
   real(kind=DEFAULT_PRECISION), dimension(:), allocatable :: kx, ky, kz
@@ -69,9 +62,6 @@ contains
     !initialise spectral derivatives module
     call fftops_init(current_state,my_x_start,my_y_start,fourier_space_sizes)
 
-
-    !call init_halo_communication(current_state, get_single_field_per_halo_cell, halo_swap_state, 1, .false.)
-
     nx=fourier_space_sizes(X_INDEX)
     ny=fourier_space_sizes(Y_INDEX)
     nz=fourier_space_sizes(Z_INDEX)
@@ -101,8 +91,7 @@ contains
 
 
 
-  !> Timestep call back, which will transform to Fourier space, do a tridiagonal solve and then back into time space
-  !! @param current_state The current model state
+
   subroutine timestep_callback(current_state)
     type(model_state_type), target, intent(inout) :: current_state
 
@@ -119,6 +108,12 @@ contains
 
 
     call timer_start(handle)
+
+    call cache_parcel_interp_weights(current_state)
+
+    call par2grid(current_state,current_state%parcels%p,current_state%p)
+    call par2grid(current_state,current_state%parcels%q,current_state%q)
+    call par2grid(current_state,current_state%parcels%r,current_state%r)
 
     do i=1,3
       start_loc(i)=current_state%local_grid%local_domain_start_index(i)
@@ -154,7 +149,7 @@ contains
     f(2:nz-1,:,:) = (c(3:nz,:,:) - c(1:nz-2,:,:))*hdzi
     f(nz,:,:) = hdzi * ( c(nz-2,:,:) + 3.*c(nz,:,:) - 4.*c(nz-1,:,:) )
 
-    !f -> d + e + f    (f = div(vort))
+    !f -> d + e + f    (f -> div(vort))
     f(:,:,:) = d(:,:,:) + e(:,:,:) + f(:,:,:)
 
     if (k2eq0) f(:,1:2, 1:2) = 0.0 !set constant part of f to zero
@@ -290,17 +285,12 @@ contains
     call MPI_Finalize(ierr)
     stop
 
-    ! call blocking_halo_swap(current_state, halo_swap_state, copy_p_to_halo_buffer, &
-    !      perform_local_data_copy_for_p, copy_halo_buffer_to_p)
 
   end subroutine timestep_callback
 
 
 
 
-
-  !> Called at MONC finalisation, will call to the pencil fft module to clean itself up and free the pressure term
-  !! @param current_state The current model state
   subroutine finalisation_callback(current_state)
     type(model_state_type), target, intent(inout) :: current_state
 

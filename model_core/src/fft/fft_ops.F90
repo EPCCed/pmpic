@@ -50,9 +50,8 @@ contains
     real(kind=DEFAULT_PRECISION) :: xval, yval, ksqmax, lx, ly
 
     if (initialised) then
-      print *, "Error fft_ops is already initialised"
-      call MPI_Finalize(ierr)
-      stop
+      print *, "Warning: fft_ops is already initialised"
+      return
     endif
 
     ! set array size parameters and allocate k arrays
