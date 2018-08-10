@@ -258,6 +258,8 @@ contains
 
     !maybe have one loop for x, one for y and one for z for vectorisation?
 
+
+
     !$OMP PARALLEL DEFAULT(SHARED) PRIVATE(n,xp,yp,zp,i,j,k,delx,dely,delz)
     !$OMP DO
     do n=1,nparcels
@@ -268,15 +270,15 @@ contains
       zp=state%parcels%z(n)
 
       !get the index of the lower left corner of the cell that the parcel is in
-      i=floor(xp-xmin)/dx+1
-      j=floor(yp-ymin)/dy+1
+      i=floor((xp-xmin)/dx)+1
+      j=floor((yp-ymin)/dy)+1
       ! do nn=1,nz-1 !as z may be a variable size grid we need to search through z to get the cell
       !   if ((zp .gt. z(nn)) .and. (zp .lt. z(nn+1))) then
       !     k=nn
       !     exit
       !   endif
       ! enddo
-      k=floor(zp-zmin)/dz+1
+      k=floor((zp-zmin)/dz)+1
 
       !if ((xp .lt. xmin) .or. (xp .gt. xmax)) error stop "x too big/small"
       !if ((yp .lt. ymin) .or. (yp .gt. ymax)) error stop "y too big/small"
