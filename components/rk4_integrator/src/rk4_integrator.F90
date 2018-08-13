@@ -37,6 +37,7 @@ contains
     if (state%parallel%my_rank .eq. 0) print *, "In RK4 Integrator Initialisation"
 
     originaldt= options_get_real(state%options_database,"dtm")
+    state%dtmax = options_get_real(state%options_database,"dtmax")
 
     state%dtm = originaldt
     !at present we don't want to update the timestep

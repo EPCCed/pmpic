@@ -16,9 +16,10 @@ euler_integrator_enabled=.false.
 rk4_integrator_enabled=.true.
 
 #parcel velocity routines
-prescribed_parcel_velocity_enabled=.true.
+prescribed_parcel_velocity_enabled=.false.
 
 vort2vel_enabled=.true.
+vorticity_tendency_enabled=.true.
 laplinv_test_enabled=.false.
 
 
@@ -26,14 +27,14 @@ laplinv_test_enabled=.false.
 
 #initialisation_stage_ordering+=euler_integrator,prescribed_parcel_velocity,writeparcels
 
-integrator_group_contents=grid2partest,prescribed_parcel_velocity,vort2vel,laplinv_test,euler_integrator,rk4_integrator
+integrator_group_contents=grid2partest,prescribed_parcel_velocity,vort2vel,vorticity_tendency,laplinv_test,euler_integrator,rk4_integrator
 
 #finalisation_stage_ordering+=model_synopsis,euler_integrator,prescribed_parcel_velocity,writeparcels
 
 
 # Control configuration
 display_synopsis_frequency=10
-termination_time=500
+termination_time=10
 
 
 #grid properties
@@ -41,11 +42,11 @@ nx=32
 ny=32
 nz=32
 xmin=0
-xmax=6000
+xmax=6.28
 ymin=0
-ymax=6000
+ymax=6.28
 zmin=0
-zmax=6000
+zmax=6.28
 
 #base parcelsetup properties
 max_parcels=10000000
@@ -57,7 +58,7 @@ restart_num=40
 parcels_per_cell_dir = 2
 
 #basic plume settings
-lambda=1000
+lambda=1
 H=0.8
 z_c=2.5
 mu=0.9
@@ -68,14 +69,15 @@ e_values=0.3, -0.4 ,0.5
 
 
 #integrator properties
-dtm=10.0
+dtm=0.1
+dtmax=0.1
 
 #velocity profile properties
 velocity_profile=9
 
 #writeparcels properties
-parcel_dump_frequency=10
-grid_dump_frequency = 10
+parcel_dump_frequency=20
+grid_dump_frequency = 1
 
 #timing logging options
 timing_enabled=.true.

@@ -1,13 +1,13 @@
 !component that obtains the velocity from the voticity via
 ! laplacian(A) = vort, where velocity = -curl(A)
 module vort2vel_mod
-  use datadefn_mod, only : DEFAULT_PRECISION
+  use datadefn_mod, only : DEFAULT_PRECISION, PRECISION_TYPE
   use grids_mod, only : X_INDEX, Y_INDEX, Z_INDEX
   use state_mod, only : model_state_type
   use monc_component_mod, only : component_descriptor_type
   use pencil_fft_mod, only : initialise_pencil_fft, finalise_pencil_fft, perform_forward_3dfft, perform_backwards_3dfft
   use MPI
-  use parcel_interpolation_mod, only: x_coords, y_coords, z_coords, par2grid, cache_parcel_interp_weights
+  use parcel_interpolation_mod, only: x_coords, y_coords, z_coords, par2grid, cache_parcel_interp_weights, grid2par
   use timer_mod, only: register_routine_for_timing, timer_start, timer_stop
   use fftops_mod, only: fftops_init, diffx, diffy, diffz, laplinv, spectral_filter
   implicit none
@@ -27,6 +27,7 @@ module vort2vel_mod
   real(kind=DEFAULT_PRECISION) :: dz, hdzi
   logical :: k2eq0
   !type(halo_communication_type), save :: halo_swap_state
+  integer :: iteration
 
   public vort2vel_get_descriptor
 contains
@@ -48,6 +49,8 @@ contains
     real(kind=DEFAULT_PRECISION) :: kzmax, kymax, kxmax
 
     integer :: i, my_y_start, my_x_start, rank, j, k
+
+    iteration=0
 
     PI=4.0_DEFAULT_PRECISION*atan(1.0_DEFAULT_PRECISION)
 
@@ -100,14 +103,16 @@ contains
     real(kind=DEFAULT_PRECISION), allocatable, dimension(:,:) :: atop, abot, btop,bbot
     real(kind=DEFAULT_PRECISION), ALLOCATABLE, dimension(:) :: ubar, vbar
     real(kind=DEFAULT_PRECISION) :: uavg, vavg
+    real(kind=DEFAULT_PRECISION) :: umax, umaxglobal, dtmax
 
     allocate(atop(ny,nx), abot(ny,nx), btop(ny,nx), bbot(ny,nx))
     if (k2eq0) then
       allocate(ubar(nz), vbar(nz))
     endif
 
-
+    print *, "Entering vort2vel"
     call timer_start(handle)
+
 
     call cache_parcel_interp_weights(current_state)
 
@@ -152,7 +157,7 @@ contains
     !f -> d + e + f    (f -> div(vort))
     f(:,:,:) = d(:,:,:) + e(:,:,:) + f(:,:,:)
 
-    if (k2eq0) f(:,1:2, 1:2) = 0.0 !set constant part of f to zero
+    if (k2eq0) f(:,1, 1) = 0.0 !set constant part of f to zero
 
     ! invert laplacian (f = div(vort) -> f = lambda)
     call laplinv(f,df_zero_on_boundary=.true.)
@@ -173,6 +178,9 @@ contains
     !d = df/dz (df/fz=0 on boundaries)
     call diffz(f,d)
     c(:,:,:) = c(:,:,:) - d(:,:,:)
+
+    !ensure vertical average of vorticity is zero
+    c(1,:,:) = 0.
 
     !spectrally filter a, b and c
     call spectral_filter(a,out=d)
@@ -225,9 +233,9 @@ contains
     if (k2eq0) then
       f(:,1,1) = ubar(:)
       !these steps should be unneccessary but let's put them in to be safe
-      f(:,1,2) = 0.
-      f(:,2,1) = 0.
-      f(:,2,2) = 0.
+    !  f(:,1,2) = 0.
+  !    f(:,2,1) = 0.
+  !    f(:,2,2) = 0.
     endif
 
     call spectral_filter(f, out=current_state%u_s%data)
@@ -247,9 +255,9 @@ contains
     if (k2eq0) then
       f(:,1,1) = vbar(:)
       !these steps should be unneccessary but let's put them in to be safe
-      f(:,1,2) = 0.
-      f(:,2,1) = 0.
-      f(:,2,2) = 0.
+    !  f(:,1,2) = 0.
+  !    f(:,2,1) = 0.
+!      f(:,2,2) = 0.
     endif
 
     call spectral_filter(f, out=current_state%v_s%data)
@@ -273,6 +281,48 @@ contains
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
 
 
+    !interpolate velocity to parcels
+    call grid2par(current_state, current_state%u, current_state%parcels%dxdt)
+    call grid2par(current_state, current_state%v, current_state%parcels%dydt)
+    call grid2par(current_state, current_state%w, current_state%parcels%dzdt)
+
+    if (mod(iteration,current_state%rksteps) ==0 ) then
+      !We now want to determine the maximum vorticity tendency
+      umax = maxval(current_state%u%data**2 + current_state%v%data**2 + current_state%w%data**2)
+      umax=sqrt(umax)
+
+      !This is the local maximum. We want the global maximum so we do a MPI reduction operation
+      call MPI_Allreduce(sendbuf=umax,&
+                         recvbuf=umaxglobal,&
+                         count=1,&
+                         datatype=PRECISION_TYPE,&
+                         op=MPI_MAX,&
+                         comm=current_state%parallel%monc_communicator,&
+                         ierror=ierr)
+
+      !we want to determine the crossing time for one cell at umax. dt cannot be more than this else we could advect a parcel
+      ! outside the halo cells
+      if (umaxglobal .gt. 0.) then
+        dtmax = current_state%global_grid%resolution(1)/umaxglobal
+      else
+        dtmax = current_state%dtmax
+      endif
+
+      if (current_state%dtmax .gt. dtmax) then
+        current_state%dtm = dtmax
+      else
+        current_state%dtm = dtmax
+      endif
+
+      print *, "Velocities"
+      print *, "dtmax=",dtmax
+      print *, maxval(current_state%u%data), maxval(current_state%v%data), maxval(current_state%w%data)
+      print *, minval(current_state%u%data), minval(current_state%v%data), minval(current_state%w%data)
+
+      print *, "Leaving vort2vel"
+
+    endif
+
 
     call timer_stop(handle)
 
@@ -282,8 +332,12 @@ contains
     endif
 
 
-    call MPI_Finalize(ierr)
-    stop
+
+
+    !call MPI_Finalize(ierr)
+    !stop
+
+    iteration=iteration+1
 
 
   end subroutine timestep_callback

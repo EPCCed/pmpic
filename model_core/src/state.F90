@@ -48,7 +48,7 @@ module state_mod
             dtm,& ! Modeltimestep (s)
             absolute_new_dtm, &
             timestep_runtime,&
-            dtm_new
+            dtm_new, dtmax
     integer :: rksteps=0
     integer :: iterations=0 !timestep iteration number
     integer :: timestep=1, start_timestep=1,  column_global_x, column_global_y, column_local_x, column_local_y,  termination_reason

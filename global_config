@@ -35,7 +35,7 @@ last_group_contents=model_synopsis
 
 # Component ordering for other stages
 
-initialisation_stage_ordering=decomposition, setup_grid, parcelsetup_base, basic_parcelsetup,plume_parcelsetup, readfromfile_parcelsetup,termination_check, model_synopsis, halo_swapper, writeparcels, prescribed_parcel_velocity, euler_integrator,rk4_integrator
+initialisation_stage_ordering=decomposition, setup_grid, parcelsetup_base, basic_parcelsetup,plume_parcelsetup, readfromfile_parcelsetup,termination_check, model_synopsis, halo_swapper, writeparcels, prescribed_parcel_velocity, euler_integrator,rk4_integrator,vort2vel,vorticity_tendency
 
 finalisation_stage_ordering=halo_swapper, basic_plume,  parcelsetup_base,model_synopsis, writeparcels,rk4_integrator
 
