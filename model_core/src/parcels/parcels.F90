@@ -22,7 +22,8 @@ private
                 dxdt, dydt, dzdt, & !velocities
                 dpdt, dqdt, drdt, & !vorticity tendency
                 h, b, vol, & !humidity, buoyancy, volume
-                stretch, tag !stretch, a tag to tag parcels so they can be tracked
+                stretch, tag, & !stretch, a tag to tag parcels so they can be tracked
+                btot !total humidity
     real (kind=DEFAULT_PRECISION), allocatable, dimension(:,:) :: qvalues !an arrayof various values the user may wish to add into the code
 
     !rk4 variables (if the rk4 integrator component isn't enabled we don't bother allocating these)

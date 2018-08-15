@@ -106,7 +106,7 @@ contains
     endif
 
     h_bg=mu*h_pl
-    if (master) write(*,"('Background humidity is ',f6.3)") h_pl
+    if (master) write(*,"('Background humidity is ',f6.3)") h_bg
 
     z_b=log(rhb/h_bg)
     if (master) write(*,"('Base of mixed layer is ',f6.3)") z_b
@@ -267,7 +267,7 @@ contains
             else
           ! Stratified layer
               state%parcels%b(n)=dbdz/lambda*(z-z_b)
-              state%parcels%h(n)=rhb*exp(z/lambda)
+              state%parcels%h(n)=rhb*exp(-z/lambda)
             endif
 
 

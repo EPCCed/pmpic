@@ -5,7 +5,7 @@
 ! dr/dt = vort . grad(w)
 ! on a grid (derivatives are calculated spectrally) then interpolates to the parcels
 module vorticity_tendency_mod
-  use datadefn_mod, only : DEFAULT_PRECISION, PRECISION_TYPE
+  use datadefn_mod, only : DEFAULT_PRECISION, PRECISION_TYPE, PARCEL_INTEGER
   use grids_mod, only : X_INDEX, Y_INDEX, Z_INDEX
   use state_mod, only : model_state_type
   use monc_component_mod, only : component_descriptor_type
@@ -105,15 +105,22 @@ contains
     type(model_state_type), target, intent(inout) :: current_state
 
     integer :: start_loc(3), end_loc(3), i, xi, xf, zi, zf, yi, yf
+    integer(kind=PARCEL_INTEGER):: n
 
     real(kind=DEFAULT_PRECISION) :: omax, omaxglobal, dtmax
 
     print *, "Entering vorticity_tendency"
     call timer_start(handle)
 
+    !determine total parcel buoyancy
+    do n=1,current_state%parcels%numparcels_local
+      current_state%parcels%btot(n) = current_state%parcels%b(n) + 12.5 &
+      * max(0.0, current_state%parcels%h(n)-exp(-current_state%parcels%z(n)))
+    enddo
 
 
-    call par2grid(current_state,current_state%parcels%b,current_state%b)
+    call par2grid(current_state,current_state%parcels%btot,current_state%b)
+    call par2grid(current_state,current_state%parcels%h,current_state%hg)
 
     do i=1,3
       start_loc(i)=current_state%local_grid%local_domain_start_index(i)
