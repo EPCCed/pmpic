@@ -131,6 +131,11 @@ contains
       filter = 1.
     endwhere
 
+    !needed normalisation
+    kx(:,:,:) = kx(:,:,:)*twopi
+    ky(:,:,:) = ky(:,:,:)*twopi
+    k2(:,:,:) = k2(:,:,:)*twopi*twopi
+
 
     !determine neighbours
 
@@ -257,7 +262,7 @@ contains
 
     !multiply by k
 
-    out(:,:,:) = out(:,:,:) * kx(:,:,:)*twopi
+    out(:,:,:) = out(:,:,:) * kx(:,:,:)
 
   end subroutine
 
@@ -340,7 +345,7 @@ contains
 
     !multiply by k
 
-    out(:,:,:) = out(:,:,:) * ky(:,:,:) *twopi
+    out(:,:,:) = out(:,:,:) * ky(:,:,:)
 
   end subroutine
 
