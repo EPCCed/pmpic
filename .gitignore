@@ -36,3 +36,4 @@ monc
 *.dat
 *.autogen
 */*.autogen
+timing_data
