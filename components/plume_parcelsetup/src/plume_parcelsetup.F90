@@ -251,28 +251,34 @@ contains
     y=ymin_local+dybg/2.
     z=zmin_local+dzbg/2.
     do i=1,nx*n_per_cell_dir_bg
+      xp=x-x_c_pl
       do j=1,ny*n_per_cell_dir_bg
+        yp=y-y_c_pl
         do k=1,(nz-1)*n_per_cell_dir_bg
+          zp=z-z_c_pl
           !print *, x, y, z
 
-            n=n+1
-            state%parcels%x(n) = x
-            state%parcels%y(n) = y
-            state%parcels%z(n) = z
+            if (zp*zp + yp*yp + xp*xp .gt. r_plume*r_plume) then
 
-            if (z .lt. z_b) then
-          ! Mixed layer:
-              state%parcels%b(n)=0.
-              state%parcels%h(n)=h_bg
-            else
-          ! Stratified layer
-              state%parcels%b(n)=dbdz/lambda*(z-z_b)
-              state%parcels%h(n)=rhb*exp(-z/lambda)
+              n=n+1
+              state%parcels%x(n) = x
+              state%parcels%y(n) = y
+              state%parcels%z(n) = z
+
+              if (z .lt. z_b) then
+            ! Mixed layer:
+                state%parcels%b(n)=0.
+                state%parcels%h(n)=h_bg
+              else
+            ! Stratified layer
+                state%parcels%b(n)=dbdz/lambda*(z-z_b)
+                state%parcels%h(n)=rhb*exp(-z/lambda)
+              endif
+
+
+              state%parcels%vol(n) = vol
+              write(10+state%parallel%my_rank,*) x, y, z, state%parcels%b(n)
             endif
-
-
-            state%parcels%vol(n) = vol
-            write(10+state%parallel%my_rank,*) x, y, z, state%parcels%b(n)
 
           z=z+dzbg
         enddo

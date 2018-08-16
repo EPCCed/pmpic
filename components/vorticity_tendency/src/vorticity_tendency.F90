@@ -104,7 +104,7 @@ contains
   subroutine timestep_callback(current_state)
     type(model_state_type), target, intent(inout) :: current_state
 
-    integer :: start_loc(3), end_loc(3), i, xi, xf, zi, zf, yi, yf
+    integer :: start_loc(3), end_loc(3), i, xi, xf, zi, zf, yi, yf, j, k
     integer(kind=PARCEL_INTEGER):: n
 
     real(kind=DEFAULT_PRECISION) :: omax, omaxglobal, dtmax
@@ -121,7 +121,13 @@ contains
 
     call par2grid(current_state,current_state%parcels%btot,current_state%b)
     call par2grid(current_state,current_state%parcels%h,current_state%hg)
-
+    do i=1,size(current_state%hgliq%data,3)
+      do j=1,size(current_state%hgliq%data,2)
+        do k=1,size(current_state%hgliq%data,1)
+          current_state%hgliq%data(k,j,i) = max(0.,current_state%hg%data(k,j,i) - exp(-z_coords(k)))
+        enddo
+      enddo
+    enddo
     do i=1,3
       start_loc(i)=current_state%local_grid%local_domain_start_index(i)
       end_loc(i)=current_state%local_grid%local_domain_end_index(i)
