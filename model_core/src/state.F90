@@ -61,6 +61,7 @@ module state_mod
                                    vol !volume fraction
 
     type(prognostic_field_type) :: u_s, v_s, w_s !semi-spectral velocities
+    type(prognostic_field_type) :: dp, dq, dr 
 
     type(parcel_type) :: parcels
 

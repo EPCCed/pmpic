@@ -100,6 +100,36 @@ contains
 
     real(kind=DEFAULT_PRECISION) :: dt, dt6, dt3, dt2
 
+    ! define some shorthand
+    real(kind=DEFAULT_PRECISION),pointer,dimension(:) :: x,y,z,p,q,r
+    real(kind=DEFAULT_PRECISION),pointer,dimension(:) :: xo,yo,zo,po,qo,ro
+    real(kind=DEFAULT_PRECISION),pointer,dimension(:) :: xf,yf,zf,pf,qf,rf
+    real(kind=DEFAULT_PRECISION),pointer,dimension(:) :: dxdt,dydt,dzdt,dpdt,dqdt,drdt
+    x=>state%parcels%x
+    y=>state%parcels%y
+    z=>state%parcels%z
+    p=>state%parcels%p
+    q=>state%parcels%q
+    r=>state%parcels%r
+    xo=>state%parcels%xo
+    yo=>state%parcels%yo
+    zo=>state%parcels%zo
+    po=>state%parcels%po
+    qo=>state%parcels%qo
+    ro=>state%parcels%ro
+    xf=>state%parcels%xf
+    yf=>state%parcels%yf
+    zf=>state%parcels%zf
+    pf=>state%parcels%pf
+    qf=>state%parcels%qf
+    rf=>state%parcels%rf
+    dxdt=>state%parcels%dxdt
+    dydt=>state%parcels%dydt
+    dzdt=>state%parcels%dzdt
+    dpdt=>state%parcels%dpdt
+    dqdt=>state%parcels%dqdt
+    drdt=>state%parcels%drdt
+
     dt=state%dtm
     dt6=dt/6
     dt2=dt/2
@@ -118,13 +148,13 @@ contains
 
       !cache initial parcel positions/vorticities
       !$OMP WORKSHARE
-      state%parcels%xo(1:nparcels) = state%parcels%x(1:nparcels)
-      state%parcels%yo(1:nparcels) = state%parcels%y(1:nparcels)
-      state%parcels%zo(1:nparcels) = state%parcels%z(1:nparcels)
+      xo(1:nparcels) = x(1:nparcels)
+      yo(1:nparcels) = y(1:nparcels)
+      zo(1:nparcels) = z(1:nparcels)
 
-      state%parcels%po(1:nparcels) = state%parcels%p(1:nparcels)
-      state%parcels%qo(1:nparcels) = state%parcels%q(1:nparcels)
-      state%parcels%ro(1:nparcels) = state%parcels%r(1:nparcels)
+      po(1:nparcels) = p(1:nparcels)
+      qo(1:nparcels) = q(1:nparcels)
+      ro(1:nparcels) = r(1:nparcels)
       !$OMP END WORKSHARE
 
       !dxdt * dt = k1
@@ -132,34 +162,20 @@ contains
       !add 1/6*k1 to xf
       !k1 is just dt * dxdt so this is already calculated by the previous components called
       !$OMP WORKSHARE
-      state%parcels%xf(1:nparcels) = state%parcels%xo(1:nparcels) &
-                                   + dt6*state%parcels%dxdt(1:nparcels)
-      state%parcels%yf(1:nparcels) = state%parcels%yo(1:nparcels) &
-                                   + dt6*state%parcels%dydt(1:nparcels)
-      state%parcels%zf(1:nparcels) = state%parcels%zo(1:nparcels) &
-                                   + dt6*state%parcels%dzdt(1:nparcels)
-      state%parcels%pf(1:nparcels) = state%parcels%po(1:nparcels) &
-                                   + dt6*state%parcels%dpdt(1:nparcels)
-      state%parcels%qf(1:nparcels) = state%parcels%qo(1:nparcels) &
-                                   + dt6*state%parcels%dqdt(1:nparcels)
-      state%parcels%rf(1:nparcels) = state%parcels%ro(1:nparcels) &
-                                   + dt6*state%parcels%drdt(1:nparcels)
-
-
+      xf(1:nparcels) = xo(1:nparcels)+dt6*dxdt(1:nparcels)
+      yf(1:nparcels) = yo(1:nparcels)+dt6*dydt(1:nparcels)
+      zf(1:nparcels) = zo(1:nparcels)+dt6*dzdt(1:nparcels)
+      pf(1:nparcels) = po(1:nparcels)+dt6*dpdt(1:nparcels)
+      qf(1:nparcels) = qo(1:nparcels)+dt6*dqdt(1:nparcels)
+      rf(1:nparcels) = ro(1:nparcels)+dt6*drdt(1:nparcels)
 
       !update Y to position inside the k2 bracket
-      state%parcels%x(1:nparcels) = state%parcels%xo(1:nparcels) &
-                                  + dt2*state%parcels%dxdt(1:nparcels)
-      state%parcels%y(1:nparcels) = state%parcels%yo(1:nparcels) &
-                                  + dt2*state%parcels%dydt(1:nparcels)
-      state%parcels%z(1:nparcels) = state%parcels%zo(1:nparcels) &
-                                  + dt2*state%parcels%dzdt(1:nparcels)
-      state%parcels%p(1:nparcels) = state%parcels%po(1:nparcels) &
-                                  + dt2*state%parcels%dpdt(1:nparcels)
-      state%parcels%q(1:nparcels) = state%parcels%qo(1:nparcels) &
-                                  + dt2*state%parcels%dqdt(1:nparcels)
-      state%parcels%r(1:nparcels) = state%parcels%ro(1:nparcels) &
-                                  + dt2*state%parcels%drdt(1:nparcels)
+      x(1:nparcels) = xo(1:nparcels)+dt2*dxdt(1:nparcels)
+      y(1:nparcels) = yo(1:nparcels)+dt2*dydt(1:nparcels)
+      z(1:nparcels) = zo(1:nparcels)+dt2*dzdt(1:nparcels)
+      p(1:nparcels) = po(1:nparcels)+dt2*dpdt(1:nparcels)
+      q(1:nparcels) = qo(1:nparcels)+dt2*dqdt(1:nparcels)
+      r(1:nparcels) = ro(1:nparcels)+dt2*drdt(1:nparcels)
       !$OMP END WORKSHARE
       !$OMP BARRIER
       !$OMP SINGLE
@@ -180,32 +196,20 @@ contains
       !add 1/3*k2 to xf
       !k1 is just dt * dxdt so this is already calculated by the previous components called
       !$OMP WORKSHARE
-      state%parcels%xf(1:nparcels) = state%parcels%xf(1:nparcels) &
-                                   + dt3*state%parcels%dxdt(1:nparcels)
-      state%parcels%yf(1:nparcels) = state%parcels%yf(1:nparcels) &
-                                   + dt3*state%parcels%dydt(1:nparcels)
-      state%parcels%zf(1:nparcels) = state%parcels%zf(1:nparcels) &
-                                   + dt3*state%parcels%dzdt(1:nparcels)
-      state%parcels%pf(1:nparcels) = state%parcels%pf(1:nparcels) &
-                                   + dt3*state%parcels%dpdt(1:nparcels)
-      state%parcels%qf(1:nparcels) = state%parcels%qf(1:nparcels) &
-                                   + dt3*state%parcels%dqdt(1:nparcels)
-      state%parcels%rf(1:nparcels) = state%parcels%rf(1:nparcels) &
-                                   + dt3*state%parcels%drdt(1:nparcels)
+      xf(1:nparcels) = xf(1:nparcels)+dt3*dxdt(1:nparcels)
+      yf(1:nparcels) = yf(1:nparcels)+dt3*dydt(1:nparcels)
+      zf(1:nparcels) = zf(1:nparcels)+dt3*dzdt(1:nparcels)
+      pf(1:nparcels) = pf(1:nparcels)+dt3*dpdt(1:nparcels)
+      qf(1:nparcels) = qf(1:nparcels)+dt3*dqdt(1:nparcels)
+      rf(1:nparcels) = rf(1:nparcels)+dt3*drdt(1:nparcels)
 
       !update Y to position inside the k3 bracket
-      state%parcels%x(1:nparcels) = state%parcels%xo(1:nparcels) &
-                                  + dt2*state%parcels%dxdt(1:nparcels)
-      state%parcels%y(1:nparcels) = state%parcels%yo(1:nparcels) &
-                                  + dt2*state%parcels%dydt(1:nparcels)
-      state%parcels%z(1:nparcels) = state%parcels%zo(1:nparcels) &
-                                  + dt2*state%parcels%dzdt(1:nparcels)
-      state%parcels%p(1:nparcels) = state%parcels%po(1:nparcels) &
-                                  + dt2*state%parcels%dpdt(1:nparcels)
-      state%parcels%q(1:nparcels) = state%parcels%qo(1:nparcels) &
-                                  + dt2*state%parcels%dqdt(1:nparcels)
-      state%parcels%r(1:nparcels) = state%parcels%ro(1:nparcels) &
-                                  + dt2*state%parcels%drdt(1:nparcels)
+      x(1:nparcels) = xo(1:nparcels)+dt2*dxdt(1:nparcels)
+      y(1:nparcels) = yo(1:nparcels)+dt2*dydt(1:nparcels)
+      z(1:nparcels) = zo(1:nparcels)+dt2*dzdt(1:nparcels)
+      p(1:nparcels) = po(1:nparcels)+dt2*dpdt(1:nparcels)
+      q(1:nparcels) = qo(1:nparcels)+dt2*dqdt(1:nparcels)
+      r(1:nparcels) = ro(1:nparcels)+dt2*drdt(1:nparcels)
       !$OMP END WORKSHARE
       !$OMP BARRIER
       !$OMP SINGLE
@@ -226,32 +230,20 @@ contains
       !add 1/3*k3 to xf
       !k1 is just dt * dxdt so this is already calculated by the previous components called
       !$OMP WORKSHARE
-      state%parcels%xf(1:nparcels) = state%parcels%xf(1:nparcels) &
-                                   + dt3*state%parcels%dxdt(1:nparcels)
-      state%parcels%yf(1:nparcels) = state%parcels%yf(1:nparcels) &
-                                   + dt3*state%parcels%dydt(1:nparcels)
-      state%parcels%zf(1:nparcels) = state%parcels%zf(1:nparcels) &
-                                   + dt3*state%parcels%dzdt(1:nparcels)
-      state%parcels%pf(1:nparcels) = state%parcels%pf(1:nparcels) &
-                                   + dt3*state%parcels%dpdt(1:nparcels)
-      state%parcels%qf(1:nparcels) = state%parcels%qf(1:nparcels) &
-                                   + dt3*state%parcels%dqdt(1:nparcels)
-      state%parcels%rf(1:nparcels) = state%parcels%rf(1:nparcels) &
-                                   + dt3*state%parcels%drdt(1:nparcels)
+      xf(1:nparcels) = xf(1:nparcels)+dt3*dxdt(1:nparcels)
+      yf(1:nparcels) = yf(1:nparcels)+dt3*dydt(1:nparcels)
+      zf(1:nparcels) = zf(1:nparcels)+dt3*dzdt(1:nparcels)
+      pf(1:nparcels) = pf(1:nparcels)+dt3*dpdt(1:nparcels)
+      qf(1:nparcels) = qf(1:nparcels)+dt3*dqdt(1:nparcels)
+      rf(1:nparcels) = rf(1:nparcels)+dt3*drdt(1:nparcels)
 
       !update Y to position inside the k4 bracket
-      state%parcels%x(1:nparcels) = state%parcels%xo(1:nparcels) &
-                                  + dt*state%parcels%dxdt(1:nparcels)
-      state%parcels%y(1:nparcels) = state%parcels%yo(1:nparcels) &
-                                  + dt*state%parcels%dydt(1:nparcels)
-      state%parcels%z(1:nparcels) = state%parcels%zo(1:nparcels) &
-                                  + dt*state%parcels%dzdt(1:nparcels)
-      state%parcels%p(1:nparcels) = state%parcels%po(1:nparcels) &
-                                  + dt*state%parcels%dpdt(1:nparcels)
-      state%parcels%q(1:nparcels) = state%parcels%qo(1:nparcels) &
-                                  + dt*state%parcels%dqdt(1:nparcels)
-      state%parcels%r(1:nparcels) = state%parcels%ro(1:nparcels) &
-                                  + dt*state%parcels%drdt(1:nparcels)
+      x(1:nparcels) = xo(1:nparcels)+dt*dxdt(1:nparcels)
+      y(1:nparcels) = yo(1:nparcels)+dt*dydt(1:nparcels)
+      z(1:nparcels) = zo(1:nparcels)+dt*dzdt(1:nparcels)
+      p(1:nparcels) = po(1:nparcels)+dt*dpdt(1:nparcels)
+      q(1:nparcels) = qo(1:nparcels)+dt*dqdt(1:nparcels)
+      r(1:nparcels) = ro(1:nparcels)+dt*drdt(1:nparcels)
       !$OMP END WORKSHARE
       !$OMP BARRIER
       !$OMP SINGLE
@@ -272,18 +264,12 @@ contains
       !add 1/6*k4 to xf
       !k1 is just dt * dxdt so this is already calculated by the previous components called
       !$OMP WORKSHARE
-      state%parcels%xf(1:nparcels) = state%parcels%xf(1:nparcels) &
-                                   + dt6*state%parcels%dxdt(1:nparcels)
-      state%parcels%yf(1:nparcels) = state%parcels%yf(1:nparcels) &
-                                   + dt6*state%parcels%dydt(1:nparcels)
-      state%parcels%zf(1:nparcels) = state%parcels%zf(1:nparcels) &
-                                   + dt6*state%parcels%dzdt(1:nparcels)
-      state%parcels%pf(1:nparcels) = state%parcels%pf(1:nparcels) &
-                                   + dt6*state%parcels%dpdt(1:nparcels)
-      state%parcels%qf(1:nparcels) = state%parcels%qf(1:nparcels) &
-                                   + dt6*state%parcels%dqdt(1:nparcels)
-      state%parcels%rf(1:nparcels) = state%parcels%rf(1:nparcels) &
-                                   + dt6*state%parcels%drdt(1:nparcels)
+      xf(1:nparcels) = xf(1:nparcels)+dt6*dxdt(1:nparcels)
+      yf(1:nparcels) = yf(1:nparcels)+dt6*dydt(1:nparcels)
+      zf(1:nparcels) = zf(1:nparcels)+dt6*dzdt(1:nparcels)
+      pf(1:nparcels) = pf(1:nparcels)+dt6*dpdt(1:nparcels)
+      qf(1:nparcels) = qf(1:nparcels)+dt6*dqdt(1:nparcels)
+      rf(1:nparcels) = rf(1:nparcels)+dt6*drdt(1:nparcels)
       !$OMP END WORKSHARE
       !$OMP BARRIER
       !$OMP SINGLE

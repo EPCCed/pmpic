@@ -25,7 +25,6 @@ module vorticity_tendency_mod
   real(kind=DEFAULT_PRECISION) :: PI
   real(kind=DEFAULT_PRECISION), dimension(:,:,:), allocatable :: as, bs !spectral variables
   real(kind=DEFAULT_PRECISION), dimension(:,:,:), ALLOCATABLE :: ap
-  type(prognostic_field_type) :: dp, dq, dr
   integer :: fourier_space_sizes(3)
   integer :: ierr
   integer :: handle
@@ -85,7 +84,8 @@ contains
     nyp = current_state%local_grid%size(Y_INDEX) + 2*current_state%local_grid%halo_size(Y_INDEX)
     nxp = current_state%local_grid%size(X_INDEX) + 2*current_state%local_grid%halo_size(X_INDEX)
 
-    allocate(ap(nzp,nyp,nxp), dp%data(nzp,nyp,nxp), dq%data(nzp,nyp,nxp),dr%data(nzp,nyp,nxp))
+    allocate(ap(nzp,nyp,nxp))
+    allocate(current_state%dp%data(nzp,nyp,nxp), current_state%dq%data(nzp,nyp,nxp),current_state%dr%data(nzp,nyp,nxp))
 
 
 
@@ -109,22 +109,41 @@ contains
 
     real(kind=DEFAULT_PRECISION) :: omax, omaxglobal, dtmax
 
+    ! define some shorthand
+    real(kind=DEFAULT_PRECISION),pointer,dimension(:,:,:) :: p,q,r,dp,dq,dr,hgliq,hg,u_s,v_s,w_s
+    real(kind=DEFAULT_PRECISION),pointer,dimension(:) :: btot,b,h,z
+    btot=>current_state%parcels%btot
+    b=>current_state%parcels%b
+    h=>current_state%parcels%h
+    z=>current_state%parcels%z
+    
+    p=>current_state%p%data
+    q=>current_state%q%data
+    r=>current_state%r%data
+    hg=>current_state%hg%data
+    hgliq=>current_state%hgliq%data
+    u_s=>current_state%u_s%data
+    v_s=>current_state%v_s%data
+    w_s=>current_state%w_s%data
+    dp=>current_state%dp%data
+    dq=>current_state%dq%data
+    dr=>current_state%dr%data
+    
     !print *, "Entering vorticity_tendency"
     call timer_start(handle)
 
     !determine total parcel buoyancy
     do n=1,current_state%parcels%numparcels_local
-      current_state%parcels%btot(n) = current_state%parcels%b(n) + 12.5 &
-      * max(0.0, current_state%parcels%h(n)-exp(-current_state%parcels%z(n)))
+      btot(n) = b(n) + 12.5*max(0.0,h(n)-exp(-z(n)))
     enddo
 
 
-    call par2grid(current_state,current_state%parcels%btot,current_state%b)
-    call par2grid(current_state,current_state%parcels%h,current_state%hg)
-    do i=1,size(current_state%hgliq%data,3)
-      do j=1,size(current_state%hgliq%data,2)
-        do k=1,size(current_state%hgliq%data,1)
-          current_state%hgliq%data(k,j,i) = max(0.,current_state%hg%data(k,j,i) - exp(-z_coords(k)))
+    call par2grid(current_state,btot,current_state%b)
+    call par2grid(current_state,h,current_state%hg)
+    do i=1,size(hg,3)
+      do j=1,size(hg,2)
+        do k=1,size(hg,1)
+          hgliq(k,j,i) = max(0.,hg(k,j,i) -exp(-z_coords(k)))
         enddo
       enddo
     enddo
@@ -150,29 +169,28 @@ contains
 
     call diffy(bs,as) !db/dy (spectral)
     ! take db/dy and convert to positional space, put into the dp array
-    call perform_backwards_3dfft(current_state, as, dp%data(zi:zf,yi:yf,xi:xf))
+    call perform_backwards_3dfft(current_state, as, dp(zi:zf,yi:yf,xi:xf))
 
     !calculate du/dx (spectral)
-    call diffx(current_state%u_s%data,as)
+    call diffx(u_s,as)
     call perform_backwards_3dfft(current_state, as, ap(zi:zf,yi:yf,xi:xf))
     !add p*du/dx to dp
-    dp%data(zi:zf,yi:yf,xi:xf) = dp%data(zi:zf,yi:yf,xi:xf) &
-     + current_state%p%data(zi:zf,yi:yf,xi:xf)*ap(zi:zf,yi:yf,xi:xf)
+    dp(zi:zf,yi:yf,xi:xf) = dp(zi:zf,yi:yf,xi:xf) &
+     + p(zi:zf,yi:yf,xi:xf)*ap(zi:zf,yi:yf,xi:xf)
 
     !calculate du/dy (spectral)
-    call diffy(current_state%u_s%data,as)
+    call diffy(u_s,as)
     call perform_backwards_3dfft(current_state, as, ap(zi:zf,yi:yf,xi:xf))
     !add p*du/dx to dp
-    dp%data(zi:zf,yi:yf,xi:xf) = dp%data(zi:zf,yi:yf,xi:xf) &
-      + current_state%q%data(zi:zf,yi:yf,xi:xf)*ap(zi:zf,yi:yf,xi:xf)
+    dp(zi:zf,yi:yf,xi:xf) = dp(zi:zf,yi:yf,xi:xf) &
+      + q(zi:zf,yi:yf,xi:xf)*ap(zi:zf,yi:yf,xi:xf)
 
     !calculate dw/dx (spectral)
-    call diffx(current_state%w_s%data,as)
+    call diffx(w_s,as)
     !add r*(q + dw/dx) to dp
     call perform_backwards_3dfft(current_state, as, ap(zi:zf,yi:yf,xi:xf))
-    dp%data(zi:zf,yi:yf,xi:xf) = dp%data(zi:zf,yi:yf,xi:xf) &
-      + current_state%r%data(zi:zf,yi:yf,xi:xf) &
-      * ( current_state%q%data(zi:zf,yi:yf,xi:xf) + ap(zi:zf,yi:yf,xi:xf))
+    dp(zi:zf,yi:yf,xi:xf) = dp(zi:zf,yi:yf,xi:xf) &
+      + r(zi:zf,yi:yf,xi:xf)*( q(zi:zf,yi:yf,xi:xf) + ap(zi:zf,yi:yf,xi:xf))
 
 
     !y component:
@@ -181,29 +199,28 @@ contains
 
     call diffx(bs,as) !db/dy (spectral)
     ! take db/dx and convert to positional space, put into the dq array
-    call perform_backwards_3dfft(current_state, as, dq%data(zi:zf,yi:yf,xi:xf))
+    call perform_backwards_3dfft(current_state, as, dq(zi:zf,yi:yf,xi:xf))
 
     !calculate dv/dx (spectral)
-    call diffx(current_state%v_s%data,as)
+    call diffx(v_s,as)
     call perform_backwards_3dfft(current_state, as, ap(zi:zf,yi:yf,xi:xf))
     !add p*dv/dx to dq
-    dq%data(zi:zf,yi:yf,xi:xf) = - dq%data(zi:zf,yi:yf,xi:xf) &
-     + current_state%p%data(zi:zf,yi:yf,xi:xf)*ap(zi:zf,yi:yf,xi:xf)
+    dq(zi:zf,yi:yf,xi:xf) = - dq(zi:zf,yi:yf,xi:xf) &
+     + p(zi:zf,yi:yf,xi:xf)*ap(zi:zf,yi:yf,xi:xf)
 
     !calculate dv/dy (spectral)
-    call diffy(current_state%v_s%data,as)
+    call diffy(v_s,as)
     call perform_backwards_3dfft(current_state, as, ap(zi:zf,yi:yf,xi:xf))
     !add p*dv/dx to dq
-    dq%data(zi:zf,yi:yf,xi:xf) = dq%data(zi:zf,yi:yf,xi:xf) &
-      + current_state%q%data(zi:zf,yi:yf,xi:xf)*ap(zi:zf,yi:yf,xi:xf)
+    dq(zi:zf,yi:yf,xi:xf) = dq(zi:zf,yi:yf,xi:xf) &
+      + q(zi:zf,yi:yf,xi:xf)*ap(zi:zf,yi:yf,xi:xf)
 
     !calculate dw/dy (spectral)
-    call diffy(current_state%w_s%data,as)
+    call diffy(w_s,as)
     !add r*(dw/dy - p) to dq
     call perform_backwards_3dfft(current_state, as, ap(zi:zf,yi:yf,xi:xf))
-    dq%data(zi:zf,yi:yf,xi:xf) = dq%data(zi:zf,yi:yf,xi:xf) &
-      + current_state%r%data(zi:zf,yi:yf,xi:xf) &
-      * ( -current_state%p%data(zi:zf,yi:yf,xi:xf) + ap(zi:zf,yi:yf,xi:xf))
+    dq(zi:zf,yi:yf,xi:xf) = dq(zi:zf,yi:yf,xi:xf) &
+      + r(zi:zf,yi:yf,xi:xf)*( -p(zi:zf,yi:yf,xi:xf) + ap(zi:zf,yi:yf,xi:xf))
 
 
 
@@ -211,45 +228,43 @@ contains
     ! **but** using dw/dz= -du/dx - dv/dy (since div(velocity) = 0)
 
     !calculate dw/dx (spectral)
-    call diffx(current_state%w_s%data,as)
+    call diffx(w_s,as)
     call perform_backwards_3dfft(current_state, as, ap(zi:zf,yi:yf,xi:xf))
     !add p*dw/dx to dr
-    dr%data(zi:zf,yi:yf,xi:xf) = current_state%p%data(zi:zf,yi:yf,xi:xf)*ap(zi:zf,yi:yf,xi:xf)
+    dr(zi:zf,yi:yf,xi:xf) = p(zi:zf,yi:yf,xi:xf)*ap(zi:zf,yi:yf,xi:xf)
 
     !calculate dw/dy (spectral)
-    call diffy(current_state%w_s%data,as)
+    call diffy(w_s,as)
     call perform_backwards_3dfft(current_state, as, ap(zi:zf,yi:yf,xi:xf))
     !add p*dw/dx to dr
-    dr%data(zi:zf,yi:yf,xi:xf) = dr%data(zi:zf,yi:yf,xi:xf) &
-      + current_state%q%data(zi:zf,yi:yf,xi:xf)*ap(zi:zf,yi:yf,xi:xf)
+    dr(zi:zf,yi:yf,xi:xf) = dr(zi:zf,yi:yf,xi:xf) &
+      + q(zi:zf,yi:yf,xi:xf)*ap(zi:zf,yi:yf,xi:xf)
 
     !calculate du/dx (spectral)
-    call diffx(current_state%u_s%data,as)
+    call diffx(u_s,as)
     !add r*(-du/dx) to dr
     call perform_backwards_3dfft(current_state, as, ap(zi:zf,yi:yf,xi:xf))
-    dr%data(zi:zf,yi:yf,xi:xf) = dr%data(zi:zf,yi:yf,xi:xf) &
-      + current_state%r%data(zi:zf,yi:yf,xi:xf) &
-      * (-ap(zi:zf,yi:yf,xi:xf))
+    dr(zi:zf,yi:yf,xi:xf) = dr(zi:zf,yi:yf,xi:xf) &
+      - r(zi:zf,yi:yf,xi:xf)*ap(zi:zf,yi:yf,xi:xf)
 
     !calculate dv/dy (spectral)
-    call diffy(current_state%v_s%data,as)
+    call diffy(v_s,as)
     !add r*(-du/dx) to dr
     call perform_backwards_3dfft(current_state, as, ap(zi:zf,yi:yf,xi:xf))
-    dr%data(zi:zf,yi:yf,xi:xf) = dr%data(zi:zf,yi:yf,xi:xf) &
-      + current_state%r%data(zi:zf,yi:yf,xi:xf) &
-      * (-ap(zi:zf,yi:yf,xi:xf))
+    dr(zi:zf,yi:yf,xi:xf) = dr(zi:zf,yi:yf,xi:xf) &
+      - r(zi:zf,yi:yf,xi:xf)*ap(zi:zf,yi:yf,xi:xf)
 
 
     !interpolate back to parcels
 
 
-    call grid2par(current_state,dp,current_state%parcels%dpdt)
-    call grid2par(current_state,dq,current_state%parcels%dqdt)
-    call grid2par(current_state,dr,current_state%parcels%drdt)
+    call grid2par(current_state,current_state%dp,current_state%parcels%dpdt)
+    call grid2par(current_state,current_state%dq,current_state%parcels%dqdt)
+    call grid2par(current_state,current_state%dr,current_state%parcels%drdt)
 
     if ( mod(iteration,current_state%rksteps) == 0) then
       !We now want to determine the maximum vorticity
-      omax = maxval(dp%data**2 + dq%data**2 + dr%data**2)
+      omax = maxval(dp**2 + dq**2 + dr**2)
       omax=sqrt(omax)
 
       !This is the local maximum. We want the global maximum so we do a MPI reduction operation
@@ -274,8 +289,8 @@ contains
 
       print *, "vorticity tendency"
       print *, "dtmax=",dtmax
-      !print *, maxval(dp%data), maxval(dq%data), maxval(dr%data)
-      !print *, minval(dp%data), minval(dq%data), minval(dr%data)
+      !print *, maxval(dp), maxval(dq), maxval(dr)
+      !print *, minval(dp), minval(dq), minval(dr)
     endif
 
     iteration=iteration+1
