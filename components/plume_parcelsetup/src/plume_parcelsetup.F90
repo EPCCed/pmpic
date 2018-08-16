@@ -251,11 +251,14 @@ contains
     y=ymin_local+dybg/2.
     z=zmin_local+dzbg/2.
     do i=1,nx*n_per_cell_dir_bg
+      xp=x-x_c_pl
       do j=1,ny*n_per_cell_dir_bg
+        yp=y-y_c_pl
         do k=1,(nz-1)*n_per_cell_dir_bg
+          zp=z-z_c_pl
           !print *, x, y, z
 
-            if (z*z + y*y + x*x .gt. r_plume*r_plume) then
+            if (zp*zp + yp*yp + xp*xp .gt. r_plume*r_plume) then
 
               n=n+1
               state%parcels%x(n) = x
