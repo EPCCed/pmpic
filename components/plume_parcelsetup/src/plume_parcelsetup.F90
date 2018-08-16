@@ -255,24 +255,27 @@ contains
         do k=1,(nz-1)*n_per_cell_dir_bg
           !print *, x, y, z
 
-            n=n+1
-            state%parcels%x(n) = x
-            state%parcels%y(n) = y
-            state%parcels%z(n) = z
+            if (z*z + y*y + x*x .gt. r_plume*r_plume) then
 
-            if (z .lt. z_b) then
-          ! Mixed layer:
-              state%parcels%b(n)=0.
-              state%parcels%h(n)=h_bg
-            else
-          ! Stratified layer
-              state%parcels%b(n)=dbdz/lambda*(z-z_b)
-              state%parcels%h(n)=rhb*exp(-z/lambda)
+              n=n+1
+              state%parcels%x(n) = x
+              state%parcels%y(n) = y
+              state%parcels%z(n) = z
+
+              if (z .lt. z_b) then
+            ! Mixed layer:
+                state%parcels%b(n)=0.
+                state%parcels%h(n)=h_bg
+              else
+            ! Stratified layer
+                state%parcels%b(n)=dbdz/lambda*(z-z_b)
+                state%parcels%h(n)=rhb*exp(-z/lambda)
+              endif
+
+
+              state%parcels%vol(n) = vol
+              write(10+state%parallel%my_rank,*) x, y, z, state%parcels%b(n)
             endif
-
-
-            state%parcels%vol(n) = vol
-            write(10+state%parallel%my_rank,*) x, y, z, state%parcels%b(n)
 
           z=z+dzbg
         enddo
