@@ -22,12 +22,14 @@ vort2vel_enabled=.true.
 vorticity_tendency_enabled=.true.
 laplinv_test_enabled=.false.
 
+ffttest_enabled=.false.
+
 
 #component ordering
 
 #initialisation_stage_ordering+=euler_integrator,prescribed_parcel_velocity,writeparcels
 
-integrator_group_contents=grid2partest,prescribed_parcel_velocity,vort2vel,vorticity_tendency,laplinv_test,euler_integrator,rk4_integrator
+integrator_group_contents=grid2partest,prescribed_parcel_velocity,ffttest,vort2vel,vorticity_tendency,laplinv_test,euler_integrator,rk4_integrator
 
 #finalisation_stage_ordering+=model_synopsis,euler_integrator,prescribed_parcel_velocity,writeparcels
 

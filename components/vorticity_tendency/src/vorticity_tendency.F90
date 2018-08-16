@@ -109,7 +109,7 @@ contains
 
     real(kind=DEFAULT_PRECISION) :: omax, omaxglobal, dtmax
 
-    print *, "Entering vorticity_tendency"
+    !print *, "Entering vorticity_tendency"
     call timer_start(handle)
 
     !determine total parcel buoyancy
@@ -262,21 +262,21 @@ contains
         dtmax=current_state%dtmax
       endif
 
-      if (current_state%dtm .gt. dtmax) then
+      if (current_state%dtmax .gt. dtmax) then
         current_state%dtm = dtmax
       endif
 
       print *, "vorticity tendency"
       print *, "dtmax=",dtmax
-      print *, maxval(dp%data), maxval(dq%data), maxval(dr%data)
-      print *, minval(dp%data), minval(dq%data), minval(dr%data)
+      !print *, maxval(dp%data), maxval(dq%data), maxval(dr%data)
+      !print *, minval(dp%data), minval(dq%data), minval(dr%data)
     endif
 
     iteration=iteration+1
 
     call timer_stop(handle)
 
-    print *, "exiting vorticity_tendency"
+    !print *, "exiting vorticity_tendency"
 
     !call MPI_Finalize(ierr)
     !stop

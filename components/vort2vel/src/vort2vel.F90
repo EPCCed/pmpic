@@ -110,7 +110,7 @@ contains
       allocate(ubar(nz), vbar(nz))
     endif
 
-    print *, "Entering vort2vel"
+    !print *, "Entering vort2vel"
     call timer_start(handle)
 
 
@@ -311,15 +311,15 @@ contains
       if (current_state%dtmax .gt. dtmax) then
         current_state%dtm = dtmax
       else
-        current_state%dtm = dtmax
+        current_state%dtm = current_state%dtmax
       endif
 
       print *, "Velocities"
       print *, "dtmax=",dtmax
-      print *, maxval(current_state%u%data), maxval(current_state%v%data), maxval(current_state%w%data)
-      print *, minval(current_state%u%data), minval(current_state%v%data), minval(current_state%w%data)
+      !print *, maxval(current_state%u%data), maxval(current_state%v%data), maxval(current_state%w%data)
+      !print *, minval(current_state%u%data), minval(current_state%v%data), minval(current_state%w%data)
 
-      print *, "Leaving vort2vel"
+      !print *, "Leaving vort2vel"
 
     endif
 
