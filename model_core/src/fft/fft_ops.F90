@@ -472,8 +472,15 @@ contains
     if (present(df_zero_on_boundary)) df0 = df_zero_on_boundary
 
     ! check that we don't have multiple BCs
-    if (.not. (f0 .xor. df0)) then
+    if (f0 .AND. df0) then
      write(*,*) "Error multiple boundary conditions specified for laplinv"
+     call MPI_Finalize(ierr)
+     stop
+    endif
+
+    ! check that we have BCs    
+    if ((.NOT.(f0 .OR. df0)) ) then
+     write(*,*) "No boundary conditions specified for laplinv"
      call MPI_Finalize(ierr)
      stop
     endif
