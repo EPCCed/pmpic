@@ -2,7 +2,7 @@
 module timer_mod
   use fileunits_mod, only: get_free_file_unit, file_exists
   use datadefn_mod, only: STRING_LENGTH
-  use MPI, only: MPI_Wtime, MPI_Gather, MPI_DOUBLE_PRECISION, MPI_Barrier
+  use mpi, only: MPI_Wtime,MPI_DOUBLE_PRECISION, MPI_Barrier
   use state_mod, only: model_state_type
   use optionsdatabase_mod, only: options_has_key, options_get_array_size, options_get_string_array, &
                                 options_get_logical
@@ -329,15 +329,15 @@ contains
        do i=1,num
 
          !n=index(i)
-         call MPI_Gather(sendbuf=timings(i)%t,&
-                         sendcount=1,&
-                         sendtype=MPI_DOUBLE_PRECISION,&
-                         recvbuf=rank_times(1,i),&
-                         recvcount=1,&
-                         recvtype=MPI_DOUBLE_PRECISION,&
-                         root=0,&
-                         comm=state%parallel%monc_communicator,&
-                         ierror=idum)
+         call MPI_Gather(timings(i)%t,&
+                         1,&
+                         MPI_DOUBLE_PRECISION,&
+                         rank_times(1,i),&
+                         1,&
+                         MPI_DOUBLE_PRECISION,&
+                         0,&
+                         state%parallel%monc_communicator,&
+                         idum)
 
         if (state%parallel%my_rank .eq. 0) then
 

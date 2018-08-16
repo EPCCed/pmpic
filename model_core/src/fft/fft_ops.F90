@@ -198,43 +198,43 @@ contains
     !send/recv start/end values of arrays if needed (non-blocking)
     if (x_start_swap) then
       left_sendbuff(:,:) = in(:,:,1)
-      call MPI_isend(buf=left_sendbuff,&
-                     count=nz*ny,&
-                     datatype=PRECISION_TYPE,&
-                     dest=left,&
-                     tag=0,&
-                     comm=comm,&
-                     request=requests(1),&
-                     ierror=ierr)
-      call MPI_irecv(buf=left_recvbuff,&
-                     count=nz*ny,&
-                     datatype=PRECISION_TYPE,&
-                     source=left,&
-                     tag=1,&
-                     comm=comm,&
-                     request=requests(2),&
-                     ierror=ierr)
+      call MPI_isend(left_sendbuff,&
+                     nz*ny,&
+                     PRECISION_TYPE,&
+                     left,&
+                     0,&
+                     comm,&
+                     requests(1),&
+                     ierr)
+      call MPI_irecv(left_recvbuff,&
+                     nz*ny,&
+                     PRECISION_TYPE,&
+                     left,&
+                     1,&
+                     comm,&
+                     requests(2),&
+                     ierr)
       istart=2
     endif
 
     if (x_end_swap) then
       right_sendbuff(:,:) = in(:,:,nx)
-      call MPI_isend(buf=right_sendbuff,&
-                     count=nz*ny,&
-                     datatype=PRECISION_TYPE,&
-                     dest=right,&
-                     tag=1,&
-                     comm=comm,&
-                     request=requests(3),&
-                     ierror=ierr)
-      call MPI_irecv(buf=right_recvbuff,&
-                     count=nz*ny,&
-                     datatype=PRECISION_TYPE,&
-                     source=right,&
-                     tag=0,&
-                     comm=comm,&
-                     request=requests(4),&
-                     ierror=ierr)
+      call MPI_isend(right_sendbuff,&
+                     nz*ny,&
+                     PRECISION_TYPE,&
+                     right,&
+                     1,&
+                     comm,&
+                     requests(3),&
+                     ierr)
+      call MPI_irecv(right_recvbuff,&
+                     nz*ny,&
+                     PRECISION_TYPE,&
+                     right,&
+                     0,&
+                     comm,&
+                     requests(4),&
+                     ierr)
       iend=nx-1
     endif
 
@@ -246,10 +246,10 @@ contains
 
     !wait for comms to complete (if necessary)
 
-      call MPI_Waitall(count=4,&
-                       array_of_requests=requests,&
-                       array_of_statuses=statuses,&
-                       ierror=ierr)
+      call MPI_Waitall(4,&
+                       requests,&
+                       statuses,&
+                       ierr)
 
 
     !set end values (if necessary)
@@ -281,43 +281,43 @@ contains
     !send/recv start/end values of arrays if needed (non-blocking)
     if (y_start_swap) then
       down_sendbuff(:,:) = in(:,1,:)
-      call MPI_isend(buf=down_sendbuff,&
-                     count=nz*nx,&
-                     datatype=PRECISION_TYPE,&
-                     dest=down,&
-                     tag=0,&
-                     comm=comm,&
-                     request=requests(1),&
-                     ierror=ierr)
-      call MPI_irecv(buf=down_recvbuff,&
-                     count=nz*nx,&
-                     datatype=PRECISION_TYPE,&
-                     source=down,&
-                     tag=1,&
-                     comm=comm,&
-                     request=requests(2),&
-                     ierror=ierr)
+      call MPI_isend(down_sendbuff,&
+                     nz*nx,&
+                     PRECISION_TYPE,&
+                     down,&
+                     0,&
+                     comm,&
+                     requests(1),&
+                     ierr)
+      call MPI_irecv(down_recvbuff,&
+                     nz*nx,&
+                     PRECISION_TYPE,&
+                     down,&
+                     1,&
+                     comm,&
+                     requests(2),&
+                     ierr)
       jstart=2
     endif
 
     if (y_end_swap) then
       up_sendbuff(:,:) = in(:,ny,:)
-      call MPI_isend(buf=up_sendbuff,&
-                     count=nz*nx,&
-                     datatype=PRECISION_TYPE,&
-                     dest=up,&
-                     tag=1,&
-                     comm=comm,&
-                     request=requests(3),&
-                     ierror=ierr)
-      call MPI_irecv(buf=up_recvbuff,&
-                     count=nz*nx,&
-                     datatype=PRECISION_TYPE,&
-                     source=up,&
-                     tag=0,&
-                     comm=comm,&
-                     request=requests(4),&
-                     ierror=ierr)
+      call MPI_isend(up_sendbuff,&
+                     nz*nx,&
+                     PRECISION_TYPE,&
+                     up,&
+                     1,&
+                     comm,&
+                     requests(3),&
+                     ierr)
+      call MPI_irecv(up_recvbuff,&
+                     nz*nx,&
+                     PRECISION_TYPE,&
+                     up,&
+                     0,&
+                     comm,&
+                     requests(4),&
+                     ierr)
       jend=ny-1
     endif
 
@@ -329,10 +329,10 @@ contains
 
     !wait for comms to complete
 
-      call MPI_Waitall(count=4,&
-                       array_of_requests=requests,&
-                       array_of_statuses=statuses,&
-                       ierror=ierr)
+      call MPI_Waitall(4,&
+                       requests,&
+                       statuses,&
+                       ierr)
 
 
     !set end values (if necessary)
@@ -477,7 +477,7 @@ contains
      call MPI_Finalize(ierr)
      stop
     endif
-
+    
     !set any constants
 
     nx=size(f,3)

@@ -70,13 +70,13 @@ contains
     state%parcels%numparcels_local = nparcels
 
     !set global parcel count
-    call MPI_Allreduce(sendbuf=state%parcels%numparcels_local,&
-                       recvbuf=state%parcels%numparcels_global,&
-                       count=1,&
-                       datatype=MPI_PARCEL_INT,&
-                       op=MPI_SUM,&
-                       comm=state%parallel%monc_communicator,&
-                       ierror=ierr)
+    call MPI_Allreduce(state%parcels%numparcels_local,&
+                       state%parcels%numparcels_global,&
+                       1,&
+                       MPI_PARCEL_INT,&
+                       MPI_SUM,&
+                       state%parallel%monc_communicator,&
+                       ierr)
 
     !print *, "dx, dy, dz=", dx, dy, dz
 

@@ -292,13 +292,13 @@ contains
       umax=sqrt(umax)
 
       !This is the local maximum. We want the global maximum so we do a MPI reduction operation
-      call MPI_Allreduce(sendbuf=umax,&
-                         recvbuf=umaxglobal,&
-                         count=1,&
-                         datatype=PRECISION_TYPE,&
-                         op=MPI_MAX,&
-                         comm=current_state%parallel%monc_communicator,&
-                         ierror=ierr)
+      call MPI_Allreduce(umax,&
+                         umaxglobal,&
+                         1,&
+                         PRECISION_TYPE,&
+                         MPI_MAX,&
+                         current_state%parallel%monc_communicator,&
+                         ierr)
 
       !we want to determine the crossing time for one cell at umax. dt cannot be more than this else we could advect a parcel
       ! outside the halo cells
