@@ -43,7 +43,7 @@ else
 	PETSC_LIBS=-lpetsc
 endif
 
-COMPILERFFLAGS=-fopenmp #-O3
+COMPILERFFLAGS=-fopenmp -O3
 COMPILERRECURSIVE=
 ACTIVE=-DU_ACTIVE -DV_ACTIVE -DW_ACTIVE -DUSE_MAKE
 DEBUG_FLAGS=-g -fopenmp -fcheck=all -fbacktrace -DDEBUG_MODE #-ffpe-trap=invalid,overflow,denormal,zero
