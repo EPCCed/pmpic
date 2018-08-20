@@ -35,8 +35,8 @@ integrator_group_contents=grid2partest,prescribed_parcel_velocity,ffttest,vort2v
 
 
 # Control configuration
-display_synopsis_frequency=10
-termination_time=10
+display_synopsis_frequency=60
+termination_time=1200
 
 
 #grid properties
@@ -44,11 +44,11 @@ nx=32
 ny=32
 nz=32
 xmin=0
-xmax=6.28
+xmax=6280.
 ymin=0
-ymax=6.28
+ymax=6280.
 zmin=0
-zmax=6.28
+zmax=6280.
 
 #base parcelsetup properties
 max_parcels=10000000
@@ -60,19 +60,18 @@ restart_num=40
 parcels_per_cell_dir = 2
 
 #basic plume settings
-lambda=1
 H=0.8
-z_c=2.5
+z_c=2500
 mu=0.9
-z_d=4.
-z_m=5.
-r_plume=0.8
+z_d=4000
+z_m=5000
+r_plume=800
 e_values=0.3, -0.4 ,0.5
 
 
 #integrator properties
-dtm=0.1
-dtmax=0.1
+dtm=1.0
+dtmax=10
 
 #velocity profile properties
 velocity_profile=9
@@ -85,3 +84,11 @@ grid_dump_frequency = 1
 timing_enabled=.true.
 timing_logging=.true.
 logging_routines=RK4_all_steps,Par_HSWP_entire,Prescribed_velocity,write_parcels
+
+#physical constants
+thref0=288.0
+cp=1005.0
+rlvap=2.501e6
+G=9.81
+q0=0.0015
+l_condense=1000.

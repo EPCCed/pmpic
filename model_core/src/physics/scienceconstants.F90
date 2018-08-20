@@ -12,7 +12,7 @@ module science_constants_mod
 
   real(kind=DEFAULT_PRECISION) :: smallp=1.0e-14, von_karman_constant, z0, z0th, alphah, betam, betah, &
        gammam, gammah, pi, surface_vapour_mixing_ratio, cp , rlvap, rlvap_over_cp, r, r_over_cp, G,&
-       convective_limit, ratio_mol_wts, rlargep
+       convective_limit, thref0, ratio_mol_wts, rlargep,q0,l_condense
 
   real(kind=DEFAULT_PRECISION) :: seconds_in_a_day=86400.0
   public smallp, von_karman_constant, z0, z0th, alphah, betam, betah, gammam, gammah, pi, cp, &
@@ -25,24 +25,27 @@ contains
   subroutine initialise_science_constants(current_state)
     type(model_state_type), target, intent(inout) :: current_state
 
-    von_karman_constant=options_get_real(current_state%options_database, "von_karman_constant")
-    z0=options_get_real(current_state%options_database, "z0")
-    z0th=options_get_real(current_state%options_database, "z0th")
-    alphah=options_get_real(current_state%options_database, "alphah")
-    betam=options_get_real(current_state%options_database, "betam")
-    betah=options_get_real(current_state%options_database, "betah")
-    gammam=options_get_real(current_state%options_database, "gammam")
-    gammah=options_get_real(current_state%options_database, "gammah")
-    pi=options_get_real(current_state%options_database, "pi")
+    !von_karman_constant=options_get_real(current_state%options_database, "von_karman_constant")
+    !z0=options_get_real(current_state%options_database, "z0")
+    !z0th=options_get_real(current_state%options_database, "z0th")
+    !alphah=options_get_real(current_state%options_database, "alphah")
+    !betam=options_get_real(current_state%options_database, "betam")
+    !betah=options_get_real(current_state%options_database, "betah")
+    !gammam=options_get_real(current_state%options_database, "gammam")
+    !gammah=options_get_real(current_state%options_database, "gammah")
+    !pi=options_get_real(current_state%options_database, "pi")
     cp=options_get_real(current_state%options_database, "cp")
     rlvap=options_get_real(current_state%options_database, "rlvap")
-    r=options_get_real(current_state%options_database, "r")
+    !r=options_get_real(current_state%options_database, "r")
     G=options_get_real(current_state%options_database, "G")
     convective_limit=options_get_real(current_state%options_database, "convective_limit")
-    ratio_mol_wts=options_get_real(current_state%options_database, "ratio_mol_wts")
-    rlargep=options_get_real(current_state%options_database, "rlargep")
+    thref0=options_get_real(current_state%options_database, "thref0")
+    q0=options_get_real(current_state%options_database, "q0")
+    l_condense=options_get_real(current_state%options_database, "l_condense")
+    !ratio_mol_wts=options_get_real(current_state%options_database, "ratio_mol_wts")
+    !rlargep=options_get_real(current_state%options_database, "rlargep")
 
-    rlvap_over_cp=rlvap/cp
-    r_over_cp=r/cp
+    !rlvap_over_cp=rlvap/cp
+    !r_over_cp=r/cp
   end subroutine initialise_science_constants  
 end module science_constants_mod

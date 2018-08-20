@@ -9,7 +9,7 @@ module plume_parcelsetup_mod
   use parcel_interpolation_mod, only:  x_coords, y_coords, z_coords
   use MPI
   use parcel_haloswap_mod, only: initialise_parcel_haloswapping
-
+  use science_constants_mod, only : G,rlvap,cp,thref0,q0,l_condense
 
   implicit none
 
@@ -32,18 +32,6 @@ module plume_parcelsetup_mod
 REAL(KIND=DEFAULT_PRECISION),parameter:: latent=0.125
 
  !This is obtained from taking L/c_p=2500, h_0=0.015 and theta_l0=300.
-
- !A characteristic variation of the liquid water potential temperature
- !over a unit scale height, divided by its mean value theta_l0:
-REAL(KIND=DEFAULT_PRECISION),parameter:: fdthetal0=0.01
-
- !Take the mean bouyancy frequency g*fdthetal0*lambda = 1 (over a
- !characteristic scale height 1/lambda):
-REAL(KIND=DEFAULT_PRECISION),parameter:: gravity=1./fdthetal0
-
- !The group of parameters g*L*h_0/(c_p*theta_l0):
-REAL(KIND=DEFAULT_PRECISION),parameter:: glat=gravity*latent
-
 
 integer, parameter :: n_per_cell_dir_plume = 4
 integer, parameter :: n_per_cell_dir_bg = 2
@@ -79,8 +67,6 @@ contains
 
     master = state%parallel%my_rank .eq. 0
 
-    lambda=options_get_real(state%options_database,"lambda")
-
     if (master) write(*,"('Scale height= ',f7.2,'m')") lambda
 
     rhb=options_get_real(state%options_database,"H")
@@ -93,7 +79,7 @@ contains
 
     z_c=options_get_real(state%options_database,"z_c")
 
-    h_pl=exp(-z_c)
+    h_pl=q0*exp(-z_c/l_condense)
     if (master) write(*,"('Humidity inside the plume is ',f6.3)") h_pl
 
 
@@ -108,20 +94,20 @@ contains
     h_bg=mu*h_pl
     if (master) write(*,"('Background humidity is ',f6.3)") h_bg
 
-    z_b=log(rhb/h_bg)
+    z_b=l_condense*log(q0*rhb/h_bg)
     if (master) write(*,"('Base of mixed layer is ',f6.3)") z_b
 
 
     z_d=options_get_real(state%options_database,"z_d")
     z_m=options_get_real(state%options_database,"z_m")
 
-    dbdz=glat*(h_pl-exp(-z_m))/(z_m-z_d)
+    dbdz=(G*rlvap/(cpd*thref0))*(h_pl-q0*exp(-z_m/l_condense))/(z_m-z_d)
     if (master) write(*,"('The buoyancy frequency in the stratified zone is ',f6.3)") sqrt(dbdz)
 
     !Also obtain the plume liquid-water buoyancy (using also z_b):
     b_pl=dbdz*(z_d-z_b)
     if (master) write(*,'(a,f7.5)') '  The plume liquid water buoyancy b_pl = ',b_pl
-    if (master) write(*,'(a,f7.5)') '  corresponding to (theta_l-theta_l0)/theta_l0 = ',b_pl/gravity
+    if (master) write(*,'(a,f7.5)') '  corresponding to (theta_l-theta_l0)/theta_l0 = ',b_pl/thref0
 
 
 
@@ -133,16 +119,6 @@ contains
     endif
 
     call options_get_real_array(state%options_database,"e_values",e_values)
-
-
-
-    !now we need to transform dimensionless lengths into dimensional using the scale length lambda
-
-    z_c=z_c*lambda
-    z_b=z_b*lambda
-    z_d=z_d*lambda
-    z_m=z_m*lambda
-    r_plume=r_plume*lambda
 
     e_values=e_values/r_plume/r_plume
 
@@ -271,8 +247,8 @@ contains
                 state%parcels%h(n)=h_bg
               else
             ! Stratified layer
-                state%parcels%b(n)=dbdz/lambda*(z-z_b)
-                state%parcels%h(n)=rhb*exp(-z/lambda)
+                state%parcels%b(n)=dbdz*(z-z_b)
+                state%parcels%h(n)=q0*rhb*exp(-z/l_condense)
               endif
 
 

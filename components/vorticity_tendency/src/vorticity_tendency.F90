@@ -15,6 +15,7 @@ module vorticity_tendency_mod
   use timer_mod, only: register_routine_for_timing, timer_start, timer_stop
   use fftops_mod, only: fftops_init, diffx, diffy, diffz, laplinv, spectral_filter
   use prognostics_mod, only: prognostic_field_type
+  use science_constants_mod, only : G,rlvap,cp,thref0,q0,l_condense
   implicit none
 
 #ifndef TEST_MODE
@@ -114,8 +115,8 @@ contains
 
     !determine total parcel buoyancy
     do n=1,current_state%parcels%numparcels_local
-      current_state%parcels%btot(n) = current_state%parcels%b(n) + 12.5 &
-      * max(0.0, current_state%parcels%h(n)-exp(-current_state%parcels%z(n)))
+      current_state%parcels%btot(n) = current_state%parcels%b(n) + G*rlvap/(cp*thref0) &
+      * max(0.0, current_state%parcels%h(n)-q0*exp(-current_state%parcels%z(n)/l_condense))
     enddo
 
 
@@ -124,7 +125,7 @@ contains
     do i=1,size(current_state%hgliq%data,3)
       do j=1,size(current_state%hgliq%data,2)
         do k=1,size(current_state%hgliq%data,1)
-          current_state%hgliq%data(k,j,i) = max(0.,current_state%hg%data(k,j,i) - exp(-z_coords(k)))
+          current_state%hgliq%data(k,j,i) = max(0.,current_state%hg%data(k,j,i) - q0*exp(-z_coords(k)/l_condense))
         enddo
       enddo
     enddo
