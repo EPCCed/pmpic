@@ -36,7 +36,7 @@ integrator_group_contents=grid2partest,prescribed_parcel_velocity,ffttest,vort2v
 
 # Control configuration
 display_synopsis_frequency=60
-termination_time=1200
+termination_time=2400
 
 
 #grid properties
@@ -70,14 +70,14 @@ e_values=0.3, -0.4 ,0.5
 
 
 #integrator properties
-dtm=1.0
-dtmax=10
+dtm=5.0
+dtmax=60
 
 #velocity profile properties
 velocity_profile=9
 
 #writeparcels properties
-parcel_dump_frequency=20
+parcel_dump_frequency=1000
 grid_dump_frequency = 1
 
 #timing logging options

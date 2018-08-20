@@ -25,14 +25,6 @@ module plume_parcelsetup_mod
  !Note: we take the characteristic scale height 1/lambda = 1, so adjust
  !ellz above as needed.
 
- !Dimensionless latent heat of condensation, L*h_0/(c_p*theta_l0),
- !where h_0 is the saturation specific humidity at ground level,
- !c_p is the specific heat at constant pressure, and theta_l0 is
- !the mean liquid-water potential temperature:
-REAL(KIND=DEFAULT_PRECISION),parameter:: latent=0.125
-
- !This is obtained from taking L/c_p=2500, h_0=0.015 and theta_l0=300.
-
 integer, parameter :: n_per_cell_dir_plume = 4
 integer, parameter :: n_per_cell_dir_bg = 2
 
@@ -94,20 +86,20 @@ contains
     h_bg=mu*h_pl
     if (master) write(*,"('Background humidity is ',f6.3)") h_bg
 
-    z_b=l_condense*log(q0*rhb/h_bg)
+    z_b=l_condense*log((q0*rhb)/h_bg)
     if (master) write(*,"('Base of mixed layer is ',f6.3)") z_b
 
 
     z_d=options_get_real(state%options_database,"z_d")
     z_m=options_get_real(state%options_database,"z_m")
 
-    dbdz=(G*rlvap/(cpd*thref0))*(h_pl-q0*exp(-z_m/l_condense))/(z_m-z_d)
-    if (master) write(*,"('The buoyancy frequency in the stratified zone is ',f6.3)") sqrt(dbdz)
+    dbdz=(G*rlvap/(cp*thref0))*(h_pl-q0*exp(-z_m/l_condense))/(z_m-z_d)
+    if (master) write(*,"('The buoyancy frequency in the stratified zone is ',f12.3)") sqrt(dbdz)
 
     !Also obtain the plume liquid-water buoyancy (using also z_b):
     b_pl=dbdz*(z_d-z_b)
     if (master) write(*,'(a,f7.5)') '  The plume liquid water buoyancy b_pl = ',b_pl
-    if (master) write(*,'(a,f7.5)') '  corresponding to (theta_l-theta_l0)/theta_l0 = ',b_pl/thref0
+    if (master) write(*,'(a,f7.5)') '  corresponding to (theta_l-theta_l0)/theta_l0 = ',b_pl*G
 
 
 

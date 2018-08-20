@@ -12,12 +12,12 @@ module science_constants_mod
 
   real(kind=DEFAULT_PRECISION) :: smallp=1.0e-14, von_karman_constant, z0, z0th, alphah, betam, betah, &
        gammam, gammah, pi, surface_vapour_mixing_ratio, cp , rlvap, rlvap_over_cp, r, r_over_cp, G,&
-       convective_limit, thref0, ratio_mol_wts, rlargep,q0,l_condense
+       convective_limit, thref0, ratio_mol_wts,rlargep,q0,l_condense
 
   real(kind=DEFAULT_PRECISION) :: seconds_in_a_day=86400.0
   public smallp, von_karman_constant, z0, z0th, alphah, betam, betah, gammam, gammah, pi, cp, &
        rlvap, rlvap_over_cp, r, r_over_cp, G, convective_limit, ratio_mol_wts, rlargep, initialise_science_constants, &
-       seconds_in_a_day
+       seconds_in_a_day,thref0,q0,l_condense
 contains
 
   !> Initialises the scientific constants to read in any values that are overridden in the configuration
