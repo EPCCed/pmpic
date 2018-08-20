@@ -38,3 +38,4 @@ fort.??
 *.autogen
 */*.autogen
 timing_data
+*.png
