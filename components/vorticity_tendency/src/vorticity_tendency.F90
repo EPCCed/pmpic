@@ -263,7 +263,7 @@ contains
 
       !this is the maximum timestep in vorticity
       if (omaxglobal .gt. 0.) then
-        dtmax = 0.5/omax
+        dtmax = 0.5/omaxglobal
       else
         dtmax=current_state%dtmax
       endif
@@ -272,8 +272,8 @@ contains
         current_state%dtm = dtmax
       endif
 
-      print *, "vorticity tendency"
-      print *, "dtmax=",dtmax
+      ! print *, "vorticity tendency"
+      ! print *, "dtmax=",dtmax
       !print *, maxval(dp%data), maxval(dq%data), maxval(dr%data)
       !print *, minval(dp%data), minval(dq%data), minval(dr%data)
     endif

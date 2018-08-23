@@ -314,8 +314,8 @@ contains
         current_state%dtm = current_state%dtmax
       endif
 
-      print *, "Velocities"
-      print *, "dtmax=",dtmax
+      ! print *, "Velocities"
+      ! print *, "dtmax=",dtmax
       !print *, maxval(current_state%u%data), maxval(current_state%v%data), maxval(current_state%w%data)
       !print *, minval(current_state%u%data), minval(current_state%v%data), minval(current_state%w%data)
 
