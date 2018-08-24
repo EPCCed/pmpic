@@ -43,10 +43,10 @@ else
 	PETSC_LIBS=-lpetsc
 endif
 
-COMPILERFFLAGS=-fopenmp #-O3
+COMPILERFFLAGS=-fopenmp -ffpe-trap=invalid,overflow,denormal,zero -O3
 COMPILERRECURSIVE=
 ACTIVE=-DU_ACTIVE -DV_ACTIVE -DW_ACTIVE -DUSE_MAKE
-DEBUG_FLAGS=-g -fopenmp -fcheck=all -fbacktrace -DDEBUG_MODE #-ffpe-trap=invalid,overflow,denormal,zero
+DEBUG_FLAGS=-g -fopenmp -fcheck=all -fbacktrace -DDEBUG_MODE -ffpe-trap=invalid,overflow,denormal,zero
 
 FFLAGS=-I $(CORE_DIR)/$(BUILD_DIR) -I $(COMPONENTS_DIR)/$(BUILD_DIR) -I $(TESTCASE_DIR)/$(BUILD_DIR) -I /usr/include $(COMPILERFFLAGS)
 LFLAGS= -lfftw3
