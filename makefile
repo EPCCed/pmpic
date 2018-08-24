@@ -82,11 +82,11 @@ export COMPILERRECURSIVE
 export FTN
 
 clean: clean-model_core clean-components clean-testcases
-	rm -Rf build/*
+	rm -Rf build/* fort.10 fort.11
 
 
 clean-build: clean-build-model_core clean-build-components clean-build-testcases
-	rm -Rf build
+	rm -Rf build fort.10 fort.11
 
 buildmonc: check-vars create-build-dirs compile-model_core compile-components compile-testcases compile-bootstrapper
 	$(FTN) -fopenmp -o $(EXEC_NAME) $(BUILD_DIR)/*.o $(CORE_DIR)/$(BUILD_DIR)/*.o $(COMPONENTS_DIR)/$(BUILD_DIR)/*.o $(CASIM_BUILD_LOC)  $(TESTCASE_DIR)/$(BUILD_DIR)/*.o $(LFLAGS)
@@ -134,6 +134,9 @@ clean-ioserver:
 
 clean-build-ioserver:
 	cd $(IO_SERVER_DIR) ; $(MAKE) clean-build
+
+clean-outputs:
+	rm -rf parcels_???_????.dat grids_???_????.dat
 
 compile-bootstrapper:
 	$(FTN) $(FFLAGS) monc_driver.F90 -o $(BUILD_DIR)/monc_driver.o
