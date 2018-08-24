@@ -191,14 +191,15 @@ contains
     real(kind=DEFAULT_PRECISION), intent(in) :: in(:,:,:)
     real(kind=DEFAULT_PRECISION), intent(out) :: out(:,:,:)
     integer :: left_sendrequest, left_recvrequest, right_sendrequest, right_recvrequest
-    integer :: istart, iend
+    integer, save :: istart, iend
     integer :: i, j, k
     integer :: statuses(MPI_STATUS_SIZE,4)
     integer :: requests(4)=MPI_REQUEST_NULL
 
+
+    !$OMP SINGLE
     istart=1
     iend=nx
-    !$OMP SINGLE
     !send/recv start/end values of arrays if needed (non-blocking)
     if (x_start_swap) then
       left_sendbuff(:,:) = in(:,:,1)
@@ -283,15 +284,17 @@ contains
   subroutine diffy(in,out)
     real(kind=DEFAULT_PRECISION), intent(in) :: in(:,:,:)
     real(kind=DEFAULT_PRECISION), intent(out) :: out(:,:,:)
-    integer :: jstart, jend
+    integer, save :: jstart, jend
     integer :: i, j, k
     integer :: statuses(MPI_STATUS_SIZE,4)
     integer :: requests(4)=MPI_REQUEST_NULL
 
-    jstart=1
-    jend=nx
+
 
     !$OMP SINGLE
+
+    jstart=1
+    jend=ny
     !send/recv start/end values of arrays if needed (non-blocking)
     if (y_start_swap) then
       down_sendbuff(:,:) = in(:,1,:)
