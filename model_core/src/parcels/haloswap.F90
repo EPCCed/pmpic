@@ -198,14 +198,14 @@ contains
       nparcels_final = nparcels_final + nreceived
 
       !print *, "reading message from dir=", dir
-      call MPI_Recv(buf=recv_buffer,&
-                    count=nreceived*(state%parcels%n_properties+state%parcels%n_rk+state%parcels%qnum),&
-                    datatype=PRECISION_TYPE,&
-                    source=src,&
-                    tag=dir,&
-                    comm=state%parallel%monc_communicator,&
-                    status=recv_status,&
-                    ierror=ierr)
+      call MPI_Recv(recv_buffer,&
+                    nreceived*(state%parcels%n_properties+state%parcels%n_rk+state%parcels%qnum),&
+                    PRECISION_TYPE,&
+                    src,&
+                    dir,&
+                    state%parallel%monc_communicator,&
+                    recv_status,&
+                    ierr)
 
       call timer_stop(handle_recv)
 
@@ -241,10 +241,10 @@ contains
      !$OMP MASTER
      !check that all our messages have been received
      call timer_start(handle_sanity)
-     call MPI_Waitall(count=8,&
-                      array_of_requests=requests,&
-                      array_of_statuses=send_statuses,&
-                      ierror=ierr)
+     call MPI_Waitall(8,&
+                      requests,&
+                      send_statuses,&
+                      ierr)
 
      !now we can safely deallocate the send buffers
      deallocate(N_buff)
@@ -262,13 +262,13 @@ contains
 
 
      !a sanity check. We're moving parcels around so the total number across all processes shouldn't change
-     call MPI_Allreduce(sendbuf=state%parcels%numparcels_local,&
-                        recvbuf=state%parcels%numparcels_global,&
-                        count=1,&
-                        datatype=MPI_PARCEL_INT,&
-                        op=MPI_SUM,&
-                        comm=state%parallel%monc_communicator,&
-                        ierror=ierr)
+     call MPI_Allreduce(state%parcels%numparcels_local,&
+                        state%parcels%numparcels_global,&
+                        1,&
+                        MPI_PARCEL_INT,&
+                        MPI_SUM,&
+                        state%parallel%monc_communicator,&
+                        ierr)
 
       call timer_stop(handle_sanity)
 
@@ -600,23 +600,23 @@ contains
      call get_buffer_ptr(buff,dir)
 
      if (count .eq. 0) then !so as to not go out of bounds we send a dummy variable if the count is 0
-       call MPI_ISend(buf=count,&
-                      count=count*(state%parcels%n_properties+state%parcels%n_rk+state%parcels%qnum),&
-                      datatype=PRECISION_TYPE,&
-                      dest=destinations(dir),&
-                      tag=dir,&
-                      comm=state%parallel%monc_communicator,&
-                      request=request,&
-                      ierror=ierr)
+       call MPI_ISend(count,&
+                      count*(state%parcels%n_properties+state%parcels%n_rk+state%parcels%qnum),&
+                      PRECISION_TYPE,&
+                      destinations(dir),&
+                      dir,&
+                      state%parallel%monc_communicator,&
+                      request,&
+                      ierr)
      else
-       call MPI_ISend(buf=buff(1,1),&
-                      count=count*(state%parcels%n_properties+state%parcels%n_rk+state%parcels%qnum),&
-                      datatype=PRECISION_TYPE,&
-                      dest=destinations(dir),&
-                      tag=dir,&
-                      comm=state%parallel%monc_communicator,&
-                      request=request,&
-                      ierror=ierr)
+       call MPI_ISend(buff(1,1),&
+                      count*(state%parcels%n_properties+state%parcels%n_rk+state%parcels%qnum),&
+                      PRECISION_TYPE,&
+                      destinations(dir),&
+                      dir,&
+                      state%parallel%monc_communicator,&
+                      request,&
+                      ierr)
      endif
 
     ! print *, "sent in direction", dir
@@ -632,16 +632,16 @@ contains
       integer, intent(out) :: dir, nrecv, src
       integer :: status(MPI_STATUS_SIZE)
 
-      call MPI_probe(source=MPI_ANY_SOURCE,&
-                     tag=MPI_ANY_TAG,&
-                     comm=state%parallel%monc_communicator,&
-                     status=status,&
-                     ierror=ierr)
+      call MPI_probe(MPI_ANY_SOURCE,&
+                     MPI_ANY_TAG,&
+                     state%parallel%monc_communicator,&
+                     status,&
+                     ierr)
 
       src=status(MPI_SOURCE)
       dir=status(MPI_TAG)
 
-      call MPI_get_count(status=status,datatype=PRECISION_TYPE,count=nrecv,ierror=ierr)
+      call MPI_get_count(status,PRECISION_TYPE,nrecv,ierr)
 
       nrecv=nrecv/(state%parcels%n_properties+state%parcels%n_rk+state%parcels%qnum)
 

@@ -33,6 +33,9 @@
 
 monc
 
+fort.??
 *.dat
 *.autogen
+*/*.autogen
+timing_data
 *.png

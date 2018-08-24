@@ -587,19 +587,19 @@ contains
 
         right_buf(:,:,:) = data(:,:,nx-hx+1:nx) !copy halo to buffer
 
-        call MPI_Sendrecv(sendbuf=right_buf, &
-                          sendcount=nz*ny*hx, &
-                          sendtype=PRECISION_TYPE, &
-                          dest=right, &
-                          sendtag=0, &
-                          recvbuf=left_buf,&
-                          recvcount=nz*ny*hx,&
-                          recvtype=PRECISION_TYPE,&
-                          source=left,&
-                          recvtag=0,&
-                          comm=state%parallel%monc_communicator,&
-                          status=status,&
-                          ierror=ierr)
+        call MPI_Sendrecv(right_buf, &
+                          nz*ny*hx, &
+                          PRECISION_TYPE, &
+                          right, &
+                          0, &
+                          left_buf,&
+                          nz*ny*hx,&
+                          PRECISION_TYPE,&
+                          left,&
+                          0,&
+                          state%parallel%monc_communicator,&
+                          status,&
+                          ierr)
 
         data(:,:,hx+1:hx+2) = data(:,:,hx+1:hx+2) + left_buf(:,:,:) !add buffer to grid
 
@@ -608,19 +608,19 @@ contains
 
         left_buf(:,:,:) = data(:,:,1:hx) !copy halo to buffer
 
-        call MPI_Sendrecv(sendbuf=left_buf, &
-                          sendcount=nz*ny*hx, &
-                          sendtype=PRECISION_TYPE, &
-                          dest=left, &
-                          sendtag=0, &
-                          recvbuf=right_buf,&
-                          recvcount=nz*ny*hx,&
-                          recvtype=PRECISION_TYPE,&
-                          source=right,&
-                          recvtag=0,&
-                          comm=state%parallel%monc_communicator,&
-                          status=status,&
-                          ierror=ierr)
+        call MPI_Sendrecv(left_buf, &
+                          nz*ny*hx, &
+                          PRECISION_TYPE, &
+                          left, &
+                          0, &
+                          right_buf,&
+                          nz*ny*hx,&
+                          PRECISION_TYPE,&
+                          right,&
+                          0,&
+                          state%parallel%monc_communicator,&
+                          status,&
+                          ierr)
 
         data(:,:,nx-2*hx+1:nx-hx) = data(:,:,nx-2*hx+1:nx-hx) + right_buf(:,:,:)
 
@@ -628,19 +628,19 @@ contains
 
         up_buf(:,:,:) = data(:,ny-hy+1:ny,:) !copy halo to buffer
 
-        call MPI_Sendrecv(sendbuf=up_buf, &
-                          sendcount=nz*nx*hy, &
-                          sendtype=PRECISION_TYPE, &
-                          dest=up, &
-                          sendtag=0, &
-                          recvbuf=down_buf,&
-                          recvcount=nz*nx*hy,&
-                          recvtype=PRECISION_TYPE,&
-                          source=down,&
-                          recvtag=0,&
-                          comm=state%parallel%monc_communicator,&
-                          status=status,&
-                          ierror=ierr)
+        call MPI_Sendrecv(up_buf, &
+                          nz*nx*hy, &
+                          PRECISION_TYPE, &
+                          up, &
+                          0, &
+                          down_buf,&
+                          nz*nx*hy,&
+                          PRECISION_TYPE,&
+                          down,&
+                          0,&
+                          state%parallel%monc_communicator,&
+                          status,&
+                          ierr)
 
          data(:,hy+1:2*hy,:) = data(:,hy+1:2*hy,:) + down_buf(:,:,:)
 
@@ -648,19 +648,19 @@ contains
 
          down_buf(:,:,:) = data(:,1:hy,:) !copy halo to buffer
 
-         call MPI_Sendrecv(sendbuf=down_buf, &
-                           sendcount=nz*nx*hy, &
-                           sendtype=PRECISION_TYPE, &
-                           dest=down, &
-                           sendtag=0, &
-                           recvbuf=up_buf,&
-                           recvcount=nz*nx*hy,&
-                           recvtype=PRECISION_TYPE,&
-                           source=up,&
-                           recvtag=0,&
-                           comm=state%parallel%monc_communicator,&
-                           status=status,&
-                           ierror=ierr)
+         call MPI_Sendrecv(down_buf, &
+                           nz*nx*hy, &
+                           PRECISION_TYPE, &
+                           down, &
+                           0, &
+                           up_buf,&
+                           nz*nx*hy,&
+                           PRECISION_TYPE,&
+                           up,&
+                           0,&
+                           state%parallel%monc_communicator,&
+                           status,&
+                           ierr)
 
           data(:,ny-2*hy+1:ny-hy,:) = data(:,ny-2*hy+1:ny-hy,:) + up_buf(:,:,:)
 
