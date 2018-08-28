@@ -147,8 +147,6 @@ contains
     !$OMP END SINGLE
 
     !$OMP DO
-    call par2grid(current_state,btot,current_state%b)
-    call par2grid(current_state,h,current_state%hg)
     do i=1,size(hg,3)
       do j=1,size(hg,2)
         do k=1,size(hg,1)
