@@ -39,7 +39,7 @@ contains
 
   subroutine initialisation_callback(state)
     type(model_state_type), intent(inout), target :: state
-    real(kind=DEFAULT_PRECISION) :: lambda, rhb, z_c, mu, z_d, z_m, r_plume, e_values(3)
+    real(kind=DEFAULT_PRECISION) :: rhb, z_c, mu, z_d, z_m, r_plume, e_values(3)
     real(kind=DEFAULT_PRECISION) :: h_pl, h_bg, z_b, dbdz, b_pl
     logical :: master
     real(kind=DEFAULT_PRECISION) :: xmin_local, xmax_local, ymin_local, ymax_local, zmin_local, zmax_local
@@ -59,7 +59,7 @@ contains
 
     master = state%parallel%my_rank .eq. 0
 
-    if (master) write(*,"('Scale height= ',f7.2,'m')") lambda
+    if (master) write(*,"('Scale height= ',f7.2,'m')") l_condense
 
     rhb=options_get_real(state%options_database,"H")
 
