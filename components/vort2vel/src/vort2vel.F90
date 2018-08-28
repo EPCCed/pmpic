@@ -139,6 +139,7 @@ contains
     call perform_forward_3dfft(current_state, current_state%r%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
         start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)), c)
 
+    !$OMP PARALLEL default(shared)
 
     ! we now want to correct vorticity so div(vort) = 0
     ! To do this we introduce a scalar lambda where vort = vort_p - grad(lambda)
@@ -150,14 +151,20 @@ contains
     call diffy(b,e) !e = db/dy
 
     !f = dc/dz
+    !$OMP WORKSHARE
     f(1,:,:) = hdzi * ( 4.*c(2,:,:) - c(3,:,:) - 3.*c(1,:,:) )
     f(2:nz-1,:,:) = (c(3:nz,:,:) - c(1:nz-2,:,:))*hdzi
     f(nz,:,:) = hdzi * ( c(nz-2,:,:) + 3.*c(nz,:,:) - 4.*c(nz-1,:,:) )
+    !$OMP END WORKSHARE
 
     !f -> d + e + f    (f -> div(vort))
+    !$OMP WORKSHARE
     f(:,:,:) = d(:,:,:) + e(:,:,:) + f(:,:,:)
+    !$OMP END WORKSHARE
 
+    !$OMP SINGLE
     if (k2eq0) f(:,1, 1) = 0.0 !set constant part of f to zero
+    !$OMP END SINGLE
 
     ! invert laplacian (f = div(vort) -> f = lambda)
     call laplinv(f,df_zero_on_boundary=.true.)
@@ -169,18 +176,26 @@ contains
 
     ! d = df/dx
     call diffx(f,d)
+    !$OMP WORKSHARE
     a(:,:,:) = a(:,:,:) - d(:,:,:)
+    !$OMP END WORKSHARE
 
     !d = df/dy
     call diffy(f,d)
+    !$OMP WORKSHARE
     b(:,:,:) = b(:,:,:) - d(:,:,:)
+    !$OMP END WORKSHARE
 
     !d = df/dz (df/fz=0 on boundaries)
     call diffz(f,d)
+    !$OMP WORKSHARE
     c(:,:,:) = c(:,:,:) - d(:,:,:)
+    !$OMP END WORKSHARE
 
     !ensure vertical average of vorticity is zero
+    !$OMP WORKSHARE
     c(1,:,:) = 0.
+    !$OMP END WORKSHARE
 
     !spectrally filter a, b and c
     call spectral_filter(a,out=d)
@@ -188,11 +203,13 @@ contains
     call spectral_filter(c,out=f)
 
     !cache top and bottom of a and b for use with z derivatives of A and B potentials later
+    !$OMP WORKSHARE
     atop(:,:) = a(nz,:,:)
     abot(:,:) = a(1,:,:)
     btop(:,:) = b(nz,:,:)
     bbot(:,:) = b(1,:,:)
-
+    !$OMP END WORKSHARE
+    !$OMP SINGLE
     !inverse fft corrected and filtered vorticities to physical space
     call perform_backwards_3dfft(current_state, d, current_state%p%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
@@ -200,6 +217,7 @@ contains
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
     call perform_backwards_3dfft(current_state, f, current_state%r%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
+
 
     !if we are the process at the bottom left hand corner then calculate the mean velocity
     if (k2eq0) then
@@ -214,6 +232,7 @@ contains
       ubar(:) = ubar(:) - uavg
       vbar(:) = vbar(:) - vavg
     endif
+    !$OMP END SINGLE
 
     !invert vorticity (not filtered!!) to get potentials a, b and c
     call laplinv(a, f_zero_on_boundary=.true.)
@@ -228,8 +247,11 @@ contains
     call diffz(b,e,bbot,btop)
     call diffy(c,d)
 
+    !$OMP WORKSHARE
     f(:,:,:) = e(:,:,:) - d(:,:,:)
+    !$OMP END WORKSHARE
 
+    !$OMP SINGLE
     if (k2eq0) then
       f(:,1,1) = ubar(:)
       !these steps should be unneccessary but let's put them in to be safe
@@ -237,11 +259,14 @@ contains
   !    f(:,2,1) = 0.
   !    f(:,2,2) = 0.
     endif
+    !$OMP END SINGLE
 
     call spectral_filter(f, out=current_state%u_s%data)
 
+    !$OMP SINGLE
     call perform_backwards_3dfft(current_state, f, current_state%u%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
+    !$OMP END SINGLE
 
 
     ! v = dc/dx - da/dz
@@ -249,9 +274,11 @@ contains
     ! e=db/dz, d=dc/dy
     call diffz(a,e,abot,atop)
     call diffx(c,d)
-
+    !$OMP WORKSHARE
     f(:,:,:) =  d(:,:,:) - e(:,:,:)
+    !$OMP END WORKSHARE
 
+    !$OMP SINGLE
     if (k2eq0) then
       f(:,1,1) = vbar(:)
       !these steps should be unneccessary but let's put them in to be safe
@@ -259,12 +286,14 @@ contains
   !    f(:,2,1) = 0.
 !      f(:,2,2) = 0.
     endif
+    !$OMP END SINGLE
 
     call spectral_filter(f, out=current_state%v_s%data)
 
+    !$OMP SINGLE
     call perform_backwards_3dfft(current_state, f, current_state%v%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
-
+    !$OMP END SINGLE
 
     ! w = da/dy - db/dx
 
@@ -272,10 +301,13 @@ contains
     call diffx(b,d)
     call diffy(a,e)
 
+    !$OMP WORKSHARE
     f(:,:,:) = e(:,:,:) - d(:,:,:)
-
+    !$OMP END WORKSHARE
 
     call spectral_filter(f, out=current_state%w_s%data)
+
+    !$OMP END PARALLEL
 
     call perform_backwards_3dfft(current_state, f, current_state%w%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
@@ -314,8 +346,8 @@ contains
         current_state%dtm = current_state%dtmax
       endif
 
-      print *, "Velocities"
-      print *, "dtmax=",dtmax
+      ! print *, "Velocities"
+      ! print *, "dtmax=",dtmax
       !print *, maxval(current_state%u%data), maxval(current_state%v%data), maxval(current_state%w%data)
       !print *, minval(current_state%u%data), minval(current_state%v%data), minval(current_state%w%data)
 
