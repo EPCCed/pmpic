@@ -113,15 +113,22 @@ contains
     !print *, "Entering vorticity_tendency"
     call timer_start(handle)
 
+    !$OMP PARALLEL DEFAULT(SHARED)
+
     !determine total parcel buoyancy
+    !$OMP DO
     do n=1,current_state%parcels%numparcels_local
       current_state%parcels%btot(n) = current_state%parcels%b(n) + G*rlvap/(cp*thref0) &
       * max(0.0, current_state%parcels%h(n)-q0*exp(-current_state%parcels%z(n)/l_condense))
     enddo
+    !$OMP END DO
 
-
+    !$OMP SINGLE
     call par2grid(current_state,current_state%parcels%btot,current_state%b)
     call par2grid(current_state,current_state%parcels%h,current_state%hg)
+    !$OMP END SINGLE
+
+    !$OMP DO
     do i=1,size(current_state%hgliq%data,3)
       do j=1,size(current_state%hgliq%data,2)
         do k=1,size(current_state%hgliq%data,1)
@@ -129,6 +136,8 @@ contains
         enddo
       enddo
     enddo
+    !$OMP END DO
+    !$OMP SINGLE
     do i=1,3
       start_loc(i)=current_state%local_grid%local_domain_start_index(i)
       end_loc(i)=current_state%local_grid%local_domain_end_index(i)
@@ -141,9 +150,11 @@ contains
     xf=end_loc(X_INDEX)
 
 
+
     ! get fft of b and put it in bs
     call perform_forward_3dfft(current_state, current_state%b%data(zi:zf, &
          yi:yf, xi:xf), bs)
+    !$OMP END SINGLE
 
     ! x component:
     ! dp/dt = vort . grad(u) + db/dy = p*du/dx + q*du/dy + r*du/dz +db/dy
@@ -151,30 +162,44 @@ contains
 
     call diffy(bs,as) !db/dy (spectral)
     ! take db/dy and convert to positional space, put into the dp array
+    !$OMP SINGLE
     call perform_backwards_3dfft(current_state, as, dp%data(zi:zf,yi:yf,xi:xf))
+    !$OMP END SINGLE
 
     !calculate du/dx (spectral)
+
     call diffx(current_state%u_s%data,as)
+    !$OMP SINGLE
     call perform_backwards_3dfft(current_state, as, ap(zi:zf,yi:yf,xi:xf))
+    !$OMP END SINGLE
     !add p*du/dx to dp
+    !$OMP WORKSHARE
     dp%data(zi:zf,yi:yf,xi:xf) = dp%data(zi:zf,yi:yf,xi:xf) &
      + current_state%p%data(zi:zf,yi:yf,xi:xf)*ap(zi:zf,yi:yf,xi:xf)
+     !$OMP END WORKSHARE
 
     !calculate du/dy (spectral)
     call diffy(current_state%u_s%data,as)
+    !$OMP SINGLE
     call perform_backwards_3dfft(current_state, as, ap(zi:zf,yi:yf,xi:xf))
+    !$OMP END SINGLE
     !add p*du/dx to dp
+    !$OMP WORKSHARE
     dp%data(zi:zf,yi:yf,xi:xf) = dp%data(zi:zf,yi:yf,xi:xf) &
       + current_state%q%data(zi:zf,yi:yf,xi:xf)*ap(zi:zf,yi:yf,xi:xf)
+    !$OMP END WORKSHARE
 
     !calculate dw/dx (spectral)
     call diffx(current_state%w_s%data,as)
     !add r*(q + dw/dx) to dp
+    !$OMP SINGLE
     call perform_backwards_3dfft(current_state, as, ap(zi:zf,yi:yf,xi:xf))
+    !$OMP END SINGLE
+    !$OMP WORKSHARE
     dp%data(zi:zf,yi:yf,xi:xf) = dp%data(zi:zf,yi:yf,xi:xf) &
       + current_state%r%data(zi:zf,yi:yf,xi:xf) &
       * ( current_state%q%data(zi:zf,yi:yf,xi:xf) + ap(zi:zf,yi:yf,xi:xf))
-
+    !$OMP END WORKSHARE
 
     !y component:
     !dq/dt = vort . grad(v) - db/dx = p*dv/dx + q*dv/dy + v*dv/dz -db/dx
@@ -182,29 +207,43 @@ contains
 
     call diffx(bs,as) !db/dy (spectral)
     ! take db/dx and convert to positional space, put into the dq array
+    !$OMP SINGLE
     call perform_backwards_3dfft(current_state, as, dq%data(zi:zf,yi:yf,xi:xf))
+    !$OMP END SINGLE
 
     !calculate dv/dx (spectral)
     call diffx(current_state%v_s%data,as)
+    !$OMP SINGLE
     call perform_backwards_3dfft(current_state, as, ap(zi:zf,yi:yf,xi:xf))
+    !$OMP END SINGLE
     !add p*dv/dx to dq
+    !$OMP WORKSHARE
     dq%data(zi:zf,yi:yf,xi:xf) = - dq%data(zi:zf,yi:yf,xi:xf) &
      + current_state%p%data(zi:zf,yi:yf,xi:xf)*ap(zi:zf,yi:yf,xi:xf)
+    !$OMP END WORKSHARE
 
     !calculate dv/dy (spectral)
     call diffy(current_state%v_s%data,as)
+    !$OMP SINGLE
     call perform_backwards_3dfft(current_state, as, ap(zi:zf,yi:yf,xi:xf))
+    !$OMP END SINGLE
     !add p*dv/dx to dq
+    !$OMP WORKSHARE
     dq%data(zi:zf,yi:yf,xi:xf) = dq%data(zi:zf,yi:yf,xi:xf) &
       + current_state%q%data(zi:zf,yi:yf,xi:xf)*ap(zi:zf,yi:yf,xi:xf)
+    !$OMP END WORKSHARE
 
     !calculate dw/dy (spectral)
     call diffy(current_state%w_s%data,as)
     !add r*(dw/dy - p) to dq
+    !$OMP SINGLE
     call perform_backwards_3dfft(current_state, as, ap(zi:zf,yi:yf,xi:xf))
+    !$OMP END SINGLE
+    !$OMP WORKSHARE
     dq%data(zi:zf,yi:yf,xi:xf) = dq%data(zi:zf,yi:yf,xi:xf) &
       + current_state%r%data(zi:zf,yi:yf,xi:xf) &
       * ( -current_state%p%data(zi:zf,yi:yf,xi:xf) + ap(zi:zf,yi:yf,xi:xf))
+    !$OMP END WORKSHARE
 
 
 
@@ -213,32 +252,51 @@ contains
 
     !calculate dw/dx (spectral)
     call diffx(current_state%w_s%data,as)
+    !$OMP SINGLE
     call perform_backwards_3dfft(current_state, as, ap(zi:zf,yi:yf,xi:xf))
+    !$OMP END SINGLE
     !add p*dw/dx to dr
+    !$OMP WORKSHARE
     dr%data(zi:zf,yi:yf,xi:xf) = current_state%p%data(zi:zf,yi:yf,xi:xf)*ap(zi:zf,yi:yf,xi:xf)
+    !$OMP END WORKSHARE
 
     !calculate dw/dy (spectral)
     call diffy(current_state%w_s%data,as)
+    !$OMP SINGLE
     call perform_backwards_3dfft(current_state, as, ap(zi:zf,yi:yf,xi:xf))
+    !$OMP END SINGLE
     !add p*dw/dx to dr
+    !$OMP WORKSHARE
     dr%data(zi:zf,yi:yf,xi:xf) = dr%data(zi:zf,yi:yf,xi:xf) &
       + current_state%q%data(zi:zf,yi:yf,xi:xf)*ap(zi:zf,yi:yf,xi:xf)
+    !$OMP END WORKSHARE
 
     !calculate du/dx (spectral)
     call diffx(current_state%u_s%data,as)
     !add r*(-du/dx) to dr
+    !$OMP SINGLE
     call perform_backwards_3dfft(current_state, as, ap(zi:zf,yi:yf,xi:xf))
+    !$OMP END SINGLE
+    !$OMP WORKSHARE
     dr%data(zi:zf,yi:yf,xi:xf) = dr%data(zi:zf,yi:yf,xi:xf) &
       + current_state%r%data(zi:zf,yi:yf,xi:xf) &
       * (-ap(zi:zf,yi:yf,xi:xf))
+    !$OMP END WORKSHARE
 
     !calculate dv/dy (spectral)
     call diffy(current_state%v_s%data,as)
     !add r*(-du/dx) to dr
+    !$OMP SINGLE
     call perform_backwards_3dfft(current_state, as, ap(zi:zf,yi:yf,xi:xf))
+    !$OMP END SINGLE
+
+    !$OMP WORKSHARE
     dr%data(zi:zf,yi:yf,xi:xf) = dr%data(zi:zf,yi:yf,xi:xf) &
       + current_state%r%data(zi:zf,yi:yf,xi:xf) &
       * (-ap(zi:zf,yi:yf,xi:xf))
+    !$OMP END WORKSHARE
+
+    !$OMP END PARALLEL
 
 
     !interpolate back to parcels
@@ -264,7 +322,7 @@ contains
 
       !this is the maximum timestep in vorticity
       if (omaxglobal .gt. 0.) then
-        dtmax = 0.5/omax
+        dtmax = 0.5/omaxglobal
       else
         dtmax=current_state%dtmax
       endif
@@ -273,8 +331,8 @@ contains
         current_state%dtm = dtmax
       endif
 
-      print *, "vorticity tendency"
-      print *, "dtmax=",dtmax
+      ! print *, "vorticity tendency"
+      ! print *, "dtmax=",dtmax
       !print *, maxval(dp%data), maxval(dq%data), maxval(dr%data)
       !print *, minval(dp%data), minval(dq%data), minval(dr%data)
     endif

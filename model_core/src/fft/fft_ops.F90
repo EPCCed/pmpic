@@ -171,9 +171,13 @@ contains
     real(kind=DEFAULT_PRECISION), dimension(:,:,:), intent(out), optional :: out
 
     if (present(out)) then
+      !$OMP WORKSHARE
       out(:,:,:) = f(:,:,:)*filter(:,:,:)
+      !$OMP END WORKSHARE
     else
+      !$OMP WORKSHARE
       f(:,:,:) = f(:,:,:)*filter(:,:,:)
+      !$OMP END WORKSHARE
     endif
 
   end subroutine
@@ -187,14 +191,15 @@ contains
     real(kind=DEFAULT_PRECISION), intent(in) :: in(:,:,:)
     real(kind=DEFAULT_PRECISION), intent(out) :: out(:,:,:)
     integer :: left_sendrequest, left_recvrequest, right_sendrequest, right_recvrequest
-    integer :: istart, iend
+    integer, save :: istart, iend
     integer :: i, j, k
     integer :: statuses(MPI_STATUS_SIZE,4)
     integer :: requests(4)=MPI_REQUEST_NULL
 
+
+    !$OMP SINGLE
     istart=1
     iend=nx
-
     !send/recv start/end values of arrays if needed (non-blocking)
     if (x_start_swap) then
       left_sendbuff(:,:) = in(:,:,1)
@@ -237,32 +242,41 @@ contains
                      ierr)
       iend=nx-1
     endif
+    !$OMP END SINGLE
 
     !swap internal values (i.e. multiply by i=sqrt(-1))
+    !$OMP DO
     do i=istart,iend,2
       out(:,:,i)=-1.*in(:,:,i+1)
       out(:,:,i+1) = in(:,:,i)
     enddo
+    !$OMP END DO
 
     !wait for comms to complete (if necessary)
 
+    !$OMP SINGLE
       call MPI_Waitall(4,&
                        requests,&
                        statuses,&
                        ierr)
-
+    !$OMP END SINGLE
 
     !set end values (if necessary)
     if (x_start_swap) then
+      !$OMP WORKSHARE
       out(:,:,1) = left_recvbuff(:,:)
+      !$OMP END WORKSHARE
     endif
     if (x_end_swap) then
+      !$OMP WORKSHARE
       out(:,:,nx) = -1.*right_recvbuff(:,:)
+      !$OMP END WORKSHARE
     endif
 
     !multiply by k
-
+    !$OMP WORKSHARE
     out(:,:,:) = out(:,:,:) * kx(:,:,:)
+    !$OMP END WORKSHARE
 
   end subroutine
 
@@ -270,14 +284,17 @@ contains
   subroutine diffy(in,out)
     real(kind=DEFAULT_PRECISION), intent(in) :: in(:,:,:)
     real(kind=DEFAULT_PRECISION), intent(out) :: out(:,:,:)
-    integer :: jstart, jend
+    integer, save :: jstart, jend
     integer :: i, j, k
     integer :: statuses(MPI_STATUS_SIZE,4)
     integer :: requests(4)=MPI_REQUEST_NULL
 
-    jstart=1
-    jend=nx
 
+
+    !$OMP SINGLE
+
+    jstart=1
+    jend=ny
     !send/recv start/end values of arrays if needed (non-blocking)
     if (y_start_swap) then
       down_sendbuff(:,:) = in(:,1,:)
@@ -320,32 +337,41 @@ contains
                      ierr)
       jend=ny-1
     endif
+    !$OMP END SINGLE
 
     !swap internal values (i.e. multiply by i=sqrt(-1))
+    !$OMP DO
     do j=jstart,jend,2
       out(:,j,:)=-1.*in(:,j+1,:)
       out(:,j+1,:) = in(:,j,:)
     enddo
+    !$OMP END DO
 
     !wait for comms to complete
 
+    !$OMP SINGLE
       call MPI_Waitall(4,&
                        requests,&
                        statuses,&
                        ierr)
-
+    !$OMP END SINGLE
 
     !set end values (if necessary)
     if (y_start_swap) then
+      !$OMP WORKSHARE
       out(:,1,:) = down_recvbuff(:,:)
+      !$OMP END WORKSHARE
     endif
     if (y_end_swap) then
+      !$OMP WORKSHARE
       out(:,ny,:) = -1.*up_recvbuff(:,:)
+      !$OMP END WORKSHARE
     endif
 
     !multiply by k
-
+    !$OMP WORKSHARE
     out(:,:,:) = out(:,:,:) * ky(:,:,:)
+    !$OMP END WORKSHARE
 
   end subroutine
 
@@ -400,6 +426,7 @@ contains
     endif
 
     !loop over all columns and calculate df/dz
+    !$OMP DO
     do i=1,nx
       do j=1,ny
         !set up d array for column
@@ -417,7 +444,7 @@ contains
         call tridiagonal(a,b,c,d,dfdz(:,j,i))
       enddo
     enddo
-
+    !$OMP END DO
     deallocate(a,b,c,d)
 
   end subroutine
@@ -497,6 +524,7 @@ contains
     allocate(a(nz), b(nz), c(nz), d(nz))
 
     !loop over all columns
+    !$OMP DO
     do i=1,nx
       do j=1,ny
         if (k2(1,j,i) .eq. 0) cycle !We don't want to calculate the case where k^2=0
@@ -529,6 +557,7 @@ contains
         call tridiagonal(a,b,c,d,f(:,j,i))
       enddo
     enddo
+    !$OMP ENDDO
   end subroutine
 
 

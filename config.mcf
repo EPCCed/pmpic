@@ -77,8 +77,8 @@ dtmax=60
 velocity_profile=9
 
 #writeparcels properties
-parcel_dump_frequency=1000
-grid_dump_frequency = 1
+parcel_dump_frequency=10
+grid_dump_frequency = 5
 
 #timing logging options
 timing_enabled=.true.

@@ -4,15 +4,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 import math
+import os
 
 file="parcels_000_0100.dat"
 gwidth=4
 root="vort"
 
-def read_file(number):
-    file = "parcels_000_%04d.dat"%number
-    print("File: %s:"%file)
-    f=open(file,"rb")
+def read_file(fname):
+    print("File: %s:"%fname)
+    f=open(fname,"rb")
     t=np.fromfile(f,dtype=np.float64,count=1)
     t=t[0]
     xrange=np.fromfile(f,dtype=np.float64,count=2)
@@ -47,24 +47,26 @@ def read_file(number):
 
 
 
-    print("time= %f"%t)
-    print("xrange= %f to %f"%(xrange[0],xrange[1]))
-    print("yrange= %f to %f"%(yrange[0],yrange[1]))
-    print("zrange= %f to %f"%(zrange[0],zrange[1]))
+    # print("time= %f"%t)
+    # print("xrange= %f to %f"%(xrange[0],xrange[1]))
+    # print("yrange= %f to %f"%(yrange[0],yrange[1]))
+    # print("zrange= %f to %f"%(zrange[0],zrange[1]))
     print("Num parcels= %d"%n)
 
 
 
     f.close()
 
-    f = np.sqrt(p**2 + q**2 + r**2)
-    hliq=np.zeros(n)
-    for i in range(len(hliq)):
-        hliq[i] = max(0.,h[i] - np.exp(-z[i]))
+    # f = np.sqrt(p**2 + q**2 + r**2)
+    # hliq=np.zeros(n)
+    # for i in range(len(hliq)):
+    #     hliq[i] = max(0.,h[i] - np.exp(-z[i]))
+    #
+    # render_slice(x,y,z,b, vol,xrange,yrange,zrange,"x",(xrange[1]-xrange[0])/2,200,kernel="gaussian",number=number,root="buoyancy",time=t)
+    # render_slice(x,y,z,hliq, vol,xrange,yrange,zrange,"x",(xrange[1]-xrange[0])/2,200,kernel="gaussian",number=number,root="hgliq",time=t)
+    # render_slice(x,y,z,f, vol,xrange,yrange,zrange,"x",(xrange[1]-xrange[0])/2,200,kernel="gaussian",number=number,root="vort",time=t)
 
-    render_slice(x,y,z,b, vol,xrange,yrange,zrange,"x",(xrange[1]-xrange[0])/2,200,kernel="gaussian",number=number,root="buoyancy",time=t)
-    render_slice(x,y,z,hliq, vol,xrange,yrange,zrange,"x",(xrange[1]-xrange[0])/2,200,kernel="gaussian",number=number,root="hgliq",time=t)
-    render_slice(x,y,z,f, vol,xrange,yrange,zrange,"x",(xrange[1]-xrange[0])/2,200,kernel="gaussian",number=number,root="vort",time=t)
+    return x,y,z,p,q,r,dxdt,dydt,dzdt,dpdt,dqdt,drdt,h,b,vol,stretch,tag
 
 
 def render_slice(x,y,z,var,vol,xrange,yrange,zrange,plane,loc,resolution,kernel="gaussian",number=0, root=root, time=0.):
@@ -200,22 +202,111 @@ def render_slice(x,y,z,var,vol,xrange,yrange,zrange,plane,loc,resolution,kernel=
     plt.colorbar()
     plt.title("Time = %f"%time)
 
-    plt.savefig("%s_%04d.png"%(root,number))
-    plt.clf()
+    #plt.savefig("%s_%04d.png"%(root,number))
+    #plt.clf()
+    plt.show()
 
 
 
+if __name__ == "__main__":
+    if len(sys.argv) < 2 or len(sys.argv) > 3:
+        print("Usage: 'display_parcels.py [framenumber] [optional: number of files]'")
+        sys.exit()
 
+    filenum = int(sys.argv[1])
+    if len(sys.argv) == 3:
+        numfiles=int(sys.argv[2])
+    else:
+        numfiles=1
 
+    #first check that the files exist
+    fail=False
+    for i in range(numfiles):
+        fname = "parcels_%03d_%04d.dat"%(i,filenum)
+        if not os.path.isfile(fname):
+            print("Error: cannot find '%s'"%fname)
+            fail=True
+        else:
+            print("Found '%s'"%fname)
+    if fail:
+        print("Aborting")
+        sys.exit()
 
+    xrange=[]
+    yrange=[]
+    zrange=[]
 
+    #now get the global x/y/z ranges
+    for i in range(numfiles):
+        fname = "parcels_%03d_%04d.dat"%(i,filenum)
+        f=open(fname,"rb")
+        t=np.fromfile(f,dtype=np.float64,count=1)
+        t=t[0]
+        xmin=float(np.fromfile(f,dtype=np.float64,count=1))
+        xmax=float(np.fromfile(f,dtype=np.float64,count=1))
+        ymin=float(np.fromfile(f,dtype=np.float64,count=1))
+        ymax=float(np.fromfile(f,dtype=np.float64,count=1))
+        zmin=float(np.fromfile(f,dtype=np.float64,count=1))
+        zmax=float(np.fromfile(f,dtype=np.float64,count=1))
+        if i==0:
+            xrange.append(xmin)
+            xrange.append(xmax)
+            yrange.append(ymin)
+            yrange.append(ymax)
+            zrange.append(zmin)
+            zrange.append(zmax)
+        else:
+            if xmin<xrange[0]: xrange[0]=xmin
+            if xmax>xrange[1]: xrange[1]=xmax
+            if ymin<yrange[0]: yrange[0]=ymin
+            if ymax>yrange[1]: yrange[1]=ymax
+            if zmin<zrange[0]: zrange[0]=zmin
+            if zmax>zrange[1]: zrange[1]=zmax
+        f.close()
+    print("xrange=",xrange)
+    print("yrange=",yrange)
+    print("zrange=",zrange)
 
+    #now read in the files
+    x=np.zeros(0)
+    y=np.zeros(0)
+    z=np.zeros(0)
+    p=np.zeros(0)
+    q=np.zeros(0)
+    r=np.zeros(0)
+    dxdt=np.zeros(0)
+    dydt=np.zeros(0)
+    dzdt=np.zeros(0)
+    dpdt=np.zeros(0)
+    dqdt=np.zeros(0)
+    drdt=np.zeros(0)
+    h=np.zeros(0)
+    b=np.zeros(0)
+    vol=np.zeros(0)
+    stretch=np.zeros(0)
+    tag=np.zeros(0)
 
+    for i in range(numfiles):
+        fname = "parcels_%03d_%04d.dat"%(i,filenum)
+        xp,yp,zp,pp,qp,rp,dxdtp,dydtp,dzdtp,dpdtp,dqdtp,drdtp,hp,bp,volp,sp,tp = read_file(fname)
+        x=np.append(x,xp)
+        y=np.append(y,yp)
+        z=np.append(z,zp)
+        p=np.append(p,pp)
+        q=np.append(q,qp)
+        r=np.append(r,rp)
+        dxdt=np.append(dxdt,dxdtp)
+        dydt=np.append(dydt,dydtp)
+        dzdt=np.append(dzdt,dzdtp)
+        dpdt=np.append(dpdt,dpdtp)
+        dqdt=np.append(dqdt,dqdtp)
+        drdt=np.append(drdt,drdtp)
+        h=np.append(h,hp)
+        b=np.append(b,bp)
+        vol=np.append(vol,volp)
+        stretch=np.append(stretch,sp)
+        tag=np.append(tag,tp)
+        print(len(x))
 
-
-
-
-
-
-for i in range(0,230,10):
-    read_file(i)
+    print("read everything properly")
+    render_slice(x,y,z,b, vol,xrange,yrange,zrange,"x",(xrange[1]-xrange[0])/2,200,kernel="gaussian",number=filenum,root="buoyancy",time=t)
