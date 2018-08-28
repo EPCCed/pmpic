@@ -103,7 +103,7 @@ contains
     real(kind=DEFAULT_PRECISION), allocatable, dimension(:,:) :: atop, abot, btop,bbot
     real(kind=DEFAULT_PRECISION), ALLOCATABLE, dimension(:) :: ubar, vbar
     real(kind=DEFAULT_PRECISION) :: uavg, vavg
-    real(kind=DEFAULT_PRECISION) :: umax, umaxglobal, dtmax
+    real(kind=DEFAULT_PRECISION) :: umax, dtmax, dtmaxglobal, vmax,wmax, Lx, Ly, Lz
 
     allocate(atop(ny,nx), abot(ny,nx), btop(ny,nx), bbot(ny,nx))
     if (k2eq0) then
@@ -319,29 +319,45 @@ contains
     call grid2par(current_state, current_state%w, current_state%parcels%dzdt)
 
     if (mod(iteration,current_state%rksteps) ==0 ) then
-      !We now want to determine the maximum vorticity tendency
-      umax = maxval(current_state%u%data**2 + current_state%v%data**2 + current_state%w%data**2)
-      umax=sqrt(umax)
+      !determine the maximum velocity in each direction
+      umax = maxval(current_state%u%data**2)
+      umax = sqrt(umax)
+
+      vmax = maxval(current_state%v%data**2)
+      vmax = sqrt(vmax)
+
+      wmax = maxval(current_state%w%data**2)
+      wmax = sqrt(wmax)
+
+      !if the velocoties are zero, make them small (but non-zero) to avoid div zero errors
+      if (umax .eq. 0) umax = 1.E-15
+      if (vmax .eq. 0) vmax = 1.E-15
+      if (wmax .eq. 0) wmax = 1.E-15
+
+      !get the length of our local computational domain
+      Lx = current_state%local_grid%size(3)*current_state%global_grid%resolution(3)
+      Ly = current_state%local_grid%size(2)*current_state%global_grid%resolution(2)
+      Lz = current_state%local_grid%size(1)*current_state%global_grid%resolution(1)
+
+      !We don't want the parcels to move more than one computational domain per timestep
+      !so we determine the maximum allowed timestep (i.e. the crossing time for a domain)
+      ! This is because when doing a parcel haloswap we can only swap to adjacent processes,
+      ! so we don't want a parcel to be able to move further than a single process-length per timestep
+      dtmax = minval ((/ Lx/umax, Ly/vmax, Lz/wmax /))
+
 
       !This is the local maximum. We want the global maximum so we do a MPI reduction operation
-      call MPI_Allreduce(sendbuf=umax,&
-                         recvbuf=umaxglobal,&
+      call MPI_Allreduce(sendbuf=dtmax,&
+                         recvbuf=dtmaxglobal,&
                          count=1,&
                          datatype=PRECISION_TYPE,&
                          op=MPI_MAX,&
                          comm=current_state%parallel%monc_communicator,&
                          ierror=ierr)
 
-      !we want to determine the crossing time for one cell at umax. dt cannot be more than this else we could advect a parcel
-      ! outside the halo cells
-      if (umaxglobal .gt. 0.) then
-        dtmax = current_state%global_grid%resolution(1)/umaxglobal
-      else
-        dtmax = current_state%dtmax
-      endif
 
-      if (current_state%dtmax .gt. dtmax) then
-        current_state%dtm = dtmax
+      if (current_state%dtmax .gt. dtmaxglobal) then
+        current_state%dtm = dtmaxglobal
       else
         current_state%dtm = current_state%dtmax
       endif
