@@ -12,11 +12,14 @@ module pencil_fft_mod
   use fftw_mod, only : C_DOUBLE_COMPLEX, C_PTR, FFTW_BACKWARD, FFTW_FORWARD, FFTW_ESTIMATE, fftw_plan_many_dft_r2c, &
        fftw_plan_many_dft_c2r, fftw_execute_dft_c2r, fftw_execute_dft_r2c, fftw_destroy_plan
   use mpi, only : MPI_DOUBLE_COMPLEX, MPI_INT, MPI_COMM_SELF, mpi_wtime
+  use timer_mod, only: register_routine_for_timing, timer_start, timer_stop
   implicit none
 
 #ifndef TEST_MODE
   private
 #endif
+
+  integer :: ffthandle=-1, iffthandle=-1
 
   !> Describes a specific pencil transposition, from one pencil decomposition to another
   type pencil_transposition
@@ -86,6 +89,10 @@ contains
     call initialise_buffers()
 
     initialise_pencil_fft=z_from_y_transposition%my_pencil_size
+
+
+    if (iffthandle .eq. -1) call register_routine_for_timing("inv_fft", iffthandle, current_state)
+    if (ffthandle .eq. -1)  call register_routine_for_timing("fwd_fft", ffthandle, current_state)
   end function initialise_pencil_fft
 
   !> Cleans up allocated buffer memory
@@ -118,6 +125,8 @@ contains
 
     double precision :: st
 
+    call timer_start(ffthandle)
+
     st=mpi_wtime()
     call transpose_and_forward_fft_in_y(current_state, source_data, buffer1, real_buffer1)
     real_buffer1=real_buffer1/current_state%global_grid%size(Y_INDEX)
@@ -128,6 +137,8 @@ contains
          real_buffer2, real_buffer3)
     call transpose_to_pencil(z_from_y_transposition, (/Y_INDEX, X_INDEX, Z_INDEX/), dim_y_comm, BACKWARD, &
        real_buffer3, target_data)
+
+    call timer_stop(ffthandle)
     !current_state%comm_time=current_state%comm_time+(mpi_wtime()-st)
   end subroutine perform_forward_3dfft
 
@@ -145,6 +156,8 @@ contains
 
     double precision :: st
 
+    call timer_start(iffthandle)
+
     st=mpi_wtime()
     call transpose_to_pencil(y_from_z_2_transposition, (/Z_INDEX, Y_INDEX, X_INDEX/), dim_y_comm, FORWARD, &
        source_data, real_buffer3)
@@ -154,6 +167,9 @@ contains
     call transpose_and_backward_fft_in_x(current_state, real_buffer2, buffer2, real_buffer1)
     call transpose_and_backward_fft_in_y(current_state, real_buffer1, buffer1, target_data)
     !current_state%comm_time=current_state%comm_time+(mpi_wtime()-st)
+
+    call timer_stop(iffthandle)
+
   end subroutine perform_backwards_3dfft
 
   !> Initialises memory for the buffers used in the FFT
