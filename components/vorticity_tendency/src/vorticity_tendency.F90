@@ -311,13 +311,13 @@ contains
       omax=sqrt(omax)
 
       !This is the local maximum. We want the global maximum so we do a MPI reduction operation
-      call MPI_Allreduce(sendbuf=omax,&
-                         recvbuf=omaxglobal,&
-                         count=1,&
-                         datatype=PRECISION_TYPE,&
-                         op=MPI_MAX,&
-                         comm=current_state%parallel%monc_communicator,&
-                         ierror=ierr)
+      call MPI_Allreduce(omax,&
+                         omaxglobal,&
+                         1,&
+                         PRECISION_TYPE,&
+                         MPI_MAX,&
+                         current_state%parallel%monc_communicator,&
+                         ierr)
 
       !this is the maximum timestep in vorticity
       if (omaxglobal .gt. 0.) then

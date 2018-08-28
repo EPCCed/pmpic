@@ -297,23 +297,23 @@ contains
     state%parcels%numparcels_local=n
 
     !update global parcel count
-    call MPI_Allreduce(sendbuf=state%parcels%numparcels_local,&
-                       recvbuf=state%parcels%numparcels_global,&
-                       count=1,&
-                       datatype=MPI_PARCEL_INT,&
-                       op=MPI_SUM,&
-                       comm=state%parallel%monc_communicator,&
-                       ierror=ierr)
+    call MPI_Allreduce(state%parcels%numparcels_local,&
+                       state%parcels%numparcels_global,&
+                       1,&
+                       MPI_PARCEL_INT,&
+                       MPI_SUM,&
+                       state%parallel%monc_communicator,&
+                       ierr)
 
 
 
-     call MPI_Allreduce(sendbuf=n_bg,&
-                        recvbuf=n,&
-                        count=1,&
-                        datatype=MPI_PARCEL_INT,&
-                        op=MPI_SUM,&
-                        comm=state%parallel%monc_communicator,&
-                        ierror=ierr)
+     call MPI_Allreduce(n_bg,&
+                        n,&
+                        1,&
+                        MPI_PARCEL_INT,&
+                        MPI_SUM,&
+                        state%parallel%monc_communicator,&
+                        ierr)
 
 
     if (master) print *, "Total number of parcels=", state%parcels%numparcels_global

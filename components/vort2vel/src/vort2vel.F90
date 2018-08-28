@@ -347,6 +347,7 @@ contains
 
 
       !This is the local maximum. We want the global maximum so we do a MPI reduction operation
+<<<<<<< HEAD
       call MPI_Allreduce(sendbuf=dtmax,&
                          recvbuf=dtmaxglobal,&
                          count=1,&
@@ -354,6 +355,15 @@ contains
                          op=MPI_MAX,&
                          comm=current_state%parallel%monc_communicator,&
                          ierror=ierr)
+=======
+      call MPI_Allreduce(umax,&
+                         umaxglobal,&
+                         1,&
+                         PRECISION_TYPE,&
+                         MPI_MAX,&
+                         current_state%parallel%monc_communicator,&
+                         ierr)
+>>>>>>> 3547992aae5ccfce5fb008747c8c41abce4aa3e2
 
 
       if (current_state%dtmax .gt. dtmaxglobal) then
