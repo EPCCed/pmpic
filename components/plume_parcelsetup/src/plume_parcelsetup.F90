@@ -178,14 +178,14 @@ contains
 
     !determine centre of plume (defined as the centre of the global computational domain)
 
-    x_c_pl = (state%global_grid%top(3)-state%global_grid%bottom(3))/2 +state%global_grid%bottom(3)
-    y_c_pl = (state%global_grid%top(2)-state%global_grid%bottom(2))/2 +state%global_grid%bottom(2)
-    z_c_pl = r_plume
-
     !get grid spacings
     dx = state%global_grid%resolution(3)
     dy = state%global_grid%resolution(2)
     dz = state%global_grid%resolution(1)
+
+    x_c_pl = (state%global_grid%top(3)+dx-state%global_grid%bottom(3))/2 +state%global_grid%bottom(3)
+    y_c_pl = (state%global_grid%top(2)+dy-state%global_grid%bottom(2))/2 +state%global_grid%bottom(2)
+    z_c_pl = r_plume
 
     !determine spacing of parcels in plume
     dxplume = dx / n_per_cell_dir_plume

@@ -309,4 +309,4 @@ if __name__ == "__main__":
         print(len(x))
 
     print("read everything properly")
-    render_slice(x,y,z,b, vol,xrange,yrange,zrange,"x",(xrange[1]-xrange[0])/2,200,kernel="gaussian",number=filenum,root="buoyancy",time=t)
+    render_slice(x,y,z,b, vol,xrange,yrange,zrange,"x",np.pi,200,kernel="gaussian",number=filenum,root="buoyancy",time=t)

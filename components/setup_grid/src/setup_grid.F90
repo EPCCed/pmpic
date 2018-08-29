@@ -88,8 +88,9 @@ contains
     global_grid%bottom(Y_INDEX) = ymin
     global_grid%bottom(Z_INDEX) = zmin
 
-    global_grid%top(X_INDEX) = xmax
-    global_grid%top(Y_INDEX) = ymax
+    !last grid point is dx less than xmax
+    global_grid%top(X_INDEX) = xmax-dx
+    global_grid%top(Y_INDEX) = ymax-dy
     global_grid%top(Z_INDEX) = zmax
 
     global_grid%size(X_INDEX) = nx
