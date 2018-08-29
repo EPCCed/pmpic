@@ -112,30 +112,20 @@ contains
     !print *, "Entering vorticity_tendency"
     call timer_start(handle)
 
-    !$OMP PARALLEL DEFAULT(SHARED)
+
 
     !determine total parcel buoyancy
-    !$OMP DO
+    !$OMP PARALLEL DO
     do n=1,current_state%parcels%numparcels_local
       current_state%parcels%btot(n) = current_state%parcels%b(n) + 12.5 &
       * max(0.0, current_state%parcels%h(n)-exp(-current_state%parcels%z(n)))
     enddo
-    !$OMP END DO
+    !$OMP END PARALLEL DO
 
-    !$OMP SINGLE
+
     call par2grid(current_state,current_state%parcels%btot,current_state%b)
-    call par2grid(current_state,current_state%parcels%h,current_state%hg)
-    !$OMP END SINGLE
 
-    !$OMP DO
-    do i=1,size(current_state%hgliq%data,3)
-      do j=1,size(current_state%hgliq%data,2)
-        do k=1,size(current_state%hgliq%data,1)
-          current_state%hgliq%data(k,j,i) = max(0.,current_state%hg%data(k,j,i) - exp(-z_coords(k)))
-        enddo
-      enddo
-    enddo
-    !$OMP END DO
+    !$OMP PARALLEL DEFAULT(SHARED)
     !$OMP SINGLE
     do i=1,3
       start_loc(i)=current_state%local_grid%local_domain_start_index(i)

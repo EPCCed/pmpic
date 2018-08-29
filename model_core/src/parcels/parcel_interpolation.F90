@@ -39,7 +39,7 @@ module parcel_interpolation_mod
 
   real(kind=default_precision), allocatable, dimension(:) :: x_coords, y_coords, z_coords
 
-  integer :: grid2par_handle, par2grid_handle, cache_handle
+  integer :: grid2par_handle, par2grid_handle, cache_handle, haloswap_handle, sumswap_handle
 
 
 contains
@@ -205,6 +205,8 @@ contains
      call register_routine_for_timing("grid2par",grid2par_handle,state)
      call register_routine_for_timing("par2grid",par2grid_handle,state)
      call register_routine_for_timing("cache_weights",cache_handle,state)
+     call register_routine_for_timing("grid_HSwp", haloswap_handle, state)
+     call register_routine_for_timing("grid_HSwp_sum",sumswap_handle, state)
 
      halo_depth = options_get_integer(state%options_database, "halo_depth")
      call init_halo_communication(state, get_single_field_per_halo_cell, halo_swap_state, &
@@ -571,6 +573,7 @@ contains
       !values already there. This means we cannot use MONC's inbuilt haloswapping (because it moves grid to halo
       ! not halo to grid) so we have our own version
       if (sum) then
+        call timer_start(sumswap_handle)
 
         !allocate the buffers
         allocate(left_buf(nz,ny,hx), right_buf(nz,ny,hx), up_buf(nz,hy,nx), down_buf(nz,hy,nx))
@@ -604,25 +607,25 @@ contains
         data(:,:,hx+1:hx+2) = data(:,:,hx+1:hx+2) + left_buf(:,:,:) !add buffer to grid
 
 
-        !send left, receive right
-
-        left_buf(:,:,:) = data(:,:,1:hx) !copy halo to buffer
-
-        call MPI_Sendrecv(left_buf, &
-                          nz*ny*hx, &
-                          PRECISION_TYPE, &
-                          left, &
-                          0, &
-                          right_buf,&
-                          nz*ny*hx,&
-                          PRECISION_TYPE,&
-                          right,&
-                          0,&
-                          state%parallel%monc_communicator,&
-                          status,&
-                          ierr)
-
-        data(:,:,nx-2*hx+1:nx-hx) = data(:,:,nx-2*hx+1:nx-hx) + right_buf(:,:,:)
+        ! !send left, receive right
+        !
+        ! left_buf(:,:,:) = data(:,:,1:hx) !copy halo to buffer
+        !
+        ! call MPI_Sendrecv(left_buf, &
+        !                   nz*ny*hx, &
+        !                   PRECISION_TYPE, &
+        !                   left, &
+        !                   0, &
+        !                   right_buf,&
+        !                   nz*ny*hx,&
+        !                   PRECISION_TYPE,&
+        !                   right,&
+        !                   0,&
+        !                   state%parallel%monc_communicator,&
+        !                   status,&
+        !                   ierr)
+        !
+        ! data(:,:,nx-2*hx+1:nx-hx) = data(:,:,nx-2*hx+1:nx-hx) + right_buf(:,:,:)
 
         !send up recv down
 
@@ -644,25 +647,25 @@ contains
 
          data(:,hy+1:2*hy,:) = data(:,hy+1:2*hy,:) + down_buf(:,:,:)
 
-         !send down recv up
-
-         down_buf(:,:,:) = data(:,1:hy,:) !copy halo to buffer
-
-         call MPI_Sendrecv(down_buf, &
-                           nz*nx*hy, &
-                           PRECISION_TYPE, &
-                           down, &
-                           0, &
-                           up_buf,&
-                           nz*nx*hy,&
-                           PRECISION_TYPE,&
-                           up,&
-                           0,&
-                           state%parallel%monc_communicator,&
-                           status,&
-                           ierr)
-
-          data(:,ny-2*hy+1:ny-hy,:) = data(:,ny-2*hy+1:ny-hy,:) + up_buf(:,:,:)
+         ! !send down recv up
+         !
+         ! down_buf(:,:,:) = data(:,1:hy,:) !copy halo to buffer
+         !
+         ! call MPI_Sendrecv(down_buf, &
+         !                   nz*nx*hy, &
+         !                   PRECISION_TYPE, &
+         !                   down, &
+         !                   0, &
+         !                   up_buf,&
+         !                   nz*nx*hy,&
+         !                   PRECISION_TYPE,&
+         !                   up,&
+         !                   0,&
+         !                   state%parallel%monc_communicator,&
+         !                   status,&
+         !                   ierr)
+         !
+         !  data(:,ny-2*hy+1:ny-hy,:) = data(:,ny-2*hy+1:ny-hy,:) + up_buf(:,:,:)
 
 
 
@@ -671,24 +674,27 @@ contains
 
          !then swap the halos conventionally to ensure the halos also have the correct values (do we need this?)
 
-         call blocking_halo_swap(state, halo_swap_state, grid2buff, &
-                                local_copy,buff2halo,&
-                               copy_corners_to_halo_buffer=corner2buff,&
-                               copy_from_halo_buffer_to_corner=buff2corner,&
-                               source_data=(/source_data/))
+         !call blocking_halo_swap(state, halo_swap_state, grid2buff, &
+        !                        local_copy,buff2halo,&
+        !                       copy_corners_to_halo_buffer=corner2buff,&
+        !                       copy_from_halo_buffer_to_corner=buff2corner,&
+        !                       source_data=(/source_data/))
 
 
 
 
 
         deallocate(up_buf, down_buf, left_buf, right_buf)
+        call timer_stop(sumswap_handle)
 
       else
+        call timer_start(haloswap_handle)
         call blocking_halo_swap(state, halo_swap_state, grid2buff, &
                                local_copy,buff2halo,&
                               copy_corners_to_halo_buffer=corner2buff,&
                               copy_from_halo_buffer_to_corner=buff2corner,&
                               source_data=(/source_data/))
+        call timer_stop(haloswap_handle)
 
       endif
 

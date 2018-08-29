@@ -347,6 +347,7 @@ contains
 
 
       !This is the local maximum. We want the global maximum so we do a MPI reduction operation
+      ! (We want to find the smallert maximum, so we want the minimum of all the maximums)
       call MPI_Allreduce(dtmax,&
                          dtmaxglobal,&
                          1,&

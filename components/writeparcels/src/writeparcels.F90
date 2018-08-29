@@ -5,7 +5,7 @@ module writeparcels_mod
   use state_mod, only: model_state_type
   use monc_component_mod, only: component_descriptor_type
   use optionsdatabase_mod, only : options_get_integer,options_get_logical
-  use parcel_interpolation_mod, only : x_coords, y_coords, z_coords
+  use parcel_interpolation_mod, only : x_coords, y_coords, z_coords, par2grid
   use timer_mod, only: register_routine_for_timing, timer_start, timer_stop
 
   implicit none
@@ -50,6 +50,7 @@ contains
     character (len=20) :: filename
     integer :: proc
     integer(kind=PARCEL_INTEGER) :: nparcels
+    integer :: i,j,k
 
     num=state%iterations
 
@@ -61,7 +62,25 @@ contains
       call timer_stop(handlep)
     endif
 
-    if (mod(num,gpersteps) .eq. 0 .and. num .ne. 0) then
+    if (mod(num,gpersteps) .eq. 0) then
+      if (num .eq. 0) then
+        !get the initial condition buoyancy
+        call par2grid(state,state%parcels%b,state%b)
+      endif
+
+      ! obtain the humidity and liquid humidity
+      call par2grid(state,state%parcels%h,state%hg)
+      !$OMP PARALLEL DO
+      do i=1,size(state%hgliq%data,3)
+        do j=1,size(state%hgliq%data,2)
+          do k=1,size(state%hgliq%data,1)
+            state%hgliq%data(k,j,i) = max(0.,state%hg%data(k,j,i) - exp(-z_coords(k)))
+          enddo
+        enddo
+      enddo
+      !$OMP END PARALLEL DO
+
+
       call timer_start(handleg)
       call write_grids_to_file(state)
       gwritten=gwritten+1
