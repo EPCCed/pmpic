@@ -211,5 +211,8 @@ if __name__ == "__main__":
             img[jrange[i][0]:jrange[i][1]+1][krange[i][0]:krange[i][1]+1] = b[xindex][:][:]
 
     plt.imshow(img.T,origin='lower',extent=[0,1,0,1])
+    plt.title("Time = %f"%t)
+    plt.xlabel("y/L_y")
+    plt.ylabel("z/L_z")
     plt.colorbar()
     plt.show()
