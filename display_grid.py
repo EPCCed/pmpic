@@ -81,7 +81,7 @@ if __name__ == "__main__":
     #first check that the files exist
     fail=False
     for i in range(nprocs):
-        fname = "parcels_%03d_%04d.dat"%(i,fnumber)
+        fname = "grids_%03d_%04d.dat"%(i,fnumber)
         if not os.path.isfile(fname):
             print("Error: cannot find '%s'"%fname)
             fail=True
@@ -200,7 +200,6 @@ if __name__ == "__main__":
     for i in range(nprocs):
 
         #determine if we need this file
-        print(i, xmin[i], xcut, xmax[i])
         if (xcut >= xmin[i] and xcut < xmax[i]):
             fname = "grids_%03d_%04d.dat"%(i,fnumber)
             u,v,w,p,q,r,b,hg,hgliq = readfile(fname)
@@ -208,7 +207,6 @@ if __name__ == "__main__":
             #determine x_coord of cut
             xindex = int(round((xcut-xrange[0])/dx))
             xindex = xindex-irange[i][0]
-            print("xindex =",xindex)
 
             img[jrange[i][0]:jrange[i][1]+1][krange[i][0]:krange[i][1]+1] = b[xindex][:][:]
 
