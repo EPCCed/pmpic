@@ -297,7 +297,7 @@ contains
 
     if ( mod(iteration,current_state%rksteps) == 0) then
       !We now want to determine the maximum vorticity
-      omax = maxval(dp%data**2 + dq%data**2 + dr%data**2)
+      omax = maxval(current_state%p%data**2 + current_state%q%data**2 + current_state%r%data**2)
       omax=sqrt(omax)
 
       !This is the local maximum. We want the global maximum so we do a MPI reduction operation
