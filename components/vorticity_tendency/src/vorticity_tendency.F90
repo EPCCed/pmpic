@@ -316,9 +316,22 @@ contains
         dtmax=current_state%dtmax
       endif
 
-      if (current_state%dtmax .gt. dtmax) then
+      if (current_state%dtm .gt. dtmax) then
         current_state%dtm = dtmax
+        if (current_state%parallel%my_rank .eq. 0) then
+           print*, "Timestep limited by vorticity"
+        endif
+      else if (current_state%dtm .lt. current_state%dtmax) then
+        if (current_state%parallel%my_rank .eq. 0) then
+           print*, "Timestep limited by velocity"
+        endif
+      else
+        if (current_state%parallel%my_rank .eq. 0) then
+           print*, "Timestep limited by dtmax"
+        endif
       endif
+
+
 
       ! print *, "vorticity tendency"
       ! print *, "dtmax=",dtmax
