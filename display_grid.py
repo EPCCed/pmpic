@@ -162,9 +162,9 @@ if __name__ == "__main__":
 
     print("dx, dy, dz = ", dx, dy, dz)
 
-    nxg = int((xrange[1]-xrange[0])/dx +1)
-    nyg = int((yrange[1]-yrange[0])/dy +1)
-    nzg = int((zrange[1]-zrange[0])/dz +1)
+    nxg = int(round((xrange[1]-xrange[0])/dx +1))
+    nyg = int(round((yrange[1]-yrange[0])/dy +1))
+    nzg = int(round((zrange[1]-zrange[0])/dz +1))
 
     print("nxg, nyg, nzg = ", nxg, nyg, nzg)
 
