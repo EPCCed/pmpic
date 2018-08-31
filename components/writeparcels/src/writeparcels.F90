@@ -5,7 +5,7 @@ module writeparcels_mod
   use state_mod, only: model_state_type
   use monc_component_mod, only: component_descriptor_type
   use optionsdatabase_mod, only : options_get_integer,options_get_logical
-  use parcel_interpolation_mod, only : x_coords, y_coords, z_coords, par2grid
+  use parcel_interpolation_mod, only : x_coords, y_coords, z_coords, par2grid, cache_parcel_interp_weights
   use timer_mod, only: register_routine_for_timing, timer_start, timer_stop
 
   implicit none
@@ -65,6 +65,8 @@ contains
     if (mod(num,gpersteps) .eq. 0) then
       if (num .eq. 0) then
         !get the initial condition buoyancy
+        if (state%parallel%my_rank .eq. 0) print *, "par2grid: buoyancy"
+        call cache_parcel_interp_weights(state)
         call par2grid(state,state%parcels%b,state%b)
       endif
 
