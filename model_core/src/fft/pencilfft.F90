@@ -20,6 +20,7 @@ module pencil_fft_mod
 #endif
 
   integer :: ffthandle=-1, iffthandle=-1
+  integer :: fftwhandle=-1,real2comhandle=-1,transposehandle=-1
 
   !> Describes a specific pencil transposition, from one pencil decomposition to another
   type pencil_transposition
@@ -91,8 +92,11 @@ contains
     initialise_pencil_fft=z_from_y_transposition%my_pencil_size
 
 
-    if (iffthandle .eq. -1) call register_routine_for_timing("inv_fft", iffthandle, current_state)
-    if (ffthandle .eq. -1)  call register_routine_for_timing("fwd_fft", ffthandle, current_state)
+    if (iffthandle .eq. -1) call register_routine_for_timing("fft_inv_tot", iffthandle, current_state)
+    if (ffthandle .eq. -1)  call register_routine_for_timing("fft_fwd_tot", ffthandle, current_state)
+    if (fftwhandle .eq. -1)  call register_routine_for_timing("fft_fftw", fftwhandle, current_state)
+    if (real2comhandle .eq. -1)  call register_routine_for_timing("fft_r2c", real2comhandle, current_state)
+    if (transposehandle .eq. -1)  call register_routine_for_timing("fft_transp", transposehandle, current_state)
   end function initialise_pencil_fft
 
   !> Cleans up allocated buffer memory
@@ -388,6 +392,8 @@ contains
     real(kind=DEFAULT_PRECISION), dimension(:,:,:), allocatable :: real_temp
     real(kind=DEFAULT_PRECISION), dimension(:), allocatable :: real_temp2
 
+    call timer_start(transposehandle)
+
 
     allocate(real_temp(size(source_data,3), size(source_data,2), size(source_data,1)), &
          real_temp2(product(transposition_description%my_pencil_size)+1))
@@ -400,6 +406,7 @@ contains
     call contiguise_data(transposition_description, (/source_dims(3), source_dims(2), source_dims(1)/), direction, &
          source_real_buffer=real_temp2, target_real_buffer=target_data)
     deallocate(real_temp, real_temp2)
+    call timer_stop(transposehandle)
   end subroutine transpose_to_pencil
 
   !> Contiguises from c,b,a to b,c,a (forwards) or c,a,b (backwards) where these are defined by the source_dims argument.
@@ -456,12 +463,15 @@ contains
     complex(C_DOUBLE_COMPLEX), dimension(:,:,:), contiguous, pointer, intent(inout) :: transformed_data
     integer, intent(in) :: row_size, num_rows, plan_id
 
+    call timer_start(fftwhandle)
+
     if (.not. fftw_plan_initialised(plan_id)) then
       fftw_plan(plan_id) = fftw_plan_many_dft_r2c(1, (/row_size/), num_rows, source_data, (/row_size/), 1, row_size, &
            transformed_data, (/row_size/), 1, row_size/2+1, FFTW_ESTIMATE)
       fftw_plan_initialised(plan_id)=.true.
     end if
     call fftw_execute_dft_r2c(fftw_plan(plan_id), source_data, transformed_data)
+    call timer_stop(fftwhandle)
   end subroutine perform_r2c_fft
 
   !> Performs the complex to real (backwards) FFT
@@ -475,6 +485,8 @@ contains
     real(kind=DEFAULT_PRECISION), dimension(:,:,:), contiguous, pointer, intent(inout) :: transformed_data
     integer, intent(in) :: row_size, num_rows, plan_id
 
+    call timer_start(fftwhandle)
+
     if (.not. fftw_plan_initialised(plan_id)) then
       ! n is the size of the FFT (in real, not complex->real coords.) There are row_size/2+1 between entries for the input
       ! (complex) data and row_size between entries for the output data
@@ -483,6 +495,7 @@ contains
       fftw_plan_initialised(plan_id)=.true.
     end if
     call fftw_execute_dft_c2r(fftw_plan(plan_id), source_data, transformed_data)
+    call timer_stop(fftwhandle)
   end subroutine perform_c2r_fft
 
   !> Rearranges data for sending, transposing a,b,c into c,b,a . This is done as alltoall splits on dimension c
@@ -731,6 +744,8 @@ contains
 
     integer :: i, j, k
 
+    call timer_start(real2comhandle)
+
     do i=1,size(real_data,3)
       do j=1,size(real_data,2)
         do k=1,size(real_data,1),2
@@ -739,6 +754,8 @@ contains
         end do
       end do
     end do
+
+    call timer_stop(real2comhandle)
   end subroutine convert_complex_to_real
 
   !> Converts reals into their complex representation, this is called for backwards FFTs as we need to feed in complex numbers
@@ -753,6 +770,8 @@ contains
 
     integer :: i, j, k
 
+    call timer_start(real2comhandle)
+
     complex_data=cmplx(0.0d0, 0.0d0, kind=C_DOUBLE_COMPLEX)
 
     do i=1,size(real_data,3)
@@ -762,6 +781,8 @@ contains
         end do
       end do
     end do
+
+    call timer_stop(real2comhandle)
   end subroutine convert_real_to_complex
 
   !> Determines my global start coordinate in Fourier space.
