@@ -24,19 +24,23 @@ laplinv_test_enabled=.false.
 
 ffttest_enabled=.false.
 
+parcel_splitting_enabled=.true.
+
 
 #component ordering
 
 #initialisation_stage_ordering+=euler_integrator,prescribed_parcel_velocity,writeparcels
 
-integrator_group_contents=grid2partest,prescribed_parcel_velocity,ffttest,vort2vel,vorticity_tendency,laplinv_test,euler_integrator,rk4_integrator
+#integrator_group_contents=grid2partest,prescribed_parcel_velocity,ffttest,vort2vel,vorticity_tendency,laplinv_test,euler_integrator,rk4_integrator
+
+integrator_group_contents=vort2vel,vorticity_tendency,euler_integrator,rk4_integrator,parcel_splitting
 
 #finalisation_stage_ordering+=model_synopsis,euler_integrator,prescribed_parcel_velocity,writeparcels
 
 
 # Control configuration
 display_synopsis_frequency=10
-termination_time=10
+termination_time=8
 
 
 #grid properties
