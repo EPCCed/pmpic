@@ -1,4 +1,4 @@
-!Runge Kutta 4th order integrator component
+! This module splits parcels if they have obtained a stretch larger than 4
 module parcel_splitting_mod
   use datadefn_mod, only : DEFAULT_PRECISION, PRECISION_TYPE, PARCEL_INTEGER, MPI_PARCEL_INT
   use state_mod, only: model_state_type
@@ -13,7 +13,6 @@ module parcel_splitting_mod
   implicit none
 
   real(kind=DEFAULT_PRECISION) :: originaldt
-  real(kind=DEFAULT_PRECISION), parameter :: cfl=0.1
   integer :: ierr
 
   integer :: iteration=0
@@ -55,6 +54,8 @@ contains
 
     dt=state%dtm
 
+
+    !only do this if we're on the final step of the rk integrator
     if (mod(iteration,state%rksteps) == state%rksteps-1) then
       call timer_start(handle)
 
@@ -62,7 +63,7 @@ contains
 
       do i=1,state%parcels%numparcels_local
 
-        !update stretch
+        !update parcel stretch
 
         dstretch =  state%parcels%p(i)*state%parcels%dpdt(i) &
                   + state%parcels%q(i)*state%parcels%dqdt(i) &
@@ -72,7 +73,7 @@ contains
         state%parcels%stretch(i) = state%parcels%stretch(i) + dstretch*dt
 
         !see if the stretch is above the limit. If so, split the parcel
-        if ((state%parcels%stretch(i) .gt. stretchmax) .and. (state%parcels%vol(i) .gt. 1./6.**3)) then
+        if (state%parcels%stretch(i) .gt. stretchmax) then
           !determine the half separation of the two new parcels
           r = state%parcels%vol(i)*volg/4./pi
           r=r**(1./3.)
@@ -121,8 +122,7 @@ contains
 
           state%parcels%stretch(i) = 0.
 
-          !  print *, i,state%parcels%x(i), state%parcels%y(i), state%parcels%z(i) &
-        !           ,  n,state%parcels%x(n), state%parcels%y(n), state%parcels%z(n)
+
 
         endif
 
@@ -149,6 +149,9 @@ contains
           write(*,*) "No split parcels"
         endif
       endif
+
+    !make sure all parcels are on the correct process
+    call parcel_haloswap(state)
 
     call timer_stop(handle)
 

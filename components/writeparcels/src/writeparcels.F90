@@ -63,12 +63,13 @@ contains
     endif
 
     if (mod(num,gpersteps) .eq. 0) then
-      if (num .eq. 0) then
-        !get the initial condition buoyancy
-        if (state%parallel%my_rank .eq. 0) print *, "par2grid: buoyancy"
-        call cache_parcel_interp_weights(state)
-        call par2grid(state,state%parcels%b,state%b)
-      endif
+
+
+      call cache_parcel_interp_weights(state)
+      call par2grid(state,state%parcels%b,state%b)
+      call par2grid(state,state%parcels%p,state%p)
+      call par2grid(state,state%parcels%q,state%q)
+      call par2grid(state,state%parcels%r,state%r)
 
       ! obtain the humidity and liquid humidity
       call par2grid(state,state%parcels%h,state%hg)
@@ -77,6 +78,7 @@ contains
         do j=1,size(state%hgliq%data,2)
           do k=1,size(state%hgliq%data,1)
             state%hgliq%data(k,j,i) = max(0.,state%hg%data(k,j,i) - exp(-z_coords(k)))
+            state%b%data(k,j,i) = state%b%data(k,j,i) + 12.5*state%hgliq%data(k,j,i)
           enddo
         enddo
       enddo

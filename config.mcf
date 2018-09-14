@@ -25,6 +25,7 @@ laplinv_test_enabled=.false.
 ffttest_enabled=.false.
 
 parcel_splitting_enabled=.true.
+parcel_mixing_enabled=.true.
 
 
 #component ordering
@@ -33,7 +34,7 @@ parcel_splitting_enabled=.true.
 
 #integrator_group_contents=grid2partest,prescribed_parcel_velocity,ffttest,vort2vel,vorticity_tendency,laplinv_test,euler_integrator,rk4_integrator
 
-integrator_group_contents=vort2vel,vorticity_tendency,euler_integrator,rk4_integrator,parcel_splitting
+integrator_group_contents=vort2vel,vorticity_tendency,euler_integrator,rk4_integrator,parcel_splitting, parcel_mixing
 
 #finalisation_stage_ordering+=model_synopsis,euler_integrator,prescribed_parcel_velocity,writeparcels
 
@@ -58,7 +59,7 @@ zmax=6.28
 max_parcels=10000000
 
 #readfromfile_options
-restart_num=40
+restart_num=50
 
 #basic_parcelsetup options
 parcels_per_cell_dir = 2

@@ -288,7 +288,10 @@ contains
 
       if ((i .lt. 1) .or. (i .ge. nx)) error stop "parcel out of box (x direction)"
       if ((j .lt. 1) .or. (j .ge. ny)) error stop "parcel out of box (y direction)"
-      if ((k .lt. 1) .or. (k .ge. nz)) error stop "parcel out of box (z direction)"
+      if ((k .lt. 1) .or. (k .ge. nz)) then
+        print *, n, xp, yp, zp, zmin,zmax
+        error stop "parcel out of box (z direction)"
+      endif
 
       !get the fractional position in the cell (from the lower left corner) that the parcel is at
       delx= ((xp-xmin)-(i-1)*dx)/dx
@@ -521,10 +524,15 @@ contains
 !$OMP DO
     do n=1,nx
         !set areas with weight=0 to 1 to prevent divide by 0
-        where (weights(:,:,n) .eq. 0.) weights(:,:,n) = 1.
-        grid%data(:,:,n) = data(:,:,n)/weights(:,:,n)
+        where (weights(2:nz-1,:,n) .eq. 0.) weights(2:nz-1,:,n) = 1.
+        grid%data(2:nz-1,:,n) = data(2:nz-1,:,n)/weights(2:nz-1,:,n)
     enddo
 !$OMP END DO
+
+!$OMP WORKSHARE
+grid%data(1,:,:) = 2*data(1,:,:)
+grid%data(nz,:,:) = 2*data(nz,:,:)
+!$OMP END WORKSHARE
 !$OMP END PARALLEL
 
 
@@ -674,11 +682,11 @@ contains
 
          !then swap the halos conventionally to ensure the halos also have the correct values (do we need this?)
 
-         !call blocking_halo_swap(state, halo_swap_state, grid2buff, &
-        !                        local_copy,buff2halo,&
-        !                       copy_corners_to_halo_buffer=corner2buff,&
-        !                       copy_from_halo_buffer_to_corner=buff2corner,&
-        !                       source_data=(/source_data/))
+         call blocking_halo_swap(state, halo_swap_state, grid2buff, &
+                                local_copy,buff2halo,&
+                               copy_corners_to_halo_buffer=corner2buff,&
+                               copy_from_halo_buffer_to_corner=buff2corner,&
+                               source_data=(/source_data/))
 
 
 
