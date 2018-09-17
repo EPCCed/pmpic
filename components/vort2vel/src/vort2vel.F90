@@ -155,10 +155,9 @@ contains
     f(1,:,:) = hdzi * ( 4.*c(2,:,:) - c(3,:,:) - 3.*c(1,:,:) )
     f(2:nz-1,:,:) = (c(3:nz,:,:) - c(1:nz-2,:,:))*hdzi
     f(nz,:,:) = hdzi * ( c(nz-2,:,:) + 3.*c(nz,:,:) - 4.*c(nz-1,:,:) )
-    !$OMP END WORKSHARE
+
 
     !f -> d + e + f    (f -> div(vort))
-    !$OMP WORKSHARE
     f(:,:,:) = d(:,:,:) + e(:,:,:) + f(:,:,:)
     !$OMP END WORKSHARE
 
@@ -320,13 +319,13 @@ contains
 
     if (mod(iteration,current_state%rksteps) ==0 ) then
       !determine the maximum velocity in each direction
-      umax = maxval(current_state%u%data**2)
+      umax = maxval(current_state%u(zi:zf,yi:yf,xi:xf)%data**2)
       umax = sqrt(umax)
 
-      vmax = maxval(current_state%v%data**2)
+      vmax = maxval(current_state%v(zi:zf,yi:yf,xi:xf)%data**2)
       vmax = sqrt(vmax)
 
-      wmax = maxval(current_state%w%data**2)
+      wmax = maxval(current_state%w(zi:zf,yi:yf,xi:xf)%data**2)
       wmax = sqrt(wmax)
 
       !if the velocoties are zero, make them small (but non-zero) to avoid div zero errors

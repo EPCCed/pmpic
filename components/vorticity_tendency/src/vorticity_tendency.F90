@@ -274,7 +274,9 @@ contains
 
     if ( mod(iteration,current_state%rksteps) == 0) then
       !We now want to determine the maximum vorticity
-      omax = maxval(current_state%p%data**2 + current_state%q%data**2 + current_state%r%data**2)
+      omax = maxval(current_state%p%data(zi:zf,yi:yf,xi:xf)**2 &
+                  + current_state%q%data(zi:zf,yi:yf,xi:xf)**2 &
+                  + current_state%r%data(zi:zf,yi:yf,xi:xf)**2)
       omax=sqrt(omax)
 
       !This is the local maximum. We want the global maximum so we do a MPI reduction operation
@@ -296,15 +298,15 @@ contains
       if (current_state%dtm .gt. dtmax) then
         current_state%dtm = dtmax
         if (current_state%parallel%my_rank .eq. 0) then
-           print*, "Timestep limited by vorticity"
+           print*, "Timestep limited by vorticity", current_state%dtm
         endif
       else if (current_state%dtm .lt. current_state%dtmax) then
         if (current_state%parallel%my_rank .eq. 0) then
-           print*, "Timestep limited by velocity"
+           print*, "Timestep limited by velocity", current_state%dtm
         endif
       else
         if (current_state%parallel%my_rank .eq. 0) then
-           print*, "Timestep limited by dtmax"
+           print*, "Timestep limited by dtmax", current_state%dtm
         endif
       endif
 
