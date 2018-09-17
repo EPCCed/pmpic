@@ -82,7 +82,7 @@ dtmax=0.1
 #velocity profile properties
 velocity_profile=9
 
-#writeparcels properties
+#writeparcels properties (if 0 then no files will be written)
 parcel_dump_frequency=10
 grid_dump_frequency = 5
 

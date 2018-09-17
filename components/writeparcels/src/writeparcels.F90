@@ -55,40 +55,44 @@ contains
     num=state%iterations
 
 
-    if(mod(num,ppersteps) .eq. 0) then
-      call timer_start(handlep)
-      call write_parcels_to_file(state)
-      pwritten=pwritten+1
-      call timer_stop(handlep)
+    if (ppersteps .ne. 0) then
+      if(mod(num,ppersteps) .eq. 0) then
+        call timer_start(handlep)
+        call write_parcels_to_file(state)
+        pwritten=pwritten+1
+        call timer_stop(handlep)
+      endif
     endif
 
-    if (mod(num,gpersteps) .eq. 0) then
+    if (gpersteps .ne. 0) then
+      if (mod(num,gpersteps) .eq. 0) then
 
 
-      call cache_parcel_interp_weights(state)
-      call par2grid(state,state%parcels%b,state%b)
-      call par2grid(state,state%parcels%p,state%p)
-      call par2grid(state,state%parcels%q,state%q)
-      call par2grid(state,state%parcels%r,state%r)
+        call cache_parcel_interp_weights(state)
+        call par2grid(state,state%parcels%b,state%b)
+        call par2grid(state,state%parcels%p,state%p)
+        call par2grid(state,state%parcels%q,state%q)
+        call par2grid(state,state%parcels%r,state%r)
 
-      ! obtain the humidity and liquid humidity
-      call par2grid(state,state%parcels%h,state%hg)
-      !$OMP PARALLEL DO
-      do i=1,size(state%hgliq%data,3)
-        do j=1,size(state%hgliq%data,2)
-          do k=1,size(state%hgliq%data,1)
-            state%hgliq%data(k,j,i) = max(0.,state%hg%data(k,j,i) - exp(-z_coords(k)))
-            state%b%data(k,j,i) = state%b%data(k,j,i) + 12.5*state%hgliq%data(k,j,i)
+        ! obtain the humidity and liquid humidity
+        call par2grid(state,state%parcels%h,state%hg)
+        !$OMP PARALLEL DO
+        do i=1,size(state%hgliq%data,3)
+          do j=1,size(state%hgliq%data,2)
+            do k=1,size(state%hgliq%data,1)
+              state%hgliq%data(k,j,i) = max(0.,state%hg%data(k,j,i) - exp(-z_coords(k)))
+              state%b%data(k,j,i) = state%b%data(k,j,i) + 12.5*state%hgliq%data(k,j,i)
+            enddo
           enddo
         enddo
-      enddo
-      !$OMP END PARALLEL DO
+        !$OMP END PARALLEL DO
 
 
-      call timer_start(handleg)
-      call write_grids_to_file(state)
-      gwritten=gwritten+1
-      call timer_stop(handleg)
+        call timer_start(handleg)
+        call write_grids_to_file(state)
+        gwritten=gwritten+1
+        call timer_stop(handleg)
+      endif
     endif
 
     num=num+1
