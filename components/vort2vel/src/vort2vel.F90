@@ -98,7 +98,7 @@ contains
   subroutine timestep_callback(current_state)
     type(model_state_type), target, intent(inout) :: current_state
 
-    integer :: start_loc(3), end_loc(3), i,j,k
+    integer :: start_loc(3), end_loc(3), i,j,k, xi, xf, yi, yf, zi, zf
     real(kind=DEFAULT_PRECISION) :: L, pi
     real(kind=DEFAULT_PRECISION), allocatable, dimension(:,:) :: atop, abot, btop,bbot
     real(kind=DEFAULT_PRECISION), ALLOCATABLE, dimension(:) :: ubar, vbar
@@ -124,6 +124,12 @@ contains
       start_loc(i)=current_state%local_grid%local_domain_start_index(i)
       end_loc(i)=current_state%local_grid%local_domain_end_index(i)
     end do
+    zi=start_loc(Z_INDEX)
+    zf=end_loc(Z_INDEX)
+    yi=start_loc(Y_INDEX)
+    yf=end_loc(Y_INDEX)
+    xi=start_loc(X_INDEX)
+    xf=end_loc(X_INDEX)
 
     !Take fft of vorticities to get them into semi-spectral space
 
@@ -319,13 +325,13 @@ contains
 
     if (mod(iteration,current_state%rksteps) ==0 ) then
       !determine the maximum velocity in each direction
-      umax = maxval(current_state%u(zi:zf,yi:yf,xi:xf)%data**2)
+      umax = maxval(current_state%u%data(zi:zf,yi:yf,xi:xf)**2)
       umax = sqrt(umax)
 
-      vmax = maxval(current_state%v(zi:zf,yi:yf,xi:xf)%data**2)
+      vmax = maxval(current_state%v%data(zi:zf,yi:yf,xi:xf)**2)
       vmax = sqrt(vmax)
 
-      wmax = maxval(current_state%w(zi:zf,yi:yf,xi:xf)%data**2)
+      wmax = maxval(current_state%w%data(zi:zf,yi:yf,xi:xf)**2)
       wmax = sqrt(wmax)
 
       !if the velocoties are zero, make them small (but non-zero) to avoid div zero errors
