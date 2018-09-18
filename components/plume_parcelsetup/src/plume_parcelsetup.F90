@@ -196,7 +196,7 @@ contains
     !create parcels in plume
     n=0
 
-    open(unit=10+state%parallel%my_rank)
+    !open(unit=10+state%parallel%my_rank)
 
 
     vol=(dxplume*dyplume*dzplume)/(dx*dy*dz)
@@ -277,7 +277,7 @@ contains
 
 
               state%parcels%vol(n) = vol
-              write(10+state%parallel%my_rank,*) x, y, z, state%parcels%b(n)
+              !write(10+state%parallel%my_rank,*) x, y, z, state%parcels%b(n)
             endif
 
           z=z+dzbg
@@ -292,7 +292,7 @@ contains
     n_bg = n-n_plume
 
 
-    close(10+state%parallel%my_rank)
+    !close(10+state%parallel%my_rank)
 
     state%parcels%numparcels_local=n
 
