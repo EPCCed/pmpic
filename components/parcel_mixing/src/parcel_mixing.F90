@@ -299,10 +299,13 @@ contains
             if (npercell(k,j,i) < 3) then
               nadd=nadd+1
               !create new parcel
-              do while(n .le. state%parcels%numparcels_local .and. keep(n) .ne. 0)
-                !iterate n forward until we find an empty spot to put it in
-                n=n+1
-              enddo
+              if (n .le. state%parcels%numparcels_local) then
+                do while(keep(n) .ne. 0)
+                  !iterate n forward until we find an empty spot to put it in
+                  n=n+1
+                  if (n .gt. state%parcels%numparcels_local) exit
+                enddo
+              endif
               !total volume of surrounding grid points
               v = sum(state%vol%data(k:k+1,j:j+1,i:i+1))
 
@@ -357,7 +360,7 @@ contains
 
       !now loop over each original parcel and add the residuals
       if (nadd .ne. 0 .or. nremove .ne. 0) then
-        do n=1,state%parcels%numparcels_local
+        do n=1,norig
           if (keep(n) .eq. 1) then
             !calculate tridiagonl weights
             i=is(n)
@@ -516,7 +519,7 @@ contains
 
 
 
-      if ( state%parallel%my_rank .eq. 1 ) then
+      if ( state%parallel%my_rank .eq. 0 ) then
         print *, "Parcel mixing: net change in parcel number=", state%parcels%numparcels_global-n
       endif
 
