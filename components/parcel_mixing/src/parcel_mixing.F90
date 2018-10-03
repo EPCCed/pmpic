@@ -329,6 +329,11 @@ contains
               endif
               n=n+1
 
+              if (n .gt. state%parcels%maxparcels_local) then
+                print *, "Error: reached maximum number of parcels in rank", state%parallel%my_rank
+                error stop "Aborting: maxparcels reached"
+              endif
+
               !adjust residues to take new parcel into account
               vres(k:k+1,j:j+1,i:i+1) = vres(k:k+1,j:j+1,i:i+1) - portion*state%vol%data(k:k+1,j:j+1,i:i+1)
               bres(k:k+1,j:j+1,i:i+1) = bres(k:k+1,j:j+1,i:i+1) - portion*state%b%data(k:k+1,j:j+1,i:i+1)

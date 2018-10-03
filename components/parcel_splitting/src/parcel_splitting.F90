@@ -87,6 +87,10 @@ contains
 
 
           !create new parcel at (x,y,z) + r*(p,q,r)/absw
+          if (n .eq. state%parcels%maxparcels_local) then
+            print *, "Error: reached maximum number of parcels in rank", state%parallel%my_rank
+            error stop "Aborting: maxparcels reached"
+          endif
           n = n+1
           state%parcels%x(n) = state%parcels%x(i) + r*state%parcels%p(i)/absw
           state%parcels%y(n) = state%parcels%y(i) + r*state%parcels%q(i)/absw
