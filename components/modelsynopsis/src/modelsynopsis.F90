@@ -1,6 +1,6 @@
 !> Displays information about the current state_mod of the model run
 module modelsynopsis_mod
-  use datadefn_mod, only : DEFAULT_PRECISION
+  use datadefn_mod, only : DEFAULT_PRECISION, PARCEL_INTEGER, MPI_PARCEL_INT
   use monc_component_mod, only : component_descriptor_type
   use state_mod, only : model_state_type, TIME_TERMINATION_REASON, TIMESTEP_TERMINATION_REASON, MESSAGE_TERMINATION_REASON, &
        WALLTIME_TERMINATION_REASON
@@ -18,6 +18,12 @@ module modelsynopsis_mod
   double precision :: start_time
 
   public modelsynopsis_get_descriptor
+
+  integer(kind=PARCEL_INTEGER), allocatable, dimension(:) :: npars
+  integer :: ierr
+
+
+
 
 contains
 
@@ -37,7 +43,17 @@ contains
     reporting_frequency=options_get_integer(current_state%options_database, "display_synopsis_frequency")
     previous_ts=current_state%timestep
     start_time=mpi_wtime()
-  end subroutine initialisation_callback  
+
+    allocate(npars(current_state%parallel%processes))
+
+    if (current_state%parallel%my_rank .eq. 0) then
+      open(unit=77, file="parcels.dat")
+    endif
+
+
+
+
+  end subroutine initialisation_callback
 
   !> Timestep callback hook which performs the halo swapping for each prognostic field
   !!
@@ -60,6 +76,16 @@ contains
       previous_ts=current_state%timestep
       start_time=mpi_wtime()
     end if
+
+    call MPI_Gather(current_state%parcels%numparcels_local,1,MPI_PARCEL_INT,npars,&
+    1,MPI_PARCEL_INT,0,current_state%parallel%monc_communicator,ierr)
+
+    if (current_state%parallel%my_rank .eq. 0) then
+      write(77,*) npars
+      print *, "min,mean,max parcel count=", minval(npars),  sum(npars)/(current_state%parallel%processes), maxval(npars)
+    endif
+
+
   end subroutine timestep_callback
 
   !> Called at the end of the MONC run, will log the reason why the model is terminating
