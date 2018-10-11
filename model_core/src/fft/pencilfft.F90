@@ -10,9 +10,11 @@ module pencil_fft_mod
   use grids_mod, only : X_INDEX, Y_INDEX, Z_INDEX, global_grid_type
   use state_mod, only : model_state_type
   use fftw_mod, only : C_DOUBLE_COMPLEX, C_PTR, FFTW_BACKWARD, FFTW_FORWARD, FFTW_ESTIMATE, fftw_plan_many_dft_r2c, &
-       fftw_plan_many_dft_c2r, fftw_execute_dft_c2r, fftw_execute_dft_r2c, fftw_destroy_plan
+       fftw_plan_many_dft_c2r, fftw_execute_dft_c2r, fftw_execute_dft_r2c, fftw_destroy_plan, fftw_init_threads, &
+       fftw_plan_with_nthreads
   use mpi, only : MPI_DOUBLE_COMPLEX, MPI_INT, MPI_COMM_SELF, mpi_wtime
   use timer_mod, only: register_routine_for_timing, timer_start, timer_stop
+  use omp_lib
   implicit none
 
 #ifndef TEST_MODE
@@ -97,6 +99,14 @@ contains
     if (fftwhandle .eq. -1)  call register_routine_for_timing("fft_fftw", fftwhandle, current_state)
     if (real2comhandle .eq. -1)  call register_routine_for_timing("fft_r2c", real2comhandle, current_state)
     if (transposehandle .eq. -1)  call register_routine_for_timing("fft_transp", transposehandle, current_state)
+
+    !ierr=fftw_init_threads()
+    !call fftw_plan_with_nthreads(omp_get_max_threads())
+
+    if (current_state%parallel%my_rank .eq. 0) then
+      print *, "Initialised FFT libraries to use", omp_get_max_threads(), " threads"
+    endif
+
   end function initialise_pencil_fft
 
   !> Cleans up allocated buffer memory
@@ -128,21 +138,30 @@ contains
     real(kind=DEFAULT_PRECISION), dimension(:,:,:), intent(out) :: target_data
 
     double precision :: st
-
+    !$OMP SINGLE
     call timer_start(ffthandle)
+    !$OMP END SINGLE
+
 
     st=mpi_wtime()
     call transpose_and_forward_fft_in_y(current_state, source_data, buffer1, real_buffer1)
+    !$OMP WORKSHARE
     real_buffer1=real_buffer1/current_state%global_grid%size(Y_INDEX)
+    !$OMP END WORKSHARE
     call transpose_and_forward_fft_in_x(current_state, real_buffer1, buffer2, real_buffer2)
+    !$OMP WORKSHARE
     real_buffer2=real_buffer2/current_state%global_grid%size(X_INDEX)
+    !$OMP END WORKSHARE
 
     call transpose_to_pencil(y_from_x_transposition, (/X_INDEX, Z_INDEX, Y_INDEX/), dim_x_comm, BACKWARD, &
          real_buffer2, real_buffer3)
     call transpose_to_pencil(z_from_y_transposition, (/Y_INDEX, X_INDEX, Z_INDEX/), dim_y_comm, BACKWARD, &
        real_buffer3, target_data)
 
+
+    !$OMP SINGLE
     call timer_stop(ffthandle)
+    !$OMP END SINGLE
     !current_state%comm_time=current_state%comm_time+(mpi_wtime()-st)
   end subroutine perform_forward_3dfft
 
@@ -160,7 +179,9 @@ contains
 
     double precision :: st
 
+    !$OMP SINGLE
     call timer_start(iffthandle)
+    !$OMP END SINGLE
 
     st=mpi_wtime()
     call transpose_to_pencil(y_from_z_2_transposition, (/Z_INDEX, Y_INDEX, X_INDEX/), dim_y_comm, FORWARD, &
@@ -172,7 +193,9 @@ contains
     call transpose_and_backward_fft_in_y(current_state, real_buffer1, buffer1, target_data)
     !current_state%comm_time=current_state%comm_time+(mpi_wtime()-st)
 
+    !$OMP SINGLE
     call timer_stop(iffthandle)
+    !$OMP END SINGLE
 
   end subroutine perform_backwards_3dfft
 
@@ -389,24 +412,33 @@ contains
     real(kind=DEFAULT_PRECISION), dimension(:,:,:), intent(out) :: target_data
 
     integer :: ierr
-    real(kind=DEFAULT_PRECISION), dimension(:,:,:), allocatable :: real_temp
-    real(kind=DEFAULT_PRECISION), dimension(:), allocatable :: real_temp2
+    real(kind=DEFAULT_PRECISION), dimension(:,:,:), allocatable, save :: real_temp
+    real(kind=DEFAULT_PRECISION), dimension(:), allocatable, save :: real_temp2
 
+
+    !$OMP SINGLE
     call timer_start(transposehandle)
-
-
     allocate(real_temp(size(source_data,3), size(source_data,2), size(source_data,1)), &
          real_temp2(product(transposition_description%my_pencil_size)+1))
+    !$OMP END SINGLE
 
     call rearrange_data_for_sending(real_source=source_data, real_target=real_temp)
 
+    !$OMP single
     call mpi_alltoallv(real_temp, transposition_description%send_sizes, transposition_description%send_offsets, &
          PRECISION_TYPE, real_temp2, transposition_description%recv_sizes, transposition_description%recv_offsets, &
          PRECISION_TYPE, communicator, ierr)
+    !$OMP END single
+
     call contiguise_data(transposition_description, (/source_dims(3), source_dims(2), source_dims(1)/), direction, &
          source_real_buffer=real_temp2, target_real_buffer=target_data)
+
+
+    !$OMP SINGLE
     deallocate(real_temp, real_temp2)
     call timer_stop(transposehandle)
+    !$OMP END SINGLE
+
   end subroutine transpose_to_pencil
 
   !> Contiguises from c,b,a to b,c,a (forwards) or c,a,b (backwards) where these are defined by the source_dims argument.
@@ -429,6 +461,8 @@ contains
     index_prefix=0
     block_offset=0
     index_prefix_dim=merge(2,1, direction == FORWARD)
+
+    !$OMP DO
     do i=1,number_blocks
       if (i .ge. 2) then
         index_prefix=index_prefix+transposition_description%recv_dims(source_dims(index_prefix_dim), i-1)
@@ -450,6 +484,7 @@ contains
         end do
       end do
     end do
+    !$OMP END DO
   end subroutine contiguise_data
 
   !> Actually performs a forward real to complex FFT
@@ -462,7 +497,8 @@ contains
     real(kind=DEFAULT_PRECISION), dimension(:,:,:), contiguous, pointer, intent(inout) :: source_data
     complex(C_DOUBLE_COMPLEX), dimension(:,:,:), contiguous, pointer, intent(inout) :: transformed_data
     integer, intent(in) :: row_size, num_rows, plan_id
-
+    !fftw not OpenMP'd yet
+    !$OMP SINGLE
     call timer_start(fftwhandle)
 
     if (.not. fftw_plan_initialised(plan_id)) then
@@ -470,8 +506,12 @@ contains
            transformed_data, (/row_size/), 1, row_size/2+1, FFTW_ESTIMATE)
       fftw_plan_initialised(plan_id)=.true.
     end if
+
     call fftw_execute_dft_r2c(fftw_plan(plan_id), source_data, transformed_data)
+
     call timer_stop(fftwhandle)
+    !$OMP END SINGLE
+
   end subroutine perform_r2c_fft
 
   !> Performs the complex to real (backwards) FFT
@@ -485,6 +525,8 @@ contains
     real(kind=DEFAULT_PRECISION), dimension(:,:,:), contiguous, pointer, intent(inout) :: transformed_data
     integer, intent(in) :: row_size, num_rows, plan_id
 
+    !fftw not OpenMP'd yet
+    !$OMP SINGLE
     call timer_start(fftwhandle)
 
     if (.not. fftw_plan_initialised(plan_id)) then
@@ -496,6 +538,8 @@ contains
     end if
     call fftw_execute_dft_c2r(fftw_plan(plan_id), source_data, transformed_data)
     call timer_stop(fftwhandle)
+
+    !$OMP END SINGLE
   end subroutine perform_c2r_fft
 
   !> Rearranges data for sending, transposing a,b,c into c,b,a . This is done as alltoall splits on dimension c
@@ -508,9 +552,12 @@ contains
 
     integer :: i
 
+    !$OMP DO
     do i=1, size(real_source,2)
       real_target(:,i,:)=transpose(real_source(:,i,:))
     end do
+    !$OMP END DO
+
   end subroutine rearrange_data_for_sending
 
   !> Determines the number of elements to on my process per dimension which either need to be sent to (forwards transformation) or
@@ -744,8 +791,11 @@ contains
 
     integer :: i, j, k
 
+      !$OMP SINGLE
     call timer_start(real2comhandle)
+    !$OMP END SINGLE
 
+    !$OMP DO
     do i=1,size(real_data,3)
       do j=1,size(real_data,2)
         do k=1,size(real_data,1),2
@@ -754,8 +804,13 @@ contains
         end do
       end do
     end do
+    !$OMP END DO
 
+
+    !$OMP SINGLE
     call timer_stop(real2comhandle)
+    !$OMP END SINGLE
+
   end subroutine convert_complex_to_real
 
   !> Converts reals into their complex representation, this is called for backwards FFTs as we need to feed in complex numbers
@@ -770,10 +825,15 @@ contains
 
     integer :: i, j, k
 
+    !$OMP SINGLE
     call timer_start(real2comhandle)
+    !$OMP END SINGLE
 
+    !$OMP WORKSHARE
     complex_data=cmplx(0.0d0, 0.0d0, kind=C_DOUBLE_COMPLEX)
+    !$OMP END WORKSHARE
 
+    !$OMP DO
     do i=1,size(real_data,3)
       do j=1,size(real_data,2)
         do k=1,size(real_data,1),2
@@ -781,8 +841,11 @@ contains
         end do
       end do
     end do
+    !$OMP END DO
 
+    !$OMP SINGLE
     call timer_stop(real2comhandle)
+    !$OMP END SINGLE
   end subroutine convert_real_to_complex
 
   !> Determines my global start coordinate in Fourier space.

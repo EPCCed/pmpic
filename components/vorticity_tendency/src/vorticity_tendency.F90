@@ -139,12 +139,12 @@ contains
     xi=start_loc(X_INDEX)
     xf=end_loc(X_INDEX)
 
-
+  !$OMP END SINGLE
 
     ! get fft of b and put it in bs
     call perform_forward_3dfft(current_state, current_state%b%data(zi:zf, &
          yi:yf, xi:xf), bs)
-    !$OMP END SINGLE
+
 
     ! x component:
     ! dp/dt = vort . grad(u) + db/dy = p*du/dx + q*du/dy + r*du/dz +db/dy
@@ -152,16 +152,16 @@ contains
 
     call diffy(bs,as) !db/dy (spectral)
     ! take db/dy and convert to positional space, put into the dp array
-    !$OMP SINGLE
+  !  !$OMP SINGLE
     call perform_backwards_3dfft(current_state, as, dp%data(zi:zf,yi:yf,xi:xf))
-    !$OMP END SINGLE
+  !  !$OMP END SINGLE
 
     !calculate du/dx (spectral)
 
     call diffx(current_state%u_s%data,as)
-    !$OMP SINGLE
+  !  !$OMP SINGLE
     call perform_backwards_3dfft(current_state, as, dudx(zi:zf,yi:yf,xi:xf))
-    !$OMP END SINGLE
+  !  !$OMP END SINGLE
     !add p*du/dx to dp
     !$OMP WORKSHARE
     dp%data(zi:zf,yi:yf,xi:xf) = dp%data(zi:zf,yi:yf,xi:xf) &
@@ -170,9 +170,9 @@ contains
 
     !calculate du/dy (spectral)
     call diffy(current_state%u_s%data,as)
-    !$OMP SINGLE
+!    !$OMP SINGLE
     call perform_backwards_3dfft(current_state, as, ap(zi:zf,yi:yf,xi:xf))
-    !$OMP END SINGLE
+  !  !$OMP END SINGLE
     !add q*du/dy to dp
     !$OMP WORKSHARE
     dp%data(zi:zf,yi:yf,xi:xf) = dp%data(zi:zf,yi:yf,xi:xf) &
@@ -182,9 +182,9 @@ contains
     !calculate dw/dx (spectral)
     call diffx(current_state%w_s%data,as)
     !add r*(q + dw/dx) to dp
-    !$OMP SINGLE
+    !!$OMP SINGLE
     call perform_backwards_3dfft(current_state, as, dwdx(zi:zf,yi:yf,xi:xf))
-    !$OMP END SINGLE
+    !!$OMP END SINGLE
     !$OMP WORKSHARE
     dp%data(zi:zf,yi:yf,xi:xf) = dp%data(zi:zf,yi:yf,xi:xf) &
       + current_state%r%data(zi:zf,yi:yf,xi:xf) &
@@ -197,15 +197,15 @@ contains
 
     call diffx(bs,as) !db/dy (spectral)
     ! take db/dx and convert to positional space, put into the dq array
-    !$OMP SINGLE
+  !  !$OMP SINGLE
     call perform_backwards_3dfft(current_state, as, dq%data(zi:zf,yi:yf,xi:xf))
-    !$OMP END SINGLE
+    !!$OMP END SINGLE
 
     !calculate dv/dx (spectral)
     call diffx(current_state%v_s%data,as)
-    !$OMP SINGLE
+  !  !$OMP SINGLE
     call perform_backwards_3dfft(current_state, as, ap(zi:zf,yi:yf,xi:xf))
-    !$OMP END SINGLE
+  !  !$OMP END SINGLE
     !add p*dv/dx to dq
     !$OMP WORKSHARE
     dq%data(zi:zf,yi:yf,xi:xf) = - dq%data(zi:zf,yi:yf,xi:xf) &
@@ -214,9 +214,9 @@ contains
 
     !calculate dv/dy (spectral)
     call diffy(current_state%v_s%data,as)
-    !$OMP SINGLE
+  !  !$OMP SINGLE
     call perform_backwards_3dfft(current_state, as, dvdy(zi:zf,yi:yf,xi:xf))
-    !$OMP END SINGLE
+  !  !$OMP END SINGLE
     !add p*dv/dy to dq
     !$OMP WORKSHARE
     dq%data(zi:zf,yi:yf,xi:xf) = dq%data(zi:zf,yi:yf,xi:xf) &
@@ -226,9 +226,9 @@ contains
     !calculate dw/dy (spectral)
     call diffy(current_state%w_s%data,as)
     !add r*(dw/dy - p) to dq
-    !$OMP SINGLE
+  !  !$OMP SINGLE
     call perform_backwards_3dfft(current_state, as, dwdy(zi:zf,yi:yf,xi:xf))
-    !$OMP END SINGLE
+!    !$OMP END SINGLE
     !$OMP WORKSHARE
     dq%data(zi:zf,yi:yf,xi:xf) = dq%data(zi:zf,yi:yf,xi:xf) &
       + current_state%r%data(zi:zf,yi:yf,xi:xf) &

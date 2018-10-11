@@ -11,5 +11,6 @@ module fftw_mod
   include 'fftw3.f03'
 
   public C_DOUBLE_COMPLEX, C_PTR, FFTW_BACKWARD, FFTW_FORWARD, FFTW_ESTIMATE, fftw_plan_many_dft_r2c, &
-       fftw_plan_many_dft_c2r, fftw_plan_many_dft, fftw_execute_dft, fftw_execute_dft_c2r, fftw_execute_dft_r2c, fftw_destroy_plan
+       fftw_plan_many_dft_c2r, fftw_plan_many_dft, fftw_execute_dft, fftw_execute_dft_c2r, fftw_execute_dft_r2c, &
+        fftw_destroy_plan, fftw_init_threads, fftw_plan_with_nthreads
 end module fftw_mod

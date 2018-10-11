@@ -133,6 +133,8 @@ contains
 
     !Take fft of vorticities to get them into semi-spectral space
 
+    !$OMP PARALLEL default(shared)
+
     ! get fft of p and put it in a
     call perform_forward_3dfft(current_state, current_state%p%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)), a)
@@ -145,7 +147,7 @@ contains
     call perform_forward_3dfft(current_state, current_state%r%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
         start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)), c)
 
-    !$OMP PARALLEL default(shared)
+
 
     ! we now want to correct vorticity so div(vort) = 0
     ! To do this we introduce a scalar lambda where vort = vort_p - grad(lambda)
@@ -214,7 +216,7 @@ contains
     btop(:,:) = b(nz,:,:)
     bbot(:,:) = b(1,:,:)
     !$OMP END WORKSHARE
-    !$OMP SINGLE
+
     !inverse fft corrected and filtered vorticities to physical space
     call perform_backwards_3dfft(current_state, d, current_state%p%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
@@ -222,7 +224,7 @@ contains
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
     call perform_backwards_3dfft(current_state, f, current_state%r%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
-
+    !$OMP SINGLE
 
     !if we are the process at the bottom left hand corner then calculate the mean velocity
     if (k2eq0) then
@@ -268,10 +270,10 @@ contains
 
     call spectral_filter(f, out=current_state%u_s%data)
 
-    !$OMP SINGLE
+
     call perform_backwards_3dfft(current_state, f, current_state%u%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
-    !$OMP END SINGLE
+
 
 
     ! v = dc/dx - da/dz
@@ -295,10 +297,10 @@ contains
 
     call spectral_filter(f, out=current_state%v_s%data)
 
-    !$OMP SINGLE
+
     call perform_backwards_3dfft(current_state, f, current_state%v%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
-    !$OMP END SINGLE
+
 
     ! w = da/dy - db/dx
 
