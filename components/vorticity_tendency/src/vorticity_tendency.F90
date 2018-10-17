@@ -126,8 +126,7 @@ contains
 
     call par2grid(current_state,current_state%parcels%btot,current_state%b)
 
-    !$OMP PARALLEL DEFAULT(SHARED)
-    !$OMP SINGLE
+
     do i=1,3
       start_loc(i)=current_state%local_grid%local_domain_start_index(i)
       end_loc(i)=current_state%local_grid%local_domain_end_index(i)
@@ -139,30 +138,34 @@ contains
     xi=start_loc(X_INDEX)
     xf=end_loc(X_INDEX)
 
-  !$OMP END SINGLE
 
     ! get fft of b and put it in bs
     call perform_forward_3dfft(current_state, current_state%b%data(zi:zf, &
          yi:yf, xi:xf), bs)
 
 
+
+
     ! x component:
     ! dp/dt = vort . grad(u) + db/dy = p*du/dx + q*du/dy + r*du/dz +db/dy
     ! ** but ** we express dw/dz as q + dw/dx (we can do this since q = du/dz - dw/dx)
-
+    !$OMP PARALLEL default(shared)
     call diffy(bs,as) !db/dy (spectral)
+    !$OMP END PARALLEL
+
     ! take db/dy and convert to positional space, put into the dp array
-  !  !$OMP SINGLE
+
     call perform_backwards_3dfft(current_state, as, dp%data(zi:zf,yi:yf,xi:xf))
-  !  !$OMP END SINGLE
+
 
     !calculate du/dx (spectral)
-
+    !$OMP PARALLEL
     call diffx(current_state%u_s%data,as)
-  !  !$OMP SINGLE
+    !$OMP END PARALLEL
     call perform_backwards_3dfft(current_state, as, dudx(zi:zf,yi:yf,xi:xf))
-  !  !$OMP END SINGLE
+
     !add p*du/dx to dp
+    !$OMP PARALLEL
     !$OMP WORKSHARE
     dp%data(zi:zf,yi:yf,xi:xf) = dp%data(zi:zf,yi:yf,xi:xf) &
      + current_state%p%data(zi:zf,yi:yf,xi:xf)*dudx(zi:zf,yi:yf,xi:xf)
@@ -170,10 +173,12 @@ contains
 
     !calculate du/dy (spectral)
     call diffy(current_state%u_s%data,as)
-!    !$OMP SINGLE
+    !$OMP END PARALLEL
+
     call perform_backwards_3dfft(current_state, as, ap(zi:zf,yi:yf,xi:xf))
-  !  !$OMP END SINGLE
+
     !add q*du/dy to dp
+    !$OMP PARALLEL
     !$OMP WORKSHARE
     dp%data(zi:zf,yi:yf,xi:xf) = dp%data(zi:zf,yi:yf,xi:xf) &
       + current_state%q%data(zi:zf,yi:yf,xi:xf)*ap(zi:zf,yi:yf,xi:xf)
@@ -181,10 +186,13 @@ contains
 
     !calculate dw/dx (spectral)
     call diffx(current_state%w_s%data,as)
+    !$OMP END PARALLEL
+
     !add r*(q + dw/dx) to dp
-    !!$OMP SINGLE
+
     call perform_backwards_3dfft(current_state, as, dwdx(zi:zf,yi:yf,xi:xf))
-    !!$OMP END SINGLE
+
+    !$OMP PARALLEL
     !$OMP WORKSHARE
     dp%data(zi:zf,yi:yf,xi:xf) = dp%data(zi:zf,yi:yf,xi:xf) &
       + current_state%r%data(zi:zf,yi:yf,xi:xf) &
@@ -196,17 +204,21 @@ contains
     !! **but** we express dv/dz as dw/dy-p  (since p = dw/dy - dv/dz)
 
     call diffx(bs,as) !db/dy (spectral)
+    !$OMP END PARALLEL
     ! take db/dx and convert to positional space, put into the dq array
-  !  !$OMP SINGLE
+
     call perform_backwards_3dfft(current_state, as, dq%data(zi:zf,yi:yf,xi:xf))
-    !!$OMP END SINGLE
+
 
     !calculate dv/dx (spectral)
+    !$OMP PARALLEL
     call diffx(current_state%v_s%data,as)
+    !$OMP END PARALLEL
   !  !$OMP SINGLE
     call perform_backwards_3dfft(current_state, as, ap(zi:zf,yi:yf,xi:xf))
   !  !$OMP END SINGLE
     !add p*dv/dx to dq
+    !$OMP PARALLEL
     !$OMP WORKSHARE
     dq%data(zi:zf,yi:yf,xi:xf) = - dq%data(zi:zf,yi:yf,xi:xf) &
      + current_state%p%data(zi:zf,yi:yf,xi:xf)*ap(zi:zf,yi:yf,xi:xf)
@@ -214,10 +226,12 @@ contains
 
     !calculate dv/dy (spectral)
     call diffy(current_state%v_s%data,as)
-  !  !$OMP SINGLE
+    !$OMP END PARALLEL
+
     call perform_backwards_3dfft(current_state, as, dvdy(zi:zf,yi:yf,xi:xf))
-  !  !$OMP END SINGLE
+
     !add p*dv/dy to dq
+    !$OMP PARALLEL
     !$OMP WORKSHARE
     dq%data(zi:zf,yi:yf,xi:xf) = dq%data(zi:zf,yi:yf,xi:xf) &
       + current_state%q%data(zi:zf,yi:yf,xi:xf)*dvdy(zi:zf,yi:yf,xi:xf)
@@ -225,10 +239,12 @@ contains
 
     !calculate dw/dy (spectral)
     call diffy(current_state%w_s%data,as)
+    !$OMP END PARALLEL
     !add r*(dw/dy - p) to dq
-  !  !$OMP SINGLE
+
     call perform_backwards_3dfft(current_state, as, dwdy(zi:zf,yi:yf,xi:xf))
-!    !$OMP END SINGLE
+!
+    !$OMP PARALLEL
     !$OMP WORKSHARE
     dq%data(zi:zf,yi:yf,xi:xf) = dq%data(zi:zf,yi:yf,xi:xf) &
       + current_state%r%data(zi:zf,yi:yf,xi:xf) &

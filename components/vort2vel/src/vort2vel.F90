@@ -133,7 +133,7 @@ contains
 
     !Take fft of vorticities to get them into semi-spectral space
 
-    !$OMP PARALLEL default(shared)
+
 
     ! get fft of p and put it in a
     call perform_forward_3dfft(current_state, current_state%p%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
@@ -153,6 +153,8 @@ contains
     ! To do this we introduce a scalar lambda where vort = vort_p - grad(lambda)
     ! (this doesn't affect the velocity as curl(gradient) = 0)
     ! Thus div(vort) = div(vort_p) - laplacian(lambda) = 0, hence laplacian(lambda) = div(vort)
+
+    !$OMP PARALLEL default(shared)
 
     ! First we calculate div(vort_p)
     call diffx(a,d) !d = da/dx
@@ -217,6 +219,8 @@ contains
     bbot(:,:) = b(1,:,:)
     !$OMP END WORKSHARE
 
+    !$OMP END PARALLEL
+
     !inverse fft corrected and filtered vorticities to physical space
     call perform_backwards_3dfft(current_state, d, current_state%p%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
@@ -224,7 +228,8 @@ contains
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
     call perform_backwards_3dfft(current_state, f, current_state%r%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
-    !$OMP SINGLE
+
+
 
     !if we are the process at the bottom left hand corner then calculate the mean velocity
     if (k2eq0) then
@@ -239,7 +244,9 @@ contains
       ubar(:) = ubar(:) - uavg
       vbar(:) = vbar(:) - vavg
     endif
-    !$OMP END SINGLE
+
+
+    !$OMP PARALLEL default(shared)
 
     !invert vorticity (not filtered!!) to get potentials a, b and c
     call laplinv(a, f_zero_on_boundary=.true.)
@@ -270,11 +277,15 @@ contains
 
     call spectral_filter(f, out=current_state%u_s%data)
 
+    !$OMP END PARALLEL
+
 
     call perform_backwards_3dfft(current_state, f, current_state%u%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
 
 
+
+    !$OMP PARALLEL default(shared)
 
     ! v = dc/dx - da/dz
 
@@ -297,11 +308,14 @@ contains
 
     call spectral_filter(f, out=current_state%v_s%data)
 
+    !$OMP END PARALLEL
+
 
     call perform_backwards_3dfft(current_state, f, current_state%v%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
 
 
+    !$OMP parallel default(shared)
     ! w = da/dy - db/dx
 
     ! d=db/dx, e=da/dy
