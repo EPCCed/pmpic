@@ -9,6 +9,7 @@ module parcel_mixing_mod
                                       delxs, delys, delzs, perform_halo_swap, x_coords, y_coords, z_coords
   use parcel_haloswap_mod, only: parcel_haloswap
   use MPI
+  use omp_lib
   use timer_mod
   use prognostics_mod, only : prognostic_field_type
 
@@ -50,6 +51,13 @@ contains
     allocate(vres(nz,ny,nx),bres(nz,ny,nx),hres(nz,ny,nx),pres(nz,ny,nx),qres(nz,ny,nx),rres(nz,ny,nx))
 
     vmin = dx*dy*dz/6./6./6.
+
+    if (state%parallel%my_rank .eq. 0) then
+      if (omp_get_max_threads() .gt. 1) then
+        print *, "PLEASE NOTE: You may need to increase OMP_STACKSIZE. Default is 4MB"
+        print *, "The 'planner.py' script will advise the value of OMP_STACKSIZE to use"
+      endif
+    endif
 
 
   end subroutine
@@ -467,6 +475,10 @@ contains
       ! where for a quantitiy, x:
       !  xres(i,j,k) =  sum_n x(n)*tridiag_weight*vol(n) (n is range of parcels to be removed)
       !  xkeep(i,j,k) = sum_n x(n)*tridiag_weight*vol(n) (n is range of parcels to keep)
+
+      !###################################################################################################3
+      ! PLEASE NOTE: YOU MAY NEED TO INCREASE OMP_STACKSIZE TO MAKE THIS WORK!!!!!!!!!!!!!!!!!
+      !#####################################################################################################
 
     !$OMP PARALLEL default(shared) private(i,j,k,delx,dely,delz,w000,w001,w010,w011,w100,w101,w110,w111,v)
     !$OMP DO REDUCTION(+:vol, b, h, p, q, r, vres, bres, hres, pres, qres, rres, nremove, npercell)

@@ -215,6 +215,10 @@ print("#   Number of gridded variables = %2d                                    
 print("#   A single gridded variable takes up %7.2f MB                              #"%(gridsize/1000000.))
 print("#   All gridded variables take up %7.2f MB                                   #"%(grids/1000000.))
 
+# we now calculate OMP_Stacksize requirements
+stacksize=int(np.ceil(gridsize*14./1E6))
+print("#   Recommended minimum OMP_STACKSIZE =%4dM                                   #"%(stacksize))
+
 
 if (grids/1E9 > mperproc) :
     print('Error: insufficient memory for grids')
@@ -226,7 +230,7 @@ mperproc = mperproc - grids/1E9
 numparcels = mperproc*1E9/float(n_parcels)/float(sizeof)
 print("#                                                                              #")
 print("#   Parcels:                                                                   #")
-print("#   Available memory for parcels = %2.2f GB                                     #"%(mperproc))
+print("#   Available memory for parcels = %5.2f GB                                    #"%(mperproc))
 print("#   Number of parcel variables = %2d                                            #"%n_parcels)
 print("#   Therefore a single parcel takes up %3d Bytes                               #"%(sizeof*n_parcels))
 print("#   Therefore each process can have up to %10d parcels                   #"%(numparcels))
