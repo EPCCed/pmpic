@@ -12,8 +12,10 @@ module writegrids_mod
   use timer_mod, only: register_routine_for_timing, timer_start, timer_stop
   use netcdf, only : NF90_DOUBLE, NF90_REAL, NF90_INT, NF90_CHAR, NF90_GLOBAL, NF90_CLOBBER, NF90_NETCDF4, NF90_MPIIO, &
        NF90_COLLECTIVE, nf90_def_var, nf90_var_par_access, nf90_def_var_fill, nf90_put_att, nf90_create, nf90_put_var, &
-       nf90_def_dim, nf90_enddef, nf90_close, nf90_inq_dimid, nf90_inq_varid
+       nf90_def_dim, nf90_enddef, nf90_close, nf90_inq_dimid, nf90_inq_varid,&
+       nf90_ebaddim, nf90_enotatt, nf90_enotvar, nf90_noerr, nf90_strerror
   use datadefn_mod, only : DEFAULT_PRECISION, SINGLE_PRECISION, DOUBLE_PRECISION, STRING_LENGTH
+  use logging_mod, only : LOG_ERROR, log_log
   use mpi, only : MPI_INFO_NULL
 
   implicit none
@@ -160,10 +162,6 @@ contains
     call define_misc_variables(ncid, timestep_id, time_id, dtm_id)
 
     call check_status(nf90_enddef(ncid))
-
-    if (current_state%parallel%my_rank==0) then
-      call write_out_grid(ncid, current_state%global_grid)
-    end if
     
     !write prognostic variables
     call write_out_velocity_field(ncid, current_state%local_grid, current_state%u, u_id)
@@ -275,5 +273,23 @@ contains
     call check_status(nf90_put_att(ncid, field_id, "units", field_units))
 
   end subroutine define_3d_variable
-  
+
+  !> Will check a NetCDF status and write to log_log error any decoded statuses. Can be used to decode
+  !! whether a dimension or variable exists within the NetCDF data file
+  !! @param status The NetCDF status flag
+  !! @param foundFlag Whether the field has been found or not
+  subroutine check_status(status, found_flag)
+    integer, intent(in) :: status
+    logical, intent(out), optional :: found_flag
+
+    if (present(found_flag)) then
+      found_flag = status /= nf90_ebaddim .and. status /= nf90_enotatt .and. status /= nf90_enotvar
+      if (.not. found_flag) return
+    end if
+
+    if (status /= nf90_noerr) then
+      call log_log(LOG_ERROR, "NetCDF returned error code of "//trim(nf90_strerror(status)))
+    end if
+  end subroutine check_status
+
 end module
