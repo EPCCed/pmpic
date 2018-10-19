@@ -108,7 +108,7 @@ contains
 
 
         call timer_start(handleg)
-        write(filename,"(A,i3.3,A1,I4.4,A4)") "grids_", num, ".dat"
+        write(filename,"(A,I4.4,A3)") "grids_", num, ".nc"
         call write_checkpoint_file(state, filename)
         gwritten=gwritten+1
         call timer_stop(handleg)
@@ -136,18 +136,17 @@ contains
 
     integer :: ncid,u_id,v_id,w_id,p_id,q_id,r_id,b_id,hg_id,hgliq_id,vol_id,&
                x_dim_id,y_dim_id,z_dim_id,timestep_id,time_id,dtm_id
-
-
     call check_status(nf90_create(filename, ior(NF90_NETCDF4, NF90_MPIIO), ncid, &
          comm = current_state%parallel%monc_communicator, info = MPI_INFO_NULL))
+
     call write_out_global_attributes(ncid)
 
-    ! define dimensions
+!    ! define dimensions
     call check_status(nf90_def_dim(ncid, Z_KEY, current_state%global_grid%size(Z_INDEX), z_dim_id))
     call check_status(nf90_def_dim(ncid, Y_KEY, current_state%global_grid%size(Y_INDEX), y_dim_id))
     call check_status(nf90_def_dim(ncid, X_KEY, current_state%global_grid%size(X_INDEX), x_dim_id))
     
-    !define prognostic variables
+!    !define prognostic variables
     call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, field_name=U_KEY, field_id=u_id,field_units="-")
     call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, field_name=V_KEY, field_id=v_id,field_units="-")
     call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, field_name=W_KEY, field_id=w_id,field_units="-")
