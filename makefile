@@ -48,7 +48,7 @@ COMPILERRECURSIVE=
 ACTIVE=-DU_ACTIVE -DV_ACTIVE -DW_ACTIVE -DUSE_MAKE
 DEBUG_FLAGS=-g -fopenmp -fcheck=all -fbacktrace -DDEBUG_MODE -ffpe-trap=invalid,overflow,zero
 
-FFLAGS=-I $(CORE_DIR)/$(BUILD_DIR) -I $(COMPONENTS_DIR)/$(BUILD_DIR) -I $(TESTCASE_DIR)/$(BUILD_DIR) -I$(NETCDF_DIR)/include -I$(HDF5-DIR)/include -I /usr/include $(COMPILERFFLAGS)
+FFLAGS=-I $(CORE_DIR)/$(BUILD_DIR) -I $(COMPONENTS_DIR)/$(BUILD_DIR) -I $(TESTCASE_DIR)/$(BUILD_DIR) -I$(NETCDF_DIR)/include -I$(HDF5_DIR)/include -I /usr/include $(COMPILERFFLAGS)
 LFLAGS= -lfftw3 -lfftw3_omp $(shell nc-config --flibs)
 EXEC_NAME=monc
 
