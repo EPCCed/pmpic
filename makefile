@@ -11,11 +11,14 @@ TESTCASE_DIR=testcases
 IO_SERVER_DIR=io
 BUILD_DIR=build
 
+ifndef NETCDF_ROOT
+	export NETCDF_ROOT=$(shell nf-config --prefix)
+endif
 ifndef NETCDF_DIR
-	export NETCDF_DIR=$(shell nc-config --prefix)
+	export NETCDF_DIR=$(NETCDF_ROOT)
 endif
 ifndef HDF5_DIR
-	export HDF5_DIR=/opt/cray/hdf5/1.10.0.1/GNU/5.1
+	export HDF5_DIR=$(HDF5_ROOT)
 endif
 ifndef FFTW_DIR
 	export FFTW_DIR=$(FFTW_ROOT)
@@ -48,8 +51,8 @@ COMPILERRECURSIVE=
 ACTIVE=-DU_ACTIVE -DV_ACTIVE -DW_ACTIVE -DUSE_MAKE
 DEBUG_FLAGS=-g -fopenmp -fcheck=all -fbacktrace -DDEBUG_MODE -ffpe-trap=invalid,overflow,zero
 
-FFLAGS=-I $(CORE_DIR)/$(BUILD_DIR) -I $(COMPONENTS_DIR)/$(BUILD_DIR) -I $(TESTCASE_DIR)/$(BUILD_DIR) -I$(NETCDF_DIR)/include -I /usr/include $(COMPILERFFLAGS)
-LFLAGS= -lfftw3 -lfftw3_omp $(shell nc-config --flibs)
+FFLAGS=-I $(CORE_DIR)/$(BUILD_DIR) -I $(COMPONENTS_DIR)/$(BUILD_DIR) -I $(TESTCASE_DIR)/$(BUILD_DIR) -I $(NETCDF_DIR)/include -I /usr/include $(COMPILERFFLAGS)
+LFLAGS=$(shell $(NETCDF_ROOT)/bin/nf-config --flibs)  -lfftw3 -lfftw3_omp
 EXEC_NAME=monc
 
 local: FTN=mpif90
