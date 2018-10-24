@@ -11,7 +11,11 @@ TESTCASE_DIR=testcases
 IO_SERVER_DIR=io
 BUILD_DIR=build
 
+
 ifndef NETCDF_ROOT
+	export NETCDF_ROOT=$(shell nf-config --prefix)
+endif
+ifeq ($(NETCDF_ROOT),)
 	export NETCDF_ROOT=$(shell nf-config --prefix)
 endif
 ifndef NETCDF_DIR
