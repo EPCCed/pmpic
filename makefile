@@ -64,7 +64,11 @@ local: GNU
 
 debug: COMPILERFFLAGS = $(DEBUG_FLAGS)
 debug: OPT=$(ACTIVE)
-debug: local
+ifdef CRAYOS_VERSION
+debug :GNU
+else
+debug :local
+endif
 
 GNU: COMPILERFFLAGS += $(ACTIVE) -cpp -J $(BUILD_DIR) -c
 GNU: COMPILERRECURSIVE= -frecursive

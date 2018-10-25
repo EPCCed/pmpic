@@ -100,11 +100,11 @@ contains
     if (real2comhandle .eq. -1)  call register_routine_for_timing("fft_r2c", real2comhandle, current_state)
     if (transposehandle .eq. -1)  call register_routine_for_timing("fft_transp", transposehandle, current_state)
 
-    !ierr=fftw_init_threads()
-    !call fftw_plan_with_nthreads(omp_get_max_threads())
+    ierr=fftw_init_threads()
+    call fftw_plan_with_nthreads(1)
 
-    if (current_state%parallel%my_rank .eq. 0) then
-      print *, "Initialised FFT libraries to use", omp_get_max_threads(), " threads"
+    if (current_state%parallel%my_rank .eq. 0) then    
+      print *, "Initialised FFT libraries to use", 1, " threads"
     endif
 
   end function initialise_pencil_fft
@@ -357,19 +357,19 @@ contains
   !! @param buffer1 Input buffer, Y pencil after the Y dimension FFT oriented y,x,z
   !! @param buffer Complex buffer which results from the FFT
   !! @param buffer2 Output buffer, X pencil after this X FFT, oriented x,z,y
-  subroutine transpose_and_forward_fft_in_x(current_state, buffer1, buffer2, buffer3)
+  subroutine transpose_and_forward_fft_in_x(current_state, source_data, buffer, real_buffer)
     type(model_state_type), target, intent(inout) :: current_state
-    complex(C_DOUBLE_COMPLEX), dimension(:,:,:),  contiguous, pointer, intent(out) :: buffer2
-    real(kind=DEFAULT_PRECISION), dimension(:,:,:), intent(inout) :: buffer1, buffer3
+    complex(C_DOUBLE_COMPLEX), dimension(:,:,:),  contiguous, pointer, intent(out) :: buffer
+    real(kind=DEFAULT_PRECISION), dimension(:,:,:), intent(inout) :: source_data, real_buffer
 
     ! Go from global Y pencil to global X pencil
     call transpose_to_pencil(x_from_y_transposition, (/Y_INDEX, X_INDEX, Z_INDEX/), dim_x_comm, FORWARD, &
-       buffer1, fft_in_x_buffer)
+       source_data, fft_in_x_buffer)
 
-    call perform_r2c_fft(fft_in_x_buffer, buffer2, x_from_y_transposition%my_pencil_size(X_INDEX), &
+    call perform_r2c_fft(fft_in_x_buffer, buffer, x_from_y_transposition%my_pencil_size(X_INDEX), &
          x_from_y_transposition%my_pencil_size(Y_INDEX) * x_from_y_transposition%my_pencil_size(Z_INDEX), 3)
 
-    call convert_complex_to_real(buffer2, buffer3)
+    call convert_complex_to_real(buffer, real_buffer)
   end subroutine transpose_and_forward_fft_in_x
 
   !> Performs the backwards FFT in Y and then transposes to Z pencil. The FFT requires complex numbers which are converted to real,
@@ -424,11 +424,12 @@ contains
 
     call rearrange_data_for_sending(real_source=source_data, real_target=real_temp)
 
-    !$OMP single
+    !$OMP SINGLE
     call mpi_alltoallv(real_temp, transposition_description%send_sizes, transposition_description%send_offsets, &
          PRECISION_TYPE, real_temp2, transposition_description%recv_sizes, transposition_description%recv_offsets, &
          PRECISION_TYPE, communicator, ierr)
-    !$OMP END single
+    !$OMP END SINGLE
+    
 
     call contiguise_data(transposition_description, (/source_dims(3), source_dims(2), source_dims(1)/), direction, &
          source_real_buffer=real_temp2, target_real_buffer=target_data)
@@ -456,19 +457,21 @@ contains
     real(kind=DEFAULT_PRECISION), dimension(:,:,:), intent(out) :: target_real_buffer
 
     integer :: number_blocks, i, j, k, n, index_prefix, index_prefix_dim, block_offset, source_index
+    
 
     number_blocks=size(transposition_description%recv_sizes)
     index_prefix=0
     block_offset=0
     index_prefix_dim=merge(2,1, direction == FORWARD)
 
-    !$OMP DO
+    
     do i=1,number_blocks
       if (i .ge. 2) then
         index_prefix=index_prefix+transposition_description%recv_dims(source_dims(index_prefix_dim), i-1)
         block_offset=block_offset+transposition_description%recv_sizes(i-1)
       end if
       !Transformation is either cba -> bca (forward) or cab (backwards)
+      !$OMP DO
       do j=1, transposition_description%recv_dims(source_dims(3), i) ! a
         do k=1, transposition_description%recv_dims(source_dims(1), i) ! c
           do n=1, transposition_description%recv_dims(source_dims(2), i) ! b
@@ -483,8 +486,9 @@ contains
           end do
         end do
       end do
+      !$OMP END DO
     end do
-    !$OMP END DO
+    
   end subroutine contiguise_data
 
   !> Actually performs a forward real to complex FFT
@@ -497,7 +501,7 @@ contains
     real(kind=DEFAULT_PRECISION), dimension(:,:,:), contiguous, pointer, intent(inout) :: source_data
     complex(C_DOUBLE_COMPLEX), dimension(:,:,:), contiguous, pointer, intent(inout) :: transformed_data
     integer, intent(in) :: row_size, num_rows, plan_id
-    !fftw not OpenMP'd yet
+    !fftw not OpenMP'd
     !$OMP SINGLE
     call timer_start(fftwhandle)
 
@@ -511,6 +515,7 @@ contains
 
     call timer_stop(fftwhandle)
     !$OMP END SINGLE
+    
 
   end subroutine perform_r2c_fft
 
@@ -525,7 +530,7 @@ contains
     real(kind=DEFAULT_PRECISION), dimension(:,:,:), contiguous, pointer, intent(inout) :: transformed_data
     integer, intent(in) :: row_size, num_rows, plan_id
 
-    !fftw not OpenMP'd yet
+    !fftw not OpenMP'd
     !$OMP SINGLE
     call timer_start(fftwhandle)
 
@@ -540,6 +545,7 @@ contains
     call timer_stop(fftwhandle)
 
     !$OMP END SINGLE
+  
   end subroutine perform_c2r_fft
 
   !> Rearranges data for sending, transposing a,b,c into c,b,a . This is done as alltoall splits on dimension c
@@ -791,7 +797,7 @@ contains
 
     integer :: i, j, k
 
-      !$OMP SINGLE
+    !$OMP SINGLE
     call timer_start(real2comhandle)
     !$OMP END SINGLE
 
