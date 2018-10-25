@@ -135,7 +135,13 @@ contains
     character(len=*), intent(in) :: filename
 
     integer :: ncid,u_id,v_id,w_id,p_id,q_id,r_id,b_id,hg_id,hgliq_id,vol_id,&
-               x_dim_id,y_dim_id,z_dim_id,timestep_id,time_id,dtm_id
+               x_dim_id,y_dim_id,z_dim_id,timestep_id,time_id,dtm_id,x_id,y_id,z_id,i
+
+    real(kind=DEFAULT_PRECISION), dimension(:), allocatable :: z_arr
+    real(kind=DEFAULT_PRECISION), dimension(:), allocatable :: y_arr
+    real(kind=DEFAULT_PRECISION), dimension(:), allocatable :: x_arr
+
+
     call check_status(nf90_create(filename, ior(NF90_NETCDF4, NF90_MPIIO), ncid, &
          comm = current_state%parallel%monc_communicator, info = MPI_INFO_NULL))
 
@@ -145,7 +151,25 @@ contains
     call check_status(nf90_def_dim(ncid, Z_KEY, current_state%global_grid%size(Z_INDEX), z_dim_id))
     call check_status(nf90_def_dim(ncid, Y_KEY, current_state%global_grid%size(Y_INDEX), y_dim_id))
     call check_status(nf90_def_dim(ncid, X_KEY, current_state%global_grid%size(X_INDEX), x_dim_id))
-    
+    call define_1d_variable(ncid, z_dim_id, field_name=Z_KEY, field_id=z_id,field_units="-")
+    call define_1d_variable(ncid, y_dim_id, field_name=Y_KEY, field_id=y_id,field_units="-")
+    call define_1d_variable(ncid, x_dim_id, field_name=X_KEY, field_id=x_id,field_units="-")
+    allocate(z_arr(current_state%global_grid%size(Z_INDEX)))
+    allocate(y_arr(current_state%global_grid%size(Y_INDEX)))
+    allocate(x_arr(current_state%global_grid%size(X_INDEX)))
+    do i=1,current_state%global_grid%size(Z_INDEX)
+        z_arr(i)=current_state%global_grid%resolution(Z_INDEX)*(i-1.0)
+    end do
+    do i=1,current_state%global_grid%size(Y_INDEX)
+        y_arr(i)=current_state%global_grid%resolution(Y_INDEX)*(i-0.5)
+    end do
+    do i=1,current_state%global_grid%size(X_INDEX)
+        x_arr(i)=current_state%global_grid%resolution(X_INDEX)*(i-0.5)
+    end do
+    call check_status(nf90_put_var(ncid, z_id, z_arr))
+    call check_status(nf90_put_var(ncid, y_id, y_arr))
+    call check_status(nf90_put_var(ncid, x_id, x_arr))
+
 !    !define prognostic variables
     call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, field_name=U_KEY, field_id=u_id,field_units="-")
     call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, field_name=V_KEY, field_id=v_id,field_units="-")
@@ -272,6 +296,24 @@ contains
     call check_status(nf90_put_att(ncid, field_id, "units", field_units))
 
   end subroutine define_3d_variable
+
+  subroutine define_1d_variable(ncid, dimone, field_name, field_id, field_units)
+    integer, intent(in) :: ncid, dimone
+    integer, intent(out) :: field_id
+    character(len=*), intent(in) :: field_name
+    character(len=*), intent(in) :: field_units
+
+    integer, dimension(:), allocatable :: dimids
+
+    allocate(dimids(1))
+    dimids = (/ dimone /)
+
+    call check_status(nf90_def_var(ncid, field_name, merge(NF90_DOUBLE, NF90_REAL, DEFAULT_PRECISION == DOUBLE_PRECISION), &
+         dimids, field_id))
+    call check_status(nf90_def_var_fill(ncid, field_id, 1, 1))
+    call check_status(nf90_put_att(ncid, field_id, "units", field_units))
+
+  end subroutine define_1d_variable
 
   !> Will check a NetCDF status and write to log_log error any decoded statuses. Can be used to decode
   !! whether a dimension or variable exists within the NetCDF data file
