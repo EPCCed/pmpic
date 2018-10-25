@@ -24,7 +24,7 @@ contains
   subroutine initialisation_callback(state)
     type(model_state_type), intent(inout), target :: state
     integer :: file_number
-    character (len=20) :: filename
+    character (len=23) :: filename
     integer:: my_rank, rank
     logical :: exist
     integer :: numfiles
@@ -52,7 +52,7 @@ contains
       print *, "checking for restart files with file number", file_number
 
       do
-        write(filename,"(A8,i3.3,A1,I4.4,A4)") "parcels_", rank,"_", file_number, ".dat"
+        write(filename,"(A8,i5.5,A1,I5.5,A4)") "parcels_", rank,"_", file_number, ".dat"
         inquire(file=filename, exist=exist)
         if (.not. exist .and. rank .eq. 0) then
           print *, "there is no file to restart from"
@@ -80,7 +80,7 @@ contains
     if (my_rank .eq. 0) then
       print *, "Reading position information from each file:"
       do rank=0,numfiles-1
-        write(filename,"(A8,i3.3,A1,I4.4,A4)") "parcels_", rank,"_", file_number, ".dat"
+        write(filename,"(A8,i5.5,A1,I5.5,A4)") "parcels_", rank,"_", file_number, ".dat"
         open(unit=10,file=filename,access="stream",form="unformatted")
         read(10) time
         read(10) ranges(:,rank+1)
@@ -109,7 +109,7 @@ contains
     do rank=0,numfiles-1
 
       if (check_ranges(state,ranges(:,rank+1))) then
-        write(filename,"(A8,i3.3,A1,I4.4,A4)") "parcels_", rank,"_", file_number, ".dat"
+        write(filename,"(A8,i5.5,A1,I5.5,A4)") "parcels_", rank,"_", file_number, ".dat"
         call read_file(state,filename,nparcels)
       endif
     enddo

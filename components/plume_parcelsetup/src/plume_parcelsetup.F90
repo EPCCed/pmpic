@@ -199,7 +199,7 @@ contains
     !open(unit=10+state%parallel%my_rank)
 
 
-    vol=(dxplume*dyplume*dzplume)/(dx*dy*dz)
+    vol=(dxplume*dyplume*dzplume)
 
 
     if (xmax_local .gt. x_c_pl-r_plume .and. xmin_local .lt. x_c_pl+r_plume ) then
@@ -245,7 +245,7 @@ contains
     dybg = dy/n_per_cell_dir_bg
     dzbg = dz/n_per_cell_dir_bg
 
-    vol = dxbg*dybg*dzbg/(dx*dy*dz)
+    vol = dxbg*dybg*dzbg
 
     x=xmin_local+dxbg/2.
     y=ymin_local+dybg/2.
