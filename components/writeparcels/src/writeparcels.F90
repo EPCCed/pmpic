@@ -47,7 +47,7 @@ contains
 
   subroutine timestep_callback(state)
     type(model_state_type), intent(inout), target :: state
-    character (len=20) :: filename
+    character (len=23) :: filename
     integer :: proc
     integer(kind=PARCEL_INTEGER) :: nparcels
     integer :: i,j,k
@@ -113,8 +113,8 @@ contains
 
   subroutine write_parcels_to_file(state)
     type(model_state_type), intent(inout), target :: state
-    character (len=20) :: filename
-    character (len=23) :: fnamedummy
+    character (len=23) :: filename
+    character (len=24) :: fnamedummy
     integer :: proc
     integer(kind=PARCEL_INTEGER) :: nparcels
 
@@ -122,8 +122,8 @@ contains
     proc=state%parallel%my_rank
     nparcels=state%parcels%numparcels_local
 
-    write(filename,"(A8,i3.3,A1,I4.4,A4)") "parcels_", proc,"_", num, ".dat"
-    write(fnamedummy,"(A,I4.4,A4)") "parcels_[rank]_", num, ".dat"
+    write(filename,"(A8,i5.5,A1,I5.5,A4)") "parcels_", proc,"_", num, ".dat"
+    write(fnamedummy,"(A,I5.5,A4)") "parcels_[rank]_", num, ".dat"
 
     if (proc .eq. 0) print *, "Writing parcels to '",fnamedummy,"'"
 
@@ -175,8 +175,8 @@ contains
 
   subroutine write_grids_to_file(state)
     type(model_state_type), intent(in) :: state
-    character (len=18) :: filename
-    character (len=21) :: fnamedummy
+    character (len=21) :: filename
+    character (len=22) :: fnamedummy
     integer :: proc
     integer :: i1, i2, j1, j2, k1, k2
     real(kind=DEFAULT_PRECISION) :: x1, x2, y1, y2, z1, z2
@@ -201,8 +201,8 @@ contains
 
     proc=state%parallel%my_rank
 
-    write(filename,"(A,i3.3,A1,I4.4,A4)") "grids_", proc,"_", num, ".dat"
-    write(fnamedummy,"(A,I4.4,A4)") "grids_[rank]_", num, ".dat"
+    write(filename,"(A,i5.5,A1,I5.5,A4)") "grids_", proc,"_", num, ".dat"
+    write(fnamedummy,"(A,I5.5,A4)") "grids_[rank]_", num, ".dat"
 
     if (proc .eq. 0) print *, "Writing grids to '",fnamedummy,"'"
 

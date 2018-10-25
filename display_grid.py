@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import sys
 import os
 
-file="grids_000_0163.dat"
+file="grids_00000_00163.dat"
 
 def readfile(fname):
     print("reading '%s'"%fname)
@@ -81,7 +81,7 @@ if __name__ == "__main__":
     #first check that the files exist
     fail=False
     for i in range(nprocs):
-        fname = "grids_%03d_%04d.dat"%(i,fnumber)
+        fname = "grids_%05d_%05d.dat"%(i,fnumber)
         if not os.path.isfile(fname):
             print("Error: cannot find '%s'"%fname)
             fail=True
@@ -107,7 +107,7 @@ if __name__ == "__main__":
 
     #now get the global x/y/z ranges
     for i in range(nprocs):
-        fname = "grids_%03d_%04d.dat"%(i,fnumber)
+        fname = "grids_%05d_%05d.dat"%(i,fnumber)
         f=open(fname,"rb")
         t=np.fromfile(f,dtype=np.float64,count=1)
         t=t[0]
@@ -201,7 +201,7 @@ if __name__ == "__main__":
 
         #determine if we need this file
         if (xcut >= xmin[i] and xcut < xmax[i]):
-            fname = "grids_%03d_%04d.dat"%(i,fnumber)
+            fname = "grids_%05d_%05d.dat"%(i,fnumber)
             u,v,w,p,q,r,b,hg,hgliq = readfile(fname)
 
             #determine x_coord of cut
