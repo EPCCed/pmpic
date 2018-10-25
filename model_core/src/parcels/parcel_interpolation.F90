@@ -521,19 +521,23 @@ contains
 
     !$OMP BARRIER
 
+    !$OMP WORKSHARE
+    grid%data(1,:,:) = 2*data(1,:,:)
+    grid%data(nz,:,:) = 2*data(nz,:,:)
+    !$OMP END WORKSHARE
+
+
 !$OMP DO
     do n=1,nx
         !set areas with weight=0 to 1 to prevent divide by 0
-        where (weights(2:nz-1,:,n) .eq. 0.) weights(2:nz-1,:,n) = 1.
-        grid%data(2:nz-1,:,n) = data(2:nz-1,:,n)/weights(2:nz-1,:,n)
+        where (weights(:,:,n) .eq. 0.) weights(:,:,n) = 1.
+        grid%data(:,:,n) = data(:,:,n)/weights(:,:,n)
     enddo
 !$OMP END DO
 
-!$OMP WORKSHARE
-grid%data(1,:,:) = 2*data(1,:,:)
-grid%data(nz,:,:) = 2*data(nz,:,:)
-!$OMP END WORKSHARE
 !$OMP END PARALLEL
+
+
 
 
     deallocate(weights)
