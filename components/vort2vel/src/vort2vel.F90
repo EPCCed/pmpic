@@ -314,11 +314,12 @@ contains
 
     call spectral_filter(f, out=current_state%w_s%data)
 
-    !$OMP END PARALLEL
+
 
     call perform_backwards_3dfft(current_state, f, current_state%w%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
 
+    !$OMP END PARALLEL
 
     !interpolate velocity to parcels
     call grid2par(current_state, current_state%u, current_state%parcels%dxdt)
