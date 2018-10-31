@@ -82,7 +82,7 @@ contains
 
     if (current_state%parallel%my_rank .eq. 0) then
       write(77,*) npars
-      print *, "min,mean,max parcel count=", minval(npars),  sum(npars)/(current_state%parallel%processes), maxval(npars)
+      !print *, "min,mean,max parcel count=", minval(npars),  sum(npars)/(current_state%parallel%processes), maxval(npars)
     endif
 
 

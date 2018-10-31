@@ -75,7 +75,7 @@ contains
         !see if the stretch is above the limit. If so, split the parcel
         if (state%parcels%stretch(i) .gt. stretchmax) then
           !determine the half separation of the two new parcels
-          r = state%parcels%vol(i)*volg/4./pi
+          r = state%parcels%vol(i)/4./pi
           r=r**(1./3.)
 
 
