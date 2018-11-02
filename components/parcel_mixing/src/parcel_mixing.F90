@@ -12,6 +12,7 @@ module parcel_mixing_mod
   use omp_lib
   use timer_mod
   use prognostics_mod, only : prognostic_field_type
+  use MPIC_Haloswap_mod, only: mixing_haloswap
 
   implicit none
 
@@ -133,12 +134,19 @@ contains
       call construct_grids(state,state%vol%data, state%b%data, state%hg%data, state%p%data, state%q%data, state%r%data, nremove)
 
       !haloswap original grids
-      call perform_halo_swap(state,state%vol%data,perform_sum=.true.)
-      call perform_halo_swap(state,state%b%data,perform_sum=.true.)
-      call perform_halo_swap(state,state%hg%data,perform_sum=.true.)
-      call perform_halo_swap(state,state%p%data,perform_sum=.true.)
-      call perform_halo_swap(state,state%q%data,perform_sum=.true.)
-      call perform_halo_swap(state,state%r%data,perform_sum=.true.)
+      ! call perform_halo_swap(state,state%vol%data,perform_sum=.true.)
+      ! call perform_halo_swap(state,state%b%data,perform_sum=.true.)
+      ! call perform_halo_swap(state,state%hg%data,perform_sum=.true.)
+      ! call perform_halo_swap(state,state%p%data,perform_sum=.true.)
+      ! call perform_halo_swap(state,state%q%data,perform_sum=.true.)
+      ! call perform_halo_swap(state,state%r%data,perform_sum=.true.)
+
+      call mixing_haloswap(state,state%vol%data)
+      call mixing_haloswap(state,state%b%data)
+      call mixing_haloswap(state,state%hg%data)
+      call mixing_haloswap(state,state%p%data)
+      call mixing_haloswap(state,state%q%data)
+      call mixing_haloswap(state,state%r%data)
 
       !Apply lower/upper BCs (double values at boundary)
       state%vol%data(1,:,:) = state%vol%data(1,:,:)*2.
@@ -223,12 +231,19 @@ contains
 
 
       !halo swap residual fields
-      call perform_halo_swap(state,vres,perform_sum=.true.)
-      call perform_halo_swap(state,bres,perform_sum=.true.)
-      call perform_halo_swap(state,hres,perform_sum=.true.)
-      call perform_halo_swap(state,pres,perform_sum=.true.)
-      call perform_halo_swap(state,qres,perform_sum=.true.)
-      call perform_halo_swap(state,rres,perform_sum=.true.)
+      ! call perform_halo_swap(state,vres,perform_sum=.true.)
+      ! call perform_halo_swap(state,bres,perform_sum=.true.)
+      ! call perform_halo_swap(state,hres,perform_sum=.true.)
+      ! call perform_halo_swap(state,pres,perform_sum=.true.)
+      ! call perform_halo_swap(state,qres,perform_sum=.true.)
+      ! call perform_halo_swap(state,rres,perform_sum=.true.)
+
+      call mixing_haloswap(state,vres)
+      call mixing_haloswap(state,bres)
+      call mixing_haloswap(state,hres)
+      call mixing_haloswap(state,pres)
+      call mixing_haloswap(state,qres)
+      call mixing_haloswap(state,rres)
 
       !apply lower/upper BCs
       vres(1,:,:) = vres(1,:,:)*2

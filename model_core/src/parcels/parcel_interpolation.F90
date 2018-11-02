@@ -4,6 +4,7 @@ module parcel_interpolation_mod
   use prognostics_mod, only : prognostic_field_type
   use datadefn_mod, only : DEFAULT_PRECISION, PRECISION_TYPE, PARCEL_INTEGER
   use omp_lib
+  use MPIC_Haloswap_mod, only: MPIC_Haloswap_init, grid2par_haloswap, par2grid_haloswap
 
   use optionsdatabase_mod, only : options_get_integer
 
@@ -53,6 +54,8 @@ contains
     integer :: xstart, xstop, ystart, ystop, zstart, zstop
     real(kind=DEFAULT_PRECISION) :: dzdummy
     integer :: halo_depth
+
+    call MPIC_Haloswap_init(state)
 
     if (state%parallel%my_rank .eq. 0 ) print *, "Initialising parcel_interp module"
     if (initialised) error stop "parcel interpolation routines are already initialised - cannot initialise"
@@ -347,7 +350,8 @@ contains
 
     call timer_start(grid2par_handle)
 
-    call perform_halo_swap(state,grid%data,perform_sum=.false.)
+    call grid2par_haloswap(state,grid%data)
+    !call perform_halo_swap(state,grid%data,perform_sum=.false.)
 
     !$OMP PARALLEL DO DEFAULT(PRIVATE) SHARED(nparcels,delxs,delys,delzs,is,js,ks,grid,var)
     do n=1,nparcels
@@ -515,8 +519,10 @@ contains
     !$OMP BARRIER
 
     !$OMP MASTER
-    call perform_halo_swap(state,weights,perform_sum=.true.)
-    call perform_halo_swap(state,data,perform_sum=.true.)
+    !call perform_halo_swap(state,weights,perform_sum=.true.)
+    !call perform_halo_swap(state,data,perform_sum=.true.)
+    call par2grid_haloswap(state,weights)
+    call par2grid_haloswap(state,data)
     !$OMP END MASTER
 
     !$OMP BARRIER
