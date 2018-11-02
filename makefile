@@ -65,9 +65,29 @@ local: GNU
 debug: COMPILERFFLAGS = $(DEBUG_FLAGS)
 debug: OPT=$(ACTIVE)
 ifdef CRAYOS_VERSION
-debug :GNU
+debug: GNU
 else
-debug :local
+debug: local
+endif
+
+nonetcdf: FFLAGS =-I $(CORE_DIR)/$(BUILD_DIR) -I $(COMPONENTS_DIR)/$(BUILD_DIR) -I $(TESTCASE_DIR)/$(BUILD_DIR) -I /usr/include $(COMPILERFFLAGS)
+nonetcdf: LFLAGS= -lfftw3 -lfftw3_omp
+nonetcdf: NONETCDF=TRUE
+ifdef CRAYOS_VERSION
+nonetcdf: GNU
+else
+nonetcdf: local
+endif
+
+nonetcdf-debug: COMPILERFFLAGS = $(DEBUG_FLAGS)
+nonetcdf-debug: OPT=$(ACTIVE)
+nonetcdf-debug: FFLAGS =-I $(CORE_DIR)/$(BUILD_DIR) -I $(COMPONENTS_DIR)/$(BUILD_DIR) -I $(TESTCASE_DIR)/$(BUILD_DIR) -I /usr/include $(COMPILERFFLAGS)
+nonetcdf-debug: LFLAGS= -lfftw3 -lfftw3_omp
+nonetcdf-debug: NONETCDF=TRUE
+ifdef CRAYOS_VERSION
+nonetcdf-debug: GNU
+else
+nonetcdf-debug: local
 endif
 
 GNU: COMPILERFFLAGS += $(ACTIVE) -cpp -J $(BUILD_DIR) -c
@@ -91,10 +111,10 @@ IBM: buildmonc
 export COMPILERFFLAGS
 export COMPILERRECURSIVE
 export FTN
+export NONETCDF
 
 clean: clean-model_core clean-components clean-testcases
 	rm -Rf build/* fort.10 fort.11
-
 
 clean-build: clean-build-model_core clean-build-components clean-build-testcases
 	rm -Rf build fort.10 fort.11
