@@ -134,13 +134,13 @@ contains
     type(model_state_type), intent(inout) :: current_state
     character(len=*), intent(in) :: filename
 
-    integer :: ncid,u_id,v_id,w_id,p_id,q_id,r_id,b_id,hg_id,hgliq_id,vol_id,&
+    integer :: ncid,u_id,v_id,w_id,p_id,q_id,r_id,b_id,hg_id,hgliq_id,vol_id,time_dim_id,&
                x_dim_id,y_dim_id,z_dim_id,timestep_id,time_id,dtm_id,x_id,y_id,z_id,i
 
     real(kind=DEFAULT_PRECISION), dimension(:), allocatable :: z_arr
     real(kind=DEFAULT_PRECISION), dimension(:), allocatable :: y_arr
     real(kind=DEFAULT_PRECISION), dimension(:), allocatable :: x_arr
-
+    real(kind=DEFAULT_PRECISION), dimension(:), allocatable :: time_arr
 
     call check_status(nf90_create(filename, ior(NF90_NETCDF4, NF90_MPIIO), ncid, &
          comm = current_state%parallel%monc_communicator, info = MPI_INFO_NULL))
@@ -148,41 +148,48 @@ contains
     call write_out_global_attributes(ncid)
 
 !    ! define dimensions
+    call check_status(nf90_def_dim(ncid, TIME_KEY, 1, time_dim_id))
     call check_status(nf90_def_dim(ncid, Z_KEY, current_state%global_grid%size(Z_INDEX), z_dim_id))
     call check_status(nf90_def_dim(ncid, Y_KEY, current_state%global_grid%size(Y_INDEX), y_dim_id))
     call check_status(nf90_def_dim(ncid, X_KEY, current_state%global_grid%size(X_INDEX), x_dim_id))
+    call define_1d_variable(ncid, time_dim_id, field_name=TIME_KEY, field_id=time_id,field_units="-")
     call define_1d_variable(ncid, z_dim_id, field_name=Z_KEY, field_id=z_id,field_units="-")
     call define_1d_variable(ncid, y_dim_id, field_name=Y_KEY, field_id=y_id,field_units="-")
     call define_1d_variable(ncid, x_dim_id, field_name=X_KEY, field_id=x_id,field_units="-")
+    allocate(time_arr(1))
     allocate(z_arr(current_state%global_grid%size(Z_INDEX)))
     allocate(y_arr(current_state%global_grid%size(Y_INDEX)))
     allocate(x_arr(current_state%global_grid%size(X_INDEX)))
     do i=1,current_state%global_grid%size(Z_INDEX)
-        z_arr(i)=current_state%global_grid%resolution(Z_INDEX)*(i-1.0)
+        z_arr(i)=current_state%global_grid%bottom(Z_INDEX)+current_state%global_grid%resolution(Z_INDEX)*(i-1.0)
     end do
     do i=1,current_state%global_grid%size(Y_INDEX)
-        y_arr(i)=current_state%global_grid%resolution(Y_INDEX)*(i-0.5)
+        y_arr(i)=current_state%global_grid%bottom(Y_INDEX)+current_state%global_grid%resolution(Y_INDEX)*(i-0.5)
     end do
     do i=1,current_state%global_grid%size(X_INDEX)
-        x_arr(i)=current_state%global_grid%resolution(X_INDEX)*(i-0.5)
+        x_arr(i)=current_state%global_grid%bottom(X_INDEX)+current_state%global_grid%resolution(X_INDEX)*(i-0.5)
     end do
+    time_arr(1)=current_state%time+current_state%dtm
+    call check_status(nf90_put_var(ncid, time_id, time_arr))
     call check_status(nf90_put_var(ncid, z_id, z_arr))
     call check_status(nf90_put_var(ncid, y_id, y_arr))
     call check_status(nf90_put_var(ncid, x_id, x_arr))
 
 !    !define prognostic variables
-    call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, field_name=U_KEY, field_id=u_id,field_units="-")
-    call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, field_name=V_KEY, field_id=v_id,field_units="-")
-    call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, field_name=W_KEY, field_id=w_id,field_units="-")
-    call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, field_name=P_KEY, field_id=p_id,field_units="-")
-    call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, field_name=Q_KEY, field_id=q_id,field_units="-")
-    call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, field_name=R_KEY, field_id=r_id,field_units="-")
-    call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, field_name=B_KEY, field_id=b_id,field_units="-")
-    call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, field_name=HG_KEY, field_id=hg_id,field_units="-")
-    call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, field_name=HGLIQ_KEY, field_id=hgliq_id,field_units="-")
-    call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, field_name=VOL_KEY, field_id=vol_id,field_units="-")
+    call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, time_dim_id, field_name=U_KEY, field_id=u_id,field_units="-")
+    call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, time_dim_id, field_name=V_KEY, field_id=v_id,field_units="-")
+    call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, time_dim_id, field_name=W_KEY, field_id=w_id,field_units="-")
+    call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, time_dim_id, field_name=P_KEY, field_id=p_id,field_units="-")
+    call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, time_dim_id, field_name=Q_KEY, field_id=q_id,field_units="-")
+    call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, time_dim_id, field_name=R_KEY, field_id=r_id,field_units="-")
+    call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, time_dim_id, field_name=B_KEY, field_id=b_id,field_units="-")
+    call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, time_dim_id, field_name=HG_KEY, field_id=hg_id,field_units="-")
+    call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, time_dim_id, &
+         field_name=HGLIQ_KEY, field_id=hgliq_id,field_units="-")
+    call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, time_dim_id, &
+         field_name=VOL_KEY, field_id=vol_id,field_units="-")
     
-    call define_misc_variables(ncid, timestep_id, time_id, dtm_id)
+    call define_misc_variables(ncid, timestep_id, dtm_id)
 
     call check_status(nf90_enddef(ncid))
     
@@ -199,7 +206,7 @@ contains
     call write_out_velocity_field(ncid, current_state%local_grid, current_state%vol, vol_id)
 
     if (current_state%parallel%my_rank==0) then
-      call write_out_misc_variables(current_state, ncid, timestep_id, time_id,dtm_id)
+      call write_out_misc_variables(current_state, ncid, timestep_id, dtm_id)
     end if
     
     call check_status(nf90_close(ncid))
@@ -243,6 +250,8 @@ contains
       start(i) = local_grid%start(i)
       count(i) = local_grid%size(i)
     end do
+    start(4)=1
+    count(4)=1
 
     call check_status(nf90_put_var(ncid, variable_id, field%data(local_grid%local_domain_start_index(Z_INDEX):&
          local_grid%local_domain_end_index(Z_INDEX),local_grid%local_domain_start_index(Y_INDEX):&
@@ -254,12 +263,11 @@ contains
   !> Defines misc variables in the NetCDF file
   !! @param ncid The NetCDF file id
   !! @param timestep_id The NetCDF timestep variable
-  subroutine define_misc_variables(ncid, timestep_id, time_id, dtm_id)
+  subroutine define_misc_variables(ncid, timestep_id, dtm_id)
     integer, intent(in) :: ncid
-    integer, intent(out) :: timestep_id, time_id, dtm_id
+    integer, intent(out) :: timestep_id, dtm_id
 
     call check_status(nf90_def_var(ncid, TIMESTEP, NF90_INT, timestep_id))
-    call check_status(nf90_def_var(ncid, TIME_KEY, NF90_DOUBLE, time_id))
     call check_status(nf90_def_var(ncid, DTM_KEY, NF90_DOUBLE, dtm_id))
 
   end subroutine define_misc_variables
@@ -268,26 +276,25 @@ contains
   !! @param current_state The current model state_mod
   !! @param ncid The NetCDF file id
   !! @param timestep_id The NetCDF timestep variable id
-  subroutine write_out_misc_variables(current_state, ncid, timestep_id, time_id, dtm_id)
+  subroutine write_out_misc_variables(current_state, ncid, timestep_id, dtm_id)
     type(model_state_type), intent(inout) :: current_state
-    integer, intent(in) :: ncid, timestep_id, time_id, dtm_id
+    integer, intent(in) :: ncid, timestep_id, dtm_id
 
     call check_status(nf90_put_var(ncid, timestep_id, current_state%timestep))
-    call check_status(nf90_put_var(ncid, time_id, current_state%time+current_state%dtm))
     call check_status(nf90_put_var(ncid, dtm_id, current_state%dtm))
 
   end subroutine write_out_misc_variables
   
-  subroutine define_3d_variable(ncid, dimone, dimtwo, dimthree, field_name, field_id, field_units)
-    integer, intent(in) :: ncid, dimone, dimtwo, dimthree
+  subroutine define_3d_variable(ncid, dimone, dimtwo, dimthree, dimt, field_name, field_id, field_units)
+    integer, intent(in) :: ncid, dimone, dimtwo, dimthree, dimt
     integer, intent(out) :: field_id
     character(len=*), intent(in) :: field_name
     character(len=*), intent(in) :: field_units
 
     integer, dimension(:), allocatable :: dimids
 
-    allocate(dimids(3))
-    dimids = (/ dimone, dimtwo, dimthree /)
+    allocate(dimids(4))
+    dimids = (/ dimone, dimtwo, dimthree, dimt /)
 
     call check_status(nf90_def_var(ncid, field_name, merge(NF90_DOUBLE, NF90_REAL, DEFAULT_PRECISION == DOUBLE_PRECISION), &
          dimids, field_id))
