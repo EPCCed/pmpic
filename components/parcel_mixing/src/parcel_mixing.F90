@@ -132,10 +132,15 @@ contains
       !called in a subroutine so we can have a !$OMP DO REDUCTION() on state%var%data variables
       call construct_grids(state,state%vol%data, state%b%data, state%hg%data, state%p%data, state%q%data, state%r%data, nremove)
 
+      !haloswap original grids
+      call perform_halo_swap(state,state%vol%data,perform_sum=.true.)
+      call perform_halo_swap(state,state%b%data,perform_sum=.true.)
+      call perform_halo_swap(state,state%hg%data,perform_sum=.true.)
+      call perform_halo_swap(state,state%p%data,perform_sum=.true.)
+      call perform_halo_swap(state,state%q%data,perform_sum=.true.)
+      call perform_halo_swap(state,state%r%data,perform_sum=.true.)
 
-
-
-      !$OMP parallel WORKSHARE
+      !Apply lower/upper BCs (double values at boundary)
       state%vol%data(1,:,:) = state%vol%data(1,:,:)*2.
       state%vol%data(nz,:,:) = state%vol%data(nz,:,:)*2
       state%b%data(1,:,:) = state%b%data(1,:,:)*2.
@@ -148,36 +153,6 @@ contains
       state%q%data(nz,:,:) = state%q%data(nz,:,:)*2
       state%r%data(1,:,:) = state%r%data(1,:,:)*2.
       state%r%data(nz,:,:) = state%r%data(nz,:,:)*2
-
-      vres(1,:,:) = vres(1,:,:)*2
-      vres(nz,:,:) = vres(nz,:,:)*2
-      bres(1,:,:) = bres(1,:,:)*2
-      bres(nz,:,:) = bres(nz,:,:)*2
-      hres(1,:,:) = hres(1,:,:)*2
-      hres(nz,:,:) = hres(nz,:,:)*2
-      pres(1,:,:) = pres(1,:,:)*2
-      pres(nz,:,:) = pres(nz,:,:)*2
-      qres(1,:,:) = qres(1,:,:)*2
-      qres(nz,:,:) = qres(nz,:,:)*2
-      rres(1,:,:) = rres(1,:,:)*2
-      rres(nz,:,:) = rres(nz,:,:)*2
-      !$OMP END parallel WORKSHARE
-
-
-
-
-
-
-
-      !haloswap original grids
-      call perform_halo_swap(state,state%vol%data,perform_sum=.true.)
-      call perform_halo_swap(state,state%b%data,perform_sum=.true.)
-      call perform_halo_swap(state,state%hg%data,perform_sum=.true.)
-      call perform_halo_swap(state,state%p%data,perform_sum=.true.)
-      call perform_halo_swap(state,state%q%data,perform_sum=.true.)
-      call perform_halo_swap(state,state%r%data,perform_sum=.true.)
-
-
 
       !print *, "Parcel mixing: number to be removed =      ", nremove
 
@@ -246,6 +221,7 @@ contains
       !if not, we need to backfill later
       state%parcels%numparcels_local = maxval((/ n-1, state%parcels%numparcels_local/))
 
+
       !halo swap residual fields
       call perform_halo_swap(state,vres,perform_sum=.true.)
       call perform_halo_swap(state,bres,perform_sum=.true.)
@@ -254,109 +230,122 @@ contains
       call perform_halo_swap(state,qres,perform_sum=.true.)
       call perform_halo_swap(state,rres,perform_sum=.true.)
 
+      !apply lower/upper BCs
+      vres(1,:,:) = vres(1,:,:)*2
+      vres(nz,:,:) = vres(nz,:,:)*2
+      bres(1,:,:) = bres(1,:,:)*2
+      bres(nz,:,:) = bres(nz,:,:)*2
+      hres(1,:,:) = hres(1,:,:)*2
+      hres(nz,:,:) = hres(nz,:,:)*2
+      pres(1,:,:) = pres(1,:,:)*2
+      pres(nz,:,:) = pres(nz,:,:)*2
+      qres(1,:,:) = qres(1,:,:)*2
+      qres(nz,:,:) = qres(nz,:,:)*2
+      rres(1,:,:) = rres(1,:,:)*2
+      rres(nz,:,:) = rres(nz,:,:)*2
+
 
       !now loop over each original parcel and add the residuals
 
-      if (nadd .ne. 0 .or. nremove .ne. 0) then
-        !$OMP PARALLEL default(shared) private(i,j,k,delx,dely,delz,w000,w001,w010,w011,w100,w101,w110,w111,v)
-        !$OMP DO
-        do n=1,norig
-          if (keep(n) .eq. 1) then
-            !calculate tridiagonl weights
-            i=is(n)
-            j=js(n)
-            k=ks(n)
-            delx=delxs(n)
-            dely=delys(n)
-            delz=delzs(n)
-            v = state%parcels%vol(n)
-            w000 = (1-delz)*(1-dely)*(1-delx)*v
-            w001 = (1-delz)*(1-dely)*(delx)*v
-            w010 = (1-delz)*(dely)*(1-delx)*v
-            w011 = (1-delz)*(dely)*(delx)*v
-            w100 = (delz)*(1-dely)*(1-delx)*v
-            w101 = (delz)*(1-dely)*(delx)*v
-            w110 = (delz)*(dely)*(1-delx)*v
-            w111 = (delz)*(dely)*(delx)*v
+      !$OMP PARALLEL default(shared) private(i,j,k,delx,dely,delz,w000,w001,w010,w011,w100,w101,w110,w111,v)
+      !$OMP DO
+      do n=1,norig
+        if (keep(n) .eq. 1) then
+          !calculate tridiagonl weights
+          i=is(n)
+          j=js(n)
+          k=ks(n)
+          delx=delxs(n)
+          dely=delys(n)
+          delz=delzs(n)
+          v = state%parcels%vol(n)
+          w000 = (1-delz)*(1-dely)*(1-delx)*v
+          w001 = (1-delz)*(1-dely)*(delx)*v
+          w010 = (1-delz)*(dely)*(1-delx)*v
+          w011 = (1-delz)*(dely)*(delx)*v
+          w100 = (delz)*(1-dely)*(1-delx)*v
+          w101 = (delz)*(1-dely)*(delx)*v
+          w110 = (delz)*(dely)*(1-delx)*v
+          w111 = (delz)*(dely)*(delx)*v
 
-            !update parcel values with residual values
+          !update parcel values with residual values
 
-            state%parcels%vol(n) = state%parcels%vol(n) &
-                    + w000*vres(k,j,i)/state%vol%data(k,j,i) &
-                    + w001*vres(k,j,i+1)/state%vol%data(k,j,i+1) &
-                    + w010*vres(k,j+1,i)/state%vol%data(k,j+1,i) &
-                    + w011*vres(k,j+1,i+1)/state%vol%data(k,j+1,i+1) &
-                    + w100*vres(k+1,j,i)/state%vol%data(k+1,j,i) &
-                    + w101*vres(k+1,j,i+1)/state%vol%data(k+1,j,i+1) &
-                    + w110*vres(k+1,j+1,i)/state%vol%data(k+1,j+1,i) &
-                    + w111*vres(k+1,j+1,i+1)/state%vol%data(k+1,j+1,i+1)
-
-
-            state%parcels%b(n) = state%parcels%b(n)*v &
-                    + w000/state%vol%data(k,j,i)*bres(k,j,i) &
-                    + w001/state%vol%data(k,j,i+1)*bres(k,j,i+1) &
-                    + w010/state%vol%data(k,j+1,i)*bres(k,j+1,i) &
-                    + w011/state%vol%data(k,j+1,i+1)*bres(k,j+1,i+1) &
-                    + w100/state%vol%data(k+1,j,i)*bres(k+1,j,i) &
-                    + w101/state%vol%data(k+1,j,i+1)*bres(k+1,j,i+1) &
-                    + w110/state%vol%data(k+1,j+1,i)*bres(k+1,j+1,i) &
-                    + w111/state%vol%data(k+1,j+1,i+1)*bres(k+1,j+1,i+1)
-            state%parcels%b(n) = state%parcels%b(n)/state%parcels%vol(n)
+          state%parcels%vol(n) = state%parcels%vol(n) &
+                  + w000*vres(k,j,i)/state%vol%data(k,j,i) &
+                  + w001*vres(k,j,i+1)/state%vol%data(k,j,i+1) &
+                  + w010*vres(k,j+1,i)/state%vol%data(k,j+1,i) &
+                  + w011*vres(k,j+1,i+1)/state%vol%data(k,j+1,i+1) &
+                  + w100*vres(k+1,j,i)/state%vol%data(k+1,j,i) &
+                  + w101*vres(k+1,j,i+1)/state%vol%data(k+1,j,i+1) &
+                  + w110*vres(k+1,j+1,i)/state%vol%data(k+1,j+1,i) &
+                  + w111*vres(k+1,j+1,i+1)/state%vol%data(k+1,j+1,i+1)
 
 
-            state%parcels%h(n) = state%parcels%h(n)*v &
-                    + w000/state%vol%data(k,j,i)*hres(k,j,i) &
-                    + w001/state%vol%data(k,j,i+1)*hres(k,j,i+1) &
-                    + w010/state%vol%data(k,j+1,i)*hres(k,j+1,i) &
-                    + w011/state%vol%data(k,j+1,i+1)*hres(k,j+1,i+1) &
-                    + w100/state%vol%data(k+1,j,i)*hres(k+1,j,i) &
-                    + w101/state%vol%data(k+1,j,i+1)*hres(k+1,j,i+1) &
-                    + w110/state%vol%data(k+1,j+1,i)*hres(k+1,j+1,i) &
-                    + w111/state%vol%data(k+1,j+1,i+1)*hres(k+1,j+1,i+1)
-            state%parcels%h(n) = state%parcels%h(n)/state%parcels%vol(n)
+          state%parcels%b(n) = state%parcels%b(n)*v &
+                  + w000/state%vol%data(k,j,i)*bres(k,j,i) &
+                  + w001/state%vol%data(k,j,i+1)*bres(k,j,i+1) &
+                  + w010/state%vol%data(k,j+1,i)*bres(k,j+1,i) &
+                  + w011/state%vol%data(k,j+1,i+1)*bres(k,j+1,i+1) &
+                  + w100/state%vol%data(k+1,j,i)*bres(k+1,j,i) &
+                  + w101/state%vol%data(k+1,j,i+1)*bres(k+1,j,i+1) &
+                  + w110/state%vol%data(k+1,j+1,i)*bres(k+1,j+1,i) &
+                  + w111/state%vol%data(k+1,j+1,i+1)*bres(k+1,j+1,i+1)
+          state%parcels%b(n) = state%parcels%b(n)/state%parcels%vol(n)
 
 
-            state%parcels%p(n) = state%parcels%p(n)*v &
-                    + w000/state%vol%data(k,j,i)*pres(k,j,i) &
-                    + w001/state%vol%data(k,j,i+1)*pres(k,j,i+1) &
-                    + w010/state%vol%data(k,j+1,i)*pres(k,j+1,i) &
-                    + w011/state%vol%data(k,j+1,i+1)*pres(k,j+1,i+1) &
-                    + w100/state%vol%data(k+1,j,i)*pres(k+1,j,i) &
-                    + w101/state%vol%data(k+1,j,i+1)*pres(k+1,j,i+1) &
-                    + w110/state%vol%data(k+1,j+1,i)*pres(k+1,j+1,i) &
-                    + w111/state%vol%data(k+1,j+1,i+1)*pres(k+1,j+1,i+1)
-            state%parcels%p(n) = state%parcels%p(n)/state%parcels%vol(n)
+          state%parcels%h(n) = state%parcels%h(n)*v &
+                  + w000/state%vol%data(k,j,i)*hres(k,j,i) &
+                  + w001/state%vol%data(k,j,i+1)*hres(k,j,i+1) &
+                  + w010/state%vol%data(k,j+1,i)*hres(k,j+1,i) &
+                  + w011/state%vol%data(k,j+1,i+1)*hres(k,j+1,i+1) &
+                  + w100/state%vol%data(k+1,j,i)*hres(k+1,j,i) &
+                  + w101/state%vol%data(k+1,j,i+1)*hres(k+1,j,i+1) &
+                  + w110/state%vol%data(k+1,j+1,i)*hres(k+1,j+1,i) &
+                  + w111/state%vol%data(k+1,j+1,i+1)*hres(k+1,j+1,i+1)
+          state%parcels%h(n) = state%parcels%h(n)/state%parcels%vol(n)
 
 
-            state%parcels%q(n) = state%parcels%q(n)*v &
-                    + w000/state%vol%data(k,j,i)*qres(k,j,i) &
-                    + w001/state%vol%data(k,j,i+1)*qres(k,j,i+1) &
-                    + w010/state%vol%data(k,j+1,i)*qres(k,j+1,i) &
-                    + w011/state%vol%data(k,j+1,i+1)*qres(k,j+1,i+1) &
-                    + w100/state%vol%data(k+1,j,i)*qres(k+1,j,i) &
-                    + w101/state%vol%data(k+1,j,i+1)*qres(k+1,j,i+1) &
-                    + w110/state%vol%data(k+1,j+1,i)*qres(k+1,j+1,i) &
-                    + w111/state%vol%data(k+1,j+1,i+1)*qres(k+1,j+1,i+1)
-            state%parcels%q(n) = state%parcels%q(n)/state%parcels%vol(n)
+          state%parcels%p(n) = state%parcels%p(n)*v &
+                  + w000/state%vol%data(k,j,i)*pres(k,j,i) &
+                  + w001/state%vol%data(k,j,i+1)*pres(k,j,i+1) &
+                  + w010/state%vol%data(k,j+1,i)*pres(k,j+1,i) &
+                  + w011/state%vol%data(k,j+1,i+1)*pres(k,j+1,i+1) &
+                  + w100/state%vol%data(k+1,j,i)*pres(k+1,j,i) &
+                  + w101/state%vol%data(k+1,j,i+1)*pres(k+1,j,i+1) &
+                  + w110/state%vol%data(k+1,j+1,i)*pres(k+1,j+1,i) &
+                  + w111/state%vol%data(k+1,j+1,i+1)*pres(k+1,j+1,i+1)
+          state%parcels%p(n) = state%parcels%p(n)/state%parcels%vol(n)
 
 
-            state%parcels%r(n) = state%parcels%r(n)*v &
-                    + w000/state%vol%data(k,j,i)*rres(k,j,i) &
-                    + w001/state%vol%data(k,j,i+1)*rres(k,j,i+1) &
-                    + w010/state%vol%data(k,j+1,i)*rres(k,j+1,i) &
-                    + w011/state%vol%data(k,j+1,i+1)*rres(k,j+1,i+1) &
-                    + w100/state%vol%data(k+1,j,i)*rres(k+1,j,i) &
-                    + w101/state%vol%data(k+1,j,i+1)*rres(k+1,j,i+1) &
-                    + w110/state%vol%data(k+1,j+1,i)*rres(k+1,j+1,i) &
-                    + w111/state%vol%data(k+1,j+1,i+1)*rres(k+1,j+1,i+1)
-            state%parcels%r(n) = state%parcels%r(n)/state%parcels%vol(n)
-          endif
+          state%parcels%q(n) = state%parcels%q(n)*v &
+                  + w000/state%vol%data(k,j,i)*qres(k,j,i) &
+                  + w001/state%vol%data(k,j,i+1)*qres(k,j,i+1) &
+                  + w010/state%vol%data(k,j+1,i)*qres(k,j+1,i) &
+                  + w011/state%vol%data(k,j+1,i+1)*qres(k,j+1,i+1) &
+                  + w100/state%vol%data(k+1,j,i)*qres(k+1,j,i) &
+                  + w101/state%vol%data(k+1,j,i+1)*qres(k+1,j,i+1) &
+                  + w110/state%vol%data(k+1,j+1,i)*qres(k+1,j+1,i) &
+                  + w111/state%vol%data(k+1,j+1,i+1)*qres(k+1,j+1,i+1)
+          state%parcels%q(n) = state%parcels%q(n)/state%parcels%vol(n)
 
 
-        enddo
-        !$OMP END DO
-        !$OMP END PARALLEL
-      endif
+          state%parcels%r(n) = state%parcels%r(n)*v &
+                  + w000/state%vol%data(k,j,i)*rres(k,j,i) &
+                  + w001/state%vol%data(k,j,i+1)*rres(k,j,i+1) &
+                  + w010/state%vol%data(k,j+1,i)*rres(k,j+1,i) &
+                  + w011/state%vol%data(k,j+1,i+1)*rres(k,j+1,i+1) &
+                  + w100/state%vol%data(k+1,j,i)*rres(k+1,j,i) &
+                  + w101/state%vol%data(k+1,j,i+1)*rres(k+1,j,i+1) &
+                  + w110/state%vol%data(k+1,j+1,i)*rres(k+1,j+1,i) &
+                  + w111/state%vol%data(k+1,j+1,i+1)*rres(k+1,j+1,i+1)
+          state%parcels%r(n) = state%parcels%r(n)/state%parcels%vol(n)
+        endif
+
+
+      enddo
+      !$OMP END DO
+      !$OMP END PARALLEL
+
 
 
       !now backfill removed parcels (if necessary)
