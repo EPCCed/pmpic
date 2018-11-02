@@ -217,13 +217,17 @@ contains
               !print *, x, y, z
               if (zp*zp + xp*xp + yp*yp .le. r_plume*r_plume) then
                 n=n+1
+                if (n .gt. state%parcels%maxparcels_local) then
+                  print *, "Error! Maxparcels reached in plume_parcelsetup"
+                  error stop "Maxparcels reached"
+                endif
                 state%parcels%x(n) = x
                 state%parcels%y(n) = y
                 state%parcels%z(n) = z
                 state%parcels%b(n) = b_pl*(1. + e_values(1)*xp*yp + e_values(2)*xp*zp + e_values(3)*yp*zp)
                 state%parcels%h(n) = h_pl
                 state%parcels%vol(n) = vol
-                write(10+state%parallel%my_rank,*) x, y, z, state%parcels%b(n)
+!                write(10+state%parallel%my_rank,*) x, y, z, state%parcels%b(n)
               endif
               z=z+dzplume
             enddo
@@ -261,6 +265,10 @@ contains
             if (zp*zp + yp*yp + xp*xp .gt. r_plume*r_plume) then
 
               n=n+1
+              if (n .gt. state%parcels%maxparcels_local) then
+                print *, "Error! Maxparcels reached in plume_parcelsetup"
+                error stop "Maxparcels reached"
+              endif
               state%parcels%x(n) = x
               state%parcels%y(n) = y
               state%parcels%z(n) = z
