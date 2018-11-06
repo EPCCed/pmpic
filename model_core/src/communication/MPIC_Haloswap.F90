@@ -29,6 +29,8 @@ module MPIC_Haloswap_mod
 
   integer :: comm, ierr
 
+  integer :: g2p_handle, p2g_handle
+
 
 
 
@@ -73,62 +75,65 @@ contains
 
     comm=state%parallel%monc_communicator
 
+    call register_routine_for_timing("par2grid_haloswap",p2g_handle,state)
+    call register_routine_for_timing("grid2par_haloswap",g2p_handle,state)
+
     if (state%parallel%my_rank .eq. 0) print *, "MPIC_Haloswap initialised"
-    if (state%parallel%my_rank .eq. 0) print *, xi, xf, yi, yf
-
-    return
-
-
-    allocate(data(nz, ny + 2*hy, nx + 2*hx))
-
-    data(:,:,:) = 0.
-    data(:,yi:yf,xi:xf) = state%parallel%my_rank+1
-
-    if (state%parallel%my_rank .eq. 0) then
-      print *, "up=",up
-      print *, "down=",down
-      print *, "left=",left
-      print *, "right=",right
-      print *, "upcorn=", upper_corner
-      print *, "lowcorn=", lower_corner
-      write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yf+1,xi-1), data(1, yf+1,xi),data(1, yf+1,xf),data(1, yf+1,xf+1)
-      write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yf,xi-1), data(1, yf,xi),data(1, yf,xf),data(1, yf,xf+1)
-      write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yi,xi-1), data(1, yi,xi),data(1, yi,xf),data(1, yi,xf+1)
-      write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yi-1,xi-1), data(1, yi-1,xi),data(1, yi-1,xf),data(1, yi-1,xf+1)
-    endif
-
-    call grid2par_haloswap(state,data)
-
-    if (state%parallel%my_rank .eq. 0) then
-      write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yf+1,xi-1), data(1, yf+1,xi),data(1, yf+1,xf),data(1, yf+1,xf+1)
-      write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yf,xi-1), data(1, yf,xi),data(1, yf,xf),data(1, yf,xf+1)
-      write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yi,xi-1), data(1, yi,xi),data(1, yi,xf),data(1, yi,xf+1)
-      write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yi-1,xi-1), data(1, yi-1,xi),data(1, yi-1,xf),data(1, yi-1,xf+1)
-    endif
-
-    data = state%parallel%my_rank+1
-
-    if (state%parallel%my_rank .eq. 0) then
-      write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yf+1,xi-1), data(1, yf+1,xi),data(1, yf+1,xf),data(1, yf+1,xf+1)
-      write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yf,xi-1), data(1, yf,xi),data(1, yf,xf),data(1, yf,xf+1)
-      write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yi,xi-1), data(1, yi,xi),data(1, yi,xf),data(1, yi,xf+1)
-      write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yi-1,xi-1), data(1, yi-1,xi),data(1, yi-1,xf),data(1, yi-1,xf+1)
-    endif
-
-    call par2grid_haloswap(state,data)
-
-
-    if (state%parallel%my_rank .eq. 0) then
-      write(*,"(f3.0,1x,f3.0,1x,f3.0,1x,f3.0)") data(1,yf+1,xi-1), data(1, yf+1,xi),data(1, yf+1,xf),data(1, yf+1,xf+1)
-      write(*,"(f3.0,1x,f3.0,1x,f3.0,1x,f3.0)") data(1,yf,xi-1), data(1, yf,xi),data(1, yf,xf),data(1, yf,xf+1)
-      write(*,"(f3.0,1x,f3.0,1x,f3.0,1x,f3.0)") data(1,yi,xi-1), data(1, yi,xi),data(1, yi,xf),data(1, yi,xf+1)
-      write(*,"(f3.0,1x,f3.0,1x,f3.0,1x,f3.0)") data(1,yi-1,xi-1), data(1, yi-1,xi),data(1, yi-1,xf),data(1, yi-1,xf+1)
-    endif
-
-
-
-    call MPI_Finalize(ierr)
-    stop
+    ! if (state%parallel%my_rank .eq. 0) print *, xi, xf, yi, yf
+    !
+    ! return
+    !
+    !
+    ! allocate(data(nz, ny + 2*hy, nx + 2*hx))
+    !
+    ! data(:,:,:) = 0.
+    ! data(:,yi:yf,xi:xf) = state%parallel%my_rank+1
+    !
+    ! if (state%parallel%my_rank .eq. 0) then
+    !   print *, "up=",up
+    !   print *, "down=",down
+    !   print *, "left=",left
+    !   print *, "right=",right
+    !   print *, "upcorn=", upper_corner
+    !   print *, "lowcorn=", lower_corner
+    !   write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yf+1,xi-1), data(1, yf+1,xi),data(1, yf+1,xf),data(1, yf+1,xf+1)
+    !   write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yf,xi-1), data(1, yf,xi),data(1, yf,xf),data(1, yf,xf+1)
+    !   write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yi,xi-1), data(1, yi,xi),data(1, yi,xf),data(1, yi,xf+1)
+    !   write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yi-1,xi-1), data(1, yi-1,xi),data(1, yi-1,xf),data(1, yi-1,xf+1)
+    ! endif
+    !
+    ! call grid2par_haloswap(state,data)
+    !
+    ! if (state%parallel%my_rank .eq. 0) then
+    !   write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yf+1,xi-1), data(1, yf+1,xi),data(1, yf+1,xf),data(1, yf+1,xf+1)
+    !   write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yf,xi-1), data(1, yf,xi),data(1, yf,xf),data(1, yf,xf+1)
+    !   write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yi,xi-1), data(1, yi,xi),data(1, yi,xf),data(1, yi,xf+1)
+    !   write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yi-1,xi-1), data(1, yi-1,xi),data(1, yi-1,xf),data(1, yi-1,xf+1)
+    ! endif
+    !
+    ! data = state%parallel%my_rank+1
+    !
+    ! if (state%parallel%my_rank .eq. 0) then
+    !   write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yf+1,xi-1), data(1, yf+1,xi),data(1, yf+1,xf),data(1, yf+1,xf+1)
+    !   write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yf,xi-1), data(1, yf,xi),data(1, yf,xf),data(1, yf,xf+1)
+    !   write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yi,xi-1), data(1, yi,xi),data(1, yi,xf),data(1, yi,xf+1)
+    !   write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yi-1,xi-1), data(1, yi-1,xi),data(1, yi-1,xf),data(1, yi-1,xf+1)
+    ! endif
+    !
+    ! call par2grid_haloswap(state,data)
+    !
+    !
+    ! if (state%parallel%my_rank .eq. 0) then
+    !   write(*,"(f3.0,1x,f3.0,1x,f3.0,1x,f3.0)") data(1,yf+1,xi-1), data(1, yf+1,xi),data(1, yf+1,xf),data(1, yf+1,xf+1)
+    !   write(*,"(f3.0,1x,f3.0,1x,f3.0,1x,f3.0)") data(1,yf,xi-1), data(1, yf,xi),data(1, yf,xf),data(1, yf,xf+1)
+    !   write(*,"(f3.0,1x,f3.0,1x,f3.0,1x,f3.0)") data(1,yi,xi-1), data(1, yi,xi),data(1, yi,xf),data(1, yi,xf+1)
+    !   write(*,"(f3.0,1x,f3.0,1x,f3.0,1x,f3.0)") data(1,yi-1,xi-1), data(1, yi-1,xi),data(1, yi-1,xf),data(1, yi-1,xf+1)
+    ! endif
+    !
+    !
+    !
+    ! call MPI_Finalize(ierr)
+    ! stop
 
 
 
@@ -145,6 +150,8 @@ contains
     real(kind=DEFAULT_PRECISION), dimension(:,:,:), intent(inout) :: array
     integer :: status(MPI_STATUS_SIZE)
     integer :: i, tag, src
+
+    call timer_start(g2p_handle)
 
     !copy data to buffers
     left_buf(:,:) = array(:,yi:yf,xi)
@@ -221,6 +228,8 @@ contains
 
     call MPI_Barrier(comm,ierr)
 
+    call timer_stop(g2p_handle)
+
     !if (state%parallel%my_rank .eq. 0) print *, "grid2par haloswapping successful"
 
   end subroutine grid2par_haloswap
@@ -233,6 +242,8 @@ contains
     real(kind=DEFAULT_PRECISION), dimension(:,:,:), intent(inout) :: array
     integer :: status(MPI_STATUS_SIZE)
     integer :: i, tag, src, xcount, ycount, ccount
+
+    call timer_start(p2g_handle)
 
     !copy data to buffers
     right_buf(:,:) = array(:,yi:yf,xf+1)
@@ -320,6 +331,8 @@ contains
 
     !We seem to need this barrier to prevent processes from running away from each other
     call MPI_Barrier(comm,ierr)
+
+    call timer_stop(p2g_handle)
 
     !if (state%parallel%my_rank .eq. 0) print *, "par2grid haloswapping successful"
 

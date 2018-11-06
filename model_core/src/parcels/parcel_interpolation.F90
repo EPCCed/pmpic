@@ -212,8 +212,8 @@ contains
      call register_routine_for_timing("grid_HSwp_sum",sumswap_handle, state)
 
      halo_depth = options_get_integer(state%options_database, "halo_depth")
-     call init_halo_communication(state, get_single_field_per_halo_cell, halo_swap_state, &
-          halo_depth, .true.)
+     !call init_halo_communication(state, get_single_field_per_halo_cell, halo_swap_state, &
+    !      halo_depth, .true.)
 
 
 
