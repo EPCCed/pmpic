@@ -46,6 +46,8 @@ module pencil_fft_mod
   type(C_PTR) :: fftw_plan(4)
   logical :: fftw_plan_initialised(4)=.false.
 
+  logical :: initialised = .false.
+
   public initialise_pencil_fft, finalise_pencil_fft, perform_forward_3dfft, perform_backwards_3dfft
 contains
 
@@ -64,6 +66,11 @@ contains
 
     my_y_start=deduce_my_global_start(current_state, Y_INDEX)
     my_x_start=deduce_my_global_start(current_state, X_INDEX)
+
+    if (initialised) then
+        initialise_pencil_fft=z_from_y_transposition%my_pencil_size
+        return
+    endif
 
     if (current_state%parallel%dim_sizes(Y_INDEX) .gt. 1 .and. current_state%parallel%dim_sizes(X_INDEX) .gt. 1) then
       call mpi_cart_sub(current_state%parallel%neighbour_comm, (/1,0/), dim_y_comm, ierr)
@@ -106,6 +113,8 @@ contains
     if (current_state%parallel%my_rank .eq. 0) then    
       print *, "Initialised FFT libraries to use", 1, " threads"
     endif
+
+    initialised = .true.
 
   end function initialise_pencil_fft
 
