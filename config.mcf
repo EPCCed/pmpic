@@ -56,7 +56,7 @@ zmin=0
 zmax=6.28
 
 #base parcelsetup properties
-max_parcels=10000000
+max_parcels=1000000
 
 #readfromfile_options
 restart_num=50
@@ -82,11 +82,15 @@ dtmax=0.1
 #velocity profile properties
 velocity_profile=9
 
-#writeparcels properties (if 0 then no files will be written)
-parcel_dump_frequency=10
-grid_dump_frequency = 5
+#writeparcels properties
+# can choose between "time" (write files every dt time intervals) "step" (after every n steps) or "none" (essentially disable component)
+writeparcels_mode="time"
+parcel_step_write_frequency=10
+grid_step_write_frequency = 5
+parcel_time_write_frequency = 1.
+grid_time_write_frequency = 0.5
 
 #timing logging options
 timing_enabled=.true.
-timing_logging=.true.
+timing_logging=.false.
 logging_routines=RK4_all_steps,Par_HSWP_entire,Prescribed_velocity,write_parcels
