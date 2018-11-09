@@ -29,7 +29,9 @@ module MPIC_Haloswap_mod
 
   integer :: comm, ierr
 
-  integer :: g2p_handle, p2g_handle
+  integer :: g2p_handle, p2g_handle, mixing_handle
+
+  logical :: mixing
 
 
 
@@ -77,6 +79,9 @@ contains
 
     call register_routine_for_timing("par2grid_haloswap",p2g_handle,state)
     call register_routine_for_timing("grid2par_haloswap",g2p_handle,state)
+    call register_routine_for_timing("mixing_haloswap",mixing_handle,state)
+
+    mixing = .false.
 
     if (state%parallel%my_rank .eq. 0) print *, "MPIC_Haloswap initialised"
     ! if (state%parallel%my_rank .eq. 0) print *, xi, xf, yi, yf
@@ -151,7 +156,7 @@ contains
     integer :: status(MPI_STATUS_SIZE)
     integer :: i, tag, src
 
-    call timer_start(g2p_handle)
+    if (.not. mixing) call timer_start(g2p_handle)
 
     !copy data to buffers
     left_buf(:,:) = array(:,yi:yf,xi)
@@ -226,9 +231,11 @@ contains
 
     call MPI_Waitall(3,requests,statuses,ierr)
 
+    if (.not. mixing) call timer_stop(g2p_handle)
+
     call MPI_Barrier(comm,ierr)
 
-    call timer_stop(g2p_handle)
+    
 
     !if (state%parallel%my_rank .eq. 0) print *, "grid2par haloswapping successful"
 
@@ -243,7 +250,7 @@ contains
     integer :: status(MPI_STATUS_SIZE)
     integer :: i, tag, src, xcount, ycount, ccount
 
-    call timer_start(p2g_handle)
+    if (.not. mixing) call timer_start(p2g_handle)
 
     !copy data to buffers
     right_buf(:,:) = array(:,yi:yf,xf+1)
@@ -329,10 +336,12 @@ contains
 
     call MPI_Waitall(3,requests,statuses,ierr)
 
+    if (.not. mixing) call timer_stop(p2g_handle)
+
     !We seem to need this barrier to prevent processes from running away from each other
     call MPI_Barrier(comm,ierr)
 
-    call timer_stop(p2g_handle)
+    
 
     !if (state%parallel%my_rank .eq. 0) print *, "par2grid haloswapping successful"
 
@@ -344,8 +353,14 @@ contains
     type(model_state_type), intent(inout) :: state
     real(kind=DEFAULT_PRECISION), dimension(:,:,:) :: grid
 
+    call timer_start(mixing_handle)
+    mixing = .true.
+
     call par2grid_haloswap(state,grid)
     call grid2par_haloswap(state,grid)
+
+    mixing = .false.
+    call timer_stop(mixing_handle)
 
   end subroutine
 
