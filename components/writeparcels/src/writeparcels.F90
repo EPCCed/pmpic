@@ -106,21 +106,24 @@ contains
       endif
 
     else if (mode .eq. "time") then
-
-      if (state%time .ge. tnextgrids) then
-        call timer_start(handleg)
-        call write_grids_to_file(state)
-        gwritten=gwritten+1
-        call timer_stop(handleg)
-        tnextgrids = tnextgrids + dtgrids
+      if (dtgrids .ne. 0.) then
+        if (state%time .ge. tnextgrids) then
+          call timer_start(handleg)
+          call write_grids_to_file(state)
+          gwritten=gwritten+1
+          call timer_stop(handleg)
+          tnextgrids = tnextgrids + dtgrids
+        endif
       endif
 
-      if (state%time .ge. tnextparcels) then
-        call timer_start(handlep)
-        call write_parcels_to_file(state)
-        pwritten=pwritten+1
-        call timer_stop(handlep)
-        tnextparcels = tnextparcels + dtparcels
+      if (dtparcels .ne. 0.) then
+        if (state%time .ge. tnextparcels) then
+          call timer_start(handlep)
+          call write_parcels_to_file(state)
+          pwritten=pwritten+1
+          call timer_stop(handlep)
+          tnextparcels = tnextparcels + dtparcels
+        endif
       endif
 
     endif
