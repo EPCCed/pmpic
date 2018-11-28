@@ -1,5 +1,5 @@
 !Halo swapping routines for MPIC functionality
-!These halp swapping routines ar required in the par2grid and grid2par operations
+!These halo swapping routines ar required in the par2grid and grid2par operations
 !only certain halo locations need to be transferred, and occasionally summed rather than swapped
 module MPIC_Haloswap_mod
   use state_mod, only: model_state_type
@@ -84,65 +84,7 @@ contains
     mixing = .false.
 
     if (state%parallel%my_rank .eq. 0) print *, "MPIC_Haloswap initialised"
-    ! if (state%parallel%my_rank .eq. 0) print *, xi, xf, yi, yf
-    !
-    ! return
-    !
-    !
-    ! allocate(data(nz, ny + 2*hy, nx + 2*hx))
-    !
-    ! data(:,:,:) = 0.
-    ! data(:,yi:yf,xi:xf) = state%parallel%my_rank+1
-    !
-    ! if (state%parallel%my_rank .eq. 0) then
-    !   print *, "up=",up
-    !   print *, "down=",down
-    !   print *, "left=",left
-    !   print *, "right=",right
-    !   print *, "upcorn=", upper_corner
-    !   print *, "lowcorn=", lower_corner
-    !   write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yf+1,xi-1), data(1, yf+1,xi),data(1, yf+1,xf),data(1, yf+1,xf+1)
-    !   write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yf,xi-1), data(1, yf,xi),data(1, yf,xf),data(1, yf,xf+1)
-    !   write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yi,xi-1), data(1, yi,xi),data(1, yi,xf),data(1, yi,xf+1)
-    !   write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yi-1,xi-1), data(1, yi-1,xi),data(1, yi-1,xf),data(1, yi-1,xf+1)
-    ! endif
-    !
-    ! call grid2par_haloswap(state,data)
-    !
-    ! if (state%parallel%my_rank .eq. 0) then
-    !   write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yf+1,xi-1), data(1, yf+1,xi),data(1, yf+1,xf),data(1, yf+1,xf+1)
-    !   write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yf,xi-1), data(1, yf,xi),data(1, yf,xf),data(1, yf,xf+1)
-    !   write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yi,xi-1), data(1, yi,xi),data(1, yi,xf),data(1, yi,xf+1)
-    !   write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yi-1,xi-1), data(1, yi-1,xi),data(1, yi-1,xf),data(1, yi-1,xf+1)
-    ! endif
-    !
-    ! data = state%parallel%my_rank+1
-    !
-    ! if (state%parallel%my_rank .eq. 0) then
-    !   write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yf+1,xi-1), data(1, yf+1,xi),data(1, yf+1,xf),data(1, yf+1,xf+1)
-    !   write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yf,xi-1), data(1, yf,xi),data(1, yf,xf),data(1, yf,xf+1)
-    !   write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yi,xi-1), data(1, yi,xi),data(1, yi,xf),data(1, yi,xf+1)
-    !   write(*,"(f2.0,1x,f2.0,1x,f2.0,1x,f2.0)") data(1,yi-1,xi-1), data(1, yi-1,xi),data(1, yi-1,xf),data(1, yi-1,xf+1)
-    ! endif
-    !
-    ! call par2grid_haloswap(state,data)
-    !
-    !
-    ! if (state%parallel%my_rank .eq. 0) then
-    !   write(*,"(f3.0,1x,f3.0,1x,f3.0,1x,f3.0)") data(1,yf+1,xi-1), data(1, yf+1,xi),data(1, yf+1,xf),data(1, yf+1,xf+1)
-    !   write(*,"(f3.0,1x,f3.0,1x,f3.0,1x,f3.0)") data(1,yf,xi-1), data(1, yf,xi),data(1, yf,xf),data(1, yf,xf+1)
-    !   write(*,"(f3.0,1x,f3.0,1x,f3.0,1x,f3.0)") data(1,yi,xi-1), data(1, yi,xi),data(1, yi,xf),data(1, yi,xf+1)
-    !   write(*,"(f3.0,1x,f3.0,1x,f3.0,1x,f3.0)") data(1,yi-1,xi-1), data(1, yi-1,xi),data(1, yi-1,xf),data(1, yi-1,xf+1)
-    ! endif
-    !
-    !
-    !
-    ! call MPI_Finalize(ierr)
-    ! stop
-
-
-
-
+  
   end subroutine
 
 
@@ -235,7 +177,7 @@ contains
 
     call MPI_Barrier(comm,ierr)
 
-    
+
 
     !if (state%parallel%my_rank .eq. 0) print *, "grid2par haloswapping successful"
 
@@ -341,7 +283,7 @@ contains
     !We seem to need this barrier to prevent processes from running away from each other
     call MPI_Barrier(comm,ierr)
 
-    
+
 
     !if (state%parallel%my_rank .eq. 0) print *, "par2grid haloswapping successful"
 

@@ -1,8 +1,18 @@
-!Component that prescribes parcel velocities
+!Component that prescribes parcel velocities according to an analytical velocity field
+!(test component - do not use on prodiction runs)
 
 !current profiles in use are:
 !1) shear flow (u,v,w) = (0,tanh(x-x0),0)
-!2) cylindrical flow (u,v,w) = r*exp(-(r-r0)^2/l0^2)(cos(theta), -sin(theta), 0)
+!2) constant velocity (+y)
+!3) constant velocity (+y+x)
+!4) constant velocity (+x)
+!5) constant velocity (-y+x)
+!6) constant velocity (-y)
+!6) constant velocity (-y-x)
+!7) constant velocity (-x)
+!8) constant velocity (+y-x)
+!9) cylindrical flow (u,v,w) = r*exp(-(r-r0)^2/l0^2)(cos(theta), -sin(theta), 0)
+!10) diverging flow
 
 module prescribed_parcel_velocity_mod
   use datadefn_mod, only : DEFAULT_PRECISION, PARCEL_INTEGER

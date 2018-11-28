@@ -1,3 +1,5 @@
+!Reads in an existing parcel dump file for use in a simulation
+!(restart from a checkpoint or from an initial condition constructed by an external script)
 module readfromfile_parcelsetup_mod
   use state_mod, only : model_state_type
   use datadefn_mod, only: DEFAULT_PRECISION, PRECISION_TYPE, STRING_LENGTH,&

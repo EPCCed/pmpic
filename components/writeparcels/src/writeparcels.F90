@@ -1,5 +1,4 @@
-!very basic parcel writing routine for basic debugging
-!just dumps x, y, z and the tag
+!very basic parcel and grid writing routine
 module writeparcels_mod
   use datadefn_mod, only : DEFAULT_PRECISION, PARCEL_INTEGER, LONG_INTEGER
   use state_mod, only: model_state_type
@@ -34,6 +33,9 @@ contains
 
 
     if (state%parallel%my_rank .eq. 0) print *, "Writer initialisation"
+
+    !determine the writing mode we want. Write a fixed number of timesteps ("steps") or a
+    ! fixed time interval ("time")
 
     mode = options_get_string(state%options_database,"writeparcels_mode")
 

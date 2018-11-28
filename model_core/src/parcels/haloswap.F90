@@ -679,6 +679,10 @@ contains
           if (i .gt. n_initial .or. index(i) .ne. 0) then !this parcel location is free to be overwritten
           !if (index(i) .ne. 0) then !this parcel location is free to be
             myindex(num) = i
+            if (i .gt. state%parcels%maxparcels_local) then
+              print *, "Error: maximum parcel count reached (parcel haloswap)"
+              error stop "Maxparcels reached"
+            endif
             index(i) = 0
             istart=i+1
             exit

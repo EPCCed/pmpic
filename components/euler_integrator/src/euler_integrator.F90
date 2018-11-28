@@ -60,32 +60,6 @@ contains
 
     nparcels=state%parcels%numparcels_local
 
-    ! !look at velocities - get maximum then from that determine constraint on dt
-    ! umax=maxval(abs(state%parcels%dxdt(1:nparcels)))
-    ! vmax=maxval(abs(state%parcels%dydt(1:nparcels)))
-    ! wmax=maxval(abs(state%parcels%dzdt(1:nparcels)))
-    !
-    ! if (umax .eq. 0.) umax=1.e-10
-    ! if (vmax .eq. 0.) vmax=1.e-10
-    ! if (wmax .eq. 0.) wmax=1.e-10
-    !
-    ! maxdt = minval( (/ dx/umax, dy/vmax, dz/wmax /) )*cfl
-    !
-    ! if (nparcels .eq. 0) maxdt = originaldt
-    !
-    ! call MPI_Allreduce(sendbuf=maxdt,&
-    !                    recvbuf=maxdtglobal,&
-    !                    count=1,&
-    !                    datatype=PRECISION_TYPE,&
-    !                    op=MPI_MIN,&
-    !                    comm=state%parallel%monc_communicator,&
-    !                    ierror=ierr)
-    !
-    !
-    ! dt  = originaldt!minval( (/ maxdtglobal, originaldt/) )
-    !
-    ! if (state%parallel%my_rank .eq. 0) print*, "t=", state%time," maxdt=",maxdtglobal, " New dt=",dt
-    ! !print*, "vmax=",vmax
 
     dt = state%dtm
     if (state%parallel%my_rank .eq. 0) print*, "t=", state%time,"dt=",state%dtm

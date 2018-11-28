@@ -354,8 +354,8 @@ contains
       dtmax = minval ((/ Lx/umax, Ly/vmax, Lz/wmax /))
 
 
-      !This is the local maximum. We want the global maximum so we do a MPI reduction operation
-      ! (We want to find the smallert maximum, so we want the minimum of all the maximums)
+      !This is the local maximum. We want the global maximum timestep so we do a MPI reduction operation
+      ! (We want to find the smallert maximum timestep, so we want the minimum of all the maximum timesteps)
       call MPI_Allreduce(dtmax,&
                          dtmaxglobal,&
                          1,&
