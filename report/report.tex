@@ -28,13 +28,13 @@
 
 
 
-\title{A fully Lagrangian Dynamical Core for the Met Office NERC Cloud Model}
+\title{A Fully Lagrangian Dynamical Core for the Met Office NERC Cloud Model}
 \author{G. Gibb, S. Boeing, D. Dritschel}
 
 
 \begin{document}
 \maketitle
-\abstract{We describe the technical work carried out in the eCSE project `A fully Lagrangian Dynamical Core for the Met Office NERC Cloud Model', whose aim is to incorporate the `Moist Parcel in Cell` (MPIC) code into the Met Office NERC Cloud Model (MONC). First we describe the modifications to MONC in order for it to be parcel-aware, then we outline the implementation of MPIC's physics into MONC. We then provide an in-depth comparison of MPIC with the newly developed code, and investigate how it scales to many thousands of MPI processes. Finally we discuss the limitations of the code, and future work to be carried out to mitigate these limitations. We found that the code can scale up to many thousands of cores for large problem sizes, although the main limiter of performance at scale are the Fourier Transform routines. Despite good MPI performance from the code, OpenMP performance is poor, achieving a speedup of only 3 on 12 threads. Overall, on a single node the new code performs better than MPIC does, carrying out more parcel operations per core per second.}
+\abstract{We describe the technical work carried out in the eCSE project `A fully Lagrangian Dynamical Core for the Met Office NERC Cloud Model', whose aim is to incorporate the `Moist Parcel in Cell` (MPIC) code into the Met Office NERC Cloud Model (MONC), thereby granting it MPI parallelism and the ability to scaly beyond a single node. First we describe the modifications to MONC in order for it to be parcel-aware, then we outline the implementation of MPIC's physics into MONC. We then provide an in-depth comparison of MPIC with the newly developed code, and investigate how it scales to many thousands of MPI processes. Finally we discuss the limitations of the code, and future work to be carried out to mitigate these limitations. We found that the code can scale up to many thousands of cores for large problem sizes, although the main limiter of performance at scale are the Fourier Transform routines. Despite good MPI performance from the code, OpenMP performance is poor, achieving a speedup of only 3 on 12 threads. Overall, on a single node the new code performs better than MPIC does, carrying out more parcel operations per core per second. Crucially, the work carried out in this project allows considerably larger problem sizes to be simulated than was possible with the original implementation of MPIC.}
 %\tableofcontents
 
 
