@@ -18,7 +18,7 @@ module rk4_integrator_mod
   integer :: rkstep
 
   integer :: handle, handle1, handle2, handle3, handle4
-  integer :: chunksize=1024
+  integer,parameter :: chunksize=1024
 
 contains
 
@@ -106,7 +106,7 @@ contains
     dt3=dt/3
 
     nparcels=state%parcels%numparcels_local
-    !$OMP PARALLEL
+
     if (rkstep .eq. 1) then
       !$OMP SINGLE
 
@@ -115,7 +115,6 @@ contains
 
       if (state%parallel%my_rank .eq. 0) write(*,"('RK4 integrator: t= ',f10.2,'s -> ',f10.2,'s')") state%time, state%time+dt
       !$OMP END SINGLE
-
       call set_equal_to(state%parcels%xo,state%parcels%x,nparcels)
       call set_equal_to(state%parcels%yo,state%parcels%y,nparcels)
       call set_equal_to(state%parcels%zo,state%parcels%z,nparcels)
@@ -176,7 +175,6 @@ contains
       call add_to_other(state%parcels%q,state%parcels%qo,state%parcels%dqdt,dt2,nparcels)
       call add_to_other(state%parcels%r,state%parcels%ro,state%parcels%drdt,dt2,nparcels)
 
-      !$OMP BARRIER
       !$OMP SINGLE
       call timer_pause(handle)
       call timer_stop(handle2)
@@ -210,7 +208,6 @@ contains
       call add_to_other(state%parcels%q,state%parcels%qo,state%parcels%dqdt,dt,nparcels)
       call add_to_other(state%parcels%r,state%parcels%ro,state%parcels%drdt,dt,nparcels)
       
-      !$OMP BARRIER
       !$OMP SINGLE
       call timer_pause(handle)
       call timer_stop(handle3)
@@ -243,7 +240,6 @@ contains
       call set_equal_to(state%parcels%q,state%parcels%qf,nparcels)
       call set_equal_to(state%parcels%r,state%parcels%rf,nparcels)
       
-      !$OMP BARRIER
       !$OMP SINGLE
       call timer_stop(handle)
       call timer_stop(handle4)
@@ -255,7 +251,6 @@ contains
       stop
     endif
 
-    !$OMP END PARALLEL
 
     if (rkstep .lt. 4) then
       rkstep=rkstep+1
@@ -292,7 +287,7 @@ contains
       integer(kind=PARCEL_INTEGER) :: n
   
       !$OMP PARALLEL SHARED(varout,varin) & 
-      !$OMP& PRIVATE(n) FIRSTPRIVATE(nparcels,chunksize) DEFAULT(NONE) 
+      !$OMP& PRIVATE(n) FIRSTPRIVATE(nparcels) DEFAULT(NONE) 
       !$OMP DO SCHEDULE(STATIC,CHUNKSIZE)  
       do n=1,nparcels
         varout(n)=varin(n)
@@ -309,7 +304,7 @@ contains
       integer(kind=PARCEL_INTEGER) :: n
   
       !$OMP PARALLEL SHARED(varinout,varin2) & 
-      !$OMP& PRIVATE(n) FIRSTPRIVATE(nparcels,frac,chunksize) DEFAULT(NONE) 
+      !$OMP& PRIVATE(n) FIRSTPRIVATE(nparcels,frac) DEFAULT(NONE) 
       !$OMP DO SCHEDULE(STATIC,CHUNKSIZE)  
       do n=1,nparcels
         varinout(n)=varinout(n)+frac*varin2(n)
@@ -327,7 +322,7 @@ contains
       integer(kind=PARCEL_INTEGER) :: n
   
       !$OMP PARALLEL SHARED(varout,varin1,varin2) & 
-      !$OMP& PRIVATE(n) FIRSTPRIVATE(nparcels,frac,chunksize) DEFAULT(NONE) 
+      !$OMP& PRIVATE(n) FIRSTPRIVATE(nparcels,frac) DEFAULT(NONE) 
       !$OMP DO SCHEDULE(STATIC,CHUNKSIZE)  
       do n=1,nparcels
         varout(n)=varin1(n)+frac*varin2(n)

@@ -29,7 +29,7 @@ module parcel_interpolation_mod
   integer, allocatable, dimension(:) ::  is, js, ks
   real(kind=DEFAULT_PRECISION), allocatable, dimension(:) :: delxs, delys, delzs
   integer(kind=PARCEL_INTEGER) :: nparcels
-  integer :: chunksize=1024
+  integer,parameter :: chunksize=1024
 
   !cached grid variables
   integer :: nx, ny, nz, ndz
@@ -202,7 +202,7 @@ contains
 
 
 
-    !$OMP PARALLEL DEFAULT(SHARED) PRIVATE(n,xp,yp,zp,i,j,k,delx,dely,delz)
+    !$OMP PARALLEL DEFAULT(SHARED) PRIVATE(n,xp,yp,zp,i,j,k,delx,dely,delz) 
     !$OMP DO SCHEDULE(STATIC,CHUNKSIZE)
     do n=1,nparcels
 
@@ -284,7 +284,8 @@ contains
     call grid2par_haloswap(state,grid%data)
     !call perform_halo_swap(state,grid%data,perform_sum=.false.)
 
-    !$OMP PARALLEL DO SCHEDULE(STATIC,CHUNKSIZE) DEFAULT(PRIVATE) SHARED(nparcels,delxs,delys,delzs,is,js,ks,grid,var)
+    !$OMP PARALLEL DEFAULT(PRIVATE) SHARED(nparcels,delxs,delys,delzs,is,js,ks,grid,var)
+    !$OMP DO SCHEDULE(STATIC,CHUNKSIZE) 
     do n=1,nparcels
 
       !retrieve cached values
@@ -326,7 +327,8 @@ contains
       var(n) = c
 
     enddo
-    !$OMP END PARALLEL DO
+    !$OMP END DO
+    !$OMP END PARALLEL
 
     call timer_stop(grid2par_handle)
 
