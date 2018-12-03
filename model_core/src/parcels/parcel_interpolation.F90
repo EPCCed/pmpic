@@ -29,6 +29,7 @@ module parcel_interpolation_mod
   integer, allocatable, dimension(:) ::  is, js, ks
   real(kind=DEFAULT_PRECISION), allocatable, dimension(:) :: delxs, delys, delzs
   integer(kind=PARCEL_INTEGER) :: nparcels
+  integer :: chunksize=1024
 
   !cached grid variables
   integer :: nx, ny, nz, ndz
@@ -202,7 +203,7 @@ contains
 
 
     !$OMP PARALLEL DEFAULT(SHARED) PRIVATE(n,xp,yp,zp,i,j,k,delx,dely,delz)
-    !$OMP DO
+    !$OMP DO SCHEDULE(STATIC,CHUNKSIZE)
     do n=1,nparcels
 
       !get positions of parcels
@@ -283,7 +284,7 @@ contains
     call grid2par_haloswap(state,grid%data)
     !call perform_halo_swap(state,grid%data,perform_sum=.false.)
 
-    !$OMP PARALLEL DO DEFAULT(PRIVATE) SHARED(nparcels,delxs,delys,delzs,is,js,ks,grid,var)
+    !$OMP PARALLEL DO SCHEDULE(STATIC,CHUNKSIZE) DEFAULT(PRIVATE) SHARED(nparcels,delxs,delys,delzs,is,js,ks,grid,var)
     do n=1,nparcels
 
       !retrieve cached values
@@ -368,7 +369,7 @@ contains
     enddo
 !$OMP END DO
 
-!$OMP DO REDUCTION(+:weights,data)
+!$OMP DO REDUCTION(+:weights,data) SCHEDULE(STATIC,CHUNKSIZE)
     do n=1,nparcels
 
       !get cached grid positions

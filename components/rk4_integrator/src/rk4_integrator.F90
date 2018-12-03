@@ -18,6 +18,7 @@ module rk4_integrator_mod
   integer :: rkstep
 
   integer :: handle, handle1, handle2, handle3, handle4
+  integer :: chunksize=1024
 
 contains
 
@@ -115,51 +116,32 @@ contains
       if (state%parallel%my_rank .eq. 0) write(*,"('RK4 integrator: t= ',f10.2,'s -> ',f10.2,'s')") state%time, state%time+dt
       !$OMP END SINGLE
 
-      !cache initial parcel positions/vorticities
-      !$OMP WORKSHARE
-      state%parcels%xo(1:nparcels) = state%parcels%x(1:nparcels)
-      state%parcels%yo(1:nparcels) = state%parcels%y(1:nparcels)
-      state%parcels%zo(1:nparcels) = state%parcels%z(1:nparcels)
-
-      state%parcels%po(1:nparcels) = state%parcels%p(1:nparcels)
-      state%parcels%qo(1:nparcels) = state%parcels%q(1:nparcels)
-      state%parcels%ro(1:nparcels) = state%parcels%r(1:nparcels)
-      !$OMP END WORKSHARE
+      call set_equal_to(state%parcels%xo,state%parcels%x,nparcels)
+      call set_equal_to(state%parcels%yo,state%parcels%y,nparcels)
+      call set_equal_to(state%parcels%zo,state%parcels%z,nparcels)
+      call set_equal_to(state%parcels%po,state%parcels%p,nparcels)
+      call set_equal_to(state%parcels%qo,state%parcels%q,nparcels)
+      call set_equal_to(state%parcels%ro,state%parcels%r,nparcels)
 
       !dxdt * dt = k1
 
       !add 1/6*k1 to xf
       !k1 is just dt * dxdt so this is already calculated by the previous components called
-      !$OMP WORKSHARE
-      state%parcels%xf(1:nparcels) = state%parcels%xo(1:nparcels) &
-                                   + dt6*state%parcels%dxdt(1:nparcels)
-      state%parcels%yf(1:nparcels) = state%parcels%yo(1:nparcels) &
-                                   + dt6*state%parcels%dydt(1:nparcels)
-      state%parcels%zf(1:nparcels) = state%parcels%zo(1:nparcels) &
-                                   + dt6*state%parcels%dzdt(1:nparcels)
-      state%parcels%pf(1:nparcels) = state%parcels%po(1:nparcels) &
-                                   + dt6*state%parcels%dpdt(1:nparcels)
-      state%parcels%qf(1:nparcels) = state%parcels%qo(1:nparcels) &
-                                   + dt6*state%parcels%dqdt(1:nparcels)
-      state%parcels%rf(1:nparcels) = state%parcels%ro(1:nparcels) &
-                                   + dt6*state%parcels%drdt(1:nparcels)
-
-
+      call add_to_other(state%parcels%xf,state%parcels%xo,state%parcels%dxdt,dt6,nparcels)
+      call add_to_other(state%parcels%yf,state%parcels%yo,state%parcels%dydt,dt6,nparcels)
+      call add_to_other(state%parcels%zf,state%parcels%zo,state%parcels%dzdt,dt6,nparcels)
+      call add_to_other(state%parcels%pf,state%parcels%po,state%parcels%dpdt,dt6,nparcels)
+      call add_to_other(state%parcels%qf,state%parcels%qo,state%parcels%dqdt,dt6,nparcels)
+      call add_to_other(state%parcels%rf,state%parcels%ro,state%parcels%drdt,dt6,nparcels)
 
       !update Y to position inside the k2 bracket
-      state%parcels%x(1:nparcels) = state%parcels%xo(1:nparcels) &
-                                  + dt2*state%parcels%dxdt(1:nparcels)
-      state%parcels%y(1:nparcels) = state%parcels%yo(1:nparcels) &
-                                  + dt2*state%parcels%dydt(1:nparcels)
-      state%parcels%z(1:nparcels) = state%parcels%zo(1:nparcels) &
-                                  + dt2*state%parcels%dzdt(1:nparcels)
-      state%parcels%p(1:nparcels) = state%parcels%po(1:nparcels) &
-                                  + dt2*state%parcels%dpdt(1:nparcels)
-      state%parcels%q(1:nparcels) = state%parcels%qo(1:nparcels) &
-                                  + dt2*state%parcels%dqdt(1:nparcels)
-      state%parcels%r(1:nparcels) = state%parcels%ro(1:nparcels) &
-                                  + dt2*state%parcels%drdt(1:nparcels)
-      !$OMP END WORKSHARE
+      call add_to_other(state%parcels%x,state%parcels%xo,state%parcels%dxdt,dt2,nparcels)
+      call add_to_other(state%parcels%y,state%parcels%yo,state%parcels%dydt,dt2,nparcels)
+      call add_to_other(state%parcels%z,state%parcels%zo,state%parcels%dzdt,dt2,nparcels)
+      call add_to_other(state%parcels%p,state%parcels%po,state%parcels%dpdt,dt2,nparcels)
+      call add_to_other(state%parcels%q,state%parcels%qo,state%parcels%dqdt,dt2,nparcels)
+      call add_to_other(state%parcels%r,state%parcels%ro,state%parcels%drdt,dt2,nparcels)
+
       !$OMP BARRIER
       !$OMP SINGLE
       call timer_pause(handle)
@@ -178,34 +160,22 @@ contains
 
       !add 1/3*k2 to xf
       !k1 is just dt * dxdt so this is already calculated by the previous components called
-      !$OMP WORKSHARE
-      state%parcels%xf(1:nparcels) = state%parcels%xf(1:nparcels) &
-                                   + dt3*state%parcels%dxdt(1:nparcels)
-      state%parcels%yf(1:nparcels) = state%parcels%yf(1:nparcels) &
-                                   + dt3*state%parcels%dydt(1:nparcels)
-      state%parcels%zf(1:nparcels) = state%parcels%zf(1:nparcels) &
-                                   + dt3*state%parcels%dzdt(1:nparcels)
-      state%parcels%pf(1:nparcels) = state%parcels%pf(1:nparcels) &
-                                   + dt3*state%parcels%dpdt(1:nparcels)
-      state%parcels%qf(1:nparcels) = state%parcels%qf(1:nparcels) &
-                                   + dt3*state%parcels%dqdt(1:nparcels)
-      state%parcels%rf(1:nparcels) = state%parcels%rf(1:nparcels) &
-                                   + dt3*state%parcels%drdt(1:nparcels)
+
+      call add_to_self(state%parcels%xf,state%parcels%dxdt,dt3,nparcels)
+      call add_to_self(state%parcels%yf,state%parcels%dydt,dt3,nparcels)
+      call add_to_self(state%parcels%zf,state%parcels%dzdt,dt3,nparcels)
+      call add_to_self(state%parcels%pf,state%parcels%dpdt,dt3,nparcels)
+      call add_to_self(state%parcels%qf,state%parcels%dqdt,dt3,nparcels)
+      call add_to_self(state%parcels%rf,state%parcels%drdt,dt3,nparcels)
 
       !update Y to position inside the k3 bracket
-      state%parcels%x(1:nparcels) = state%parcels%xo(1:nparcels) &
-                                  + dt2*state%parcels%dxdt(1:nparcels)
-      state%parcels%y(1:nparcels) = state%parcels%yo(1:nparcels) &
-                                  + dt2*state%parcels%dydt(1:nparcels)
-      state%parcels%z(1:nparcels) = state%parcels%zo(1:nparcels) &
-                                  + dt2*state%parcels%dzdt(1:nparcels)
-      state%parcels%p(1:nparcels) = state%parcels%po(1:nparcels) &
-                                  + dt2*state%parcels%dpdt(1:nparcels)
-      state%parcels%q(1:nparcels) = state%parcels%qo(1:nparcels) &
-                                  + dt2*state%parcels%dqdt(1:nparcels)
-      state%parcels%r(1:nparcels) = state%parcels%ro(1:nparcels) &
-                                  + dt2*state%parcels%drdt(1:nparcels)
-      !$OMP END WORKSHARE
+      call add_to_other(state%parcels%x,state%parcels%xo,state%parcels%dxdt,dt2,nparcels)
+      call add_to_other(state%parcels%y,state%parcels%yo,state%parcels%dydt,dt2,nparcels)
+      call add_to_other(state%parcels%z,state%parcels%zo,state%parcels%dzdt,dt2,nparcels)
+      call add_to_other(state%parcels%p,state%parcels%po,state%parcels%dpdt,dt2,nparcels)
+      call add_to_other(state%parcels%q,state%parcels%qo,state%parcels%dqdt,dt2,nparcels)
+      call add_to_other(state%parcels%r,state%parcels%ro,state%parcels%drdt,dt2,nparcels)
+
       !$OMP BARRIER
       !$OMP SINGLE
       call timer_pause(handle)
@@ -224,34 +194,22 @@ contains
 
       !add 1/3*k3 to xf
       !k1 is just dt * dxdt so this is already calculated by the previous components called
-      !$OMP WORKSHARE
-      state%parcels%xf(1:nparcels) = state%parcels%xf(1:nparcels) &
-                                   + dt3*state%parcels%dxdt(1:nparcels)
-      state%parcels%yf(1:nparcels) = state%parcels%yf(1:nparcels) &
-                                   + dt3*state%parcels%dydt(1:nparcels)
-      state%parcels%zf(1:nparcels) = state%parcels%zf(1:nparcels) &
-                                   + dt3*state%parcels%dzdt(1:nparcels)
-      state%parcels%pf(1:nparcels) = state%parcels%pf(1:nparcels) &
-                                   + dt3*state%parcels%dpdt(1:nparcels)
-      state%parcels%qf(1:nparcels) = state%parcels%qf(1:nparcels) &
-                                   + dt3*state%parcels%dqdt(1:nparcels)
-      state%parcels%rf(1:nparcels) = state%parcels%rf(1:nparcels) &
-                                   + dt3*state%parcels%drdt(1:nparcels)
+
+      call add_to_self(state%parcels%xf,state%parcels%dxdt,dt3,nparcels)
+      call add_to_self(state%parcels%yf,state%parcels%dydt,dt3,nparcels)
+      call add_to_self(state%parcels%zf,state%parcels%dzdt,dt3,nparcels)
+      call add_to_self(state%parcels%pf,state%parcels%dpdt,dt3,nparcels)
+      call add_to_self(state%parcels%qf,state%parcels%dqdt,dt3,nparcels)
+      call add_to_self(state%parcels%rf,state%parcels%drdt,dt3,nparcels)
 
       !update Y to position inside the k4 bracket
-      state%parcels%x(1:nparcels) = state%parcels%xo(1:nparcels) &
-                                  + dt*state%parcels%dxdt(1:nparcels)
-      state%parcels%y(1:nparcels) = state%parcels%yo(1:nparcels) &
-                                  + dt*state%parcels%dydt(1:nparcels)
-      state%parcels%z(1:nparcels) = state%parcels%zo(1:nparcels) &
-                                  + dt*state%parcels%dzdt(1:nparcels)
-      state%parcels%p(1:nparcels) = state%parcels%po(1:nparcels) &
-                                  + dt*state%parcels%dpdt(1:nparcels)
-      state%parcels%q(1:nparcels) = state%parcels%qo(1:nparcels) &
-                                  + dt*state%parcels%dqdt(1:nparcels)
-      state%parcels%r(1:nparcels) = state%parcels%ro(1:nparcels) &
-                                  + dt*state%parcels%drdt(1:nparcels)
-      !$OMP END WORKSHARE
+      call add_to_other(state%parcels%x,state%parcels%xo,state%parcels%dxdt,dt,nparcels)
+      call add_to_other(state%parcels%y,state%parcels%yo,state%parcels%dydt,dt,nparcels)
+      call add_to_other(state%parcels%z,state%parcels%zo,state%parcels%dzdt,dt,nparcels)
+      call add_to_other(state%parcels%p,state%parcels%po,state%parcels%dpdt,dt,nparcels)
+      call add_to_other(state%parcels%q,state%parcels%qo,state%parcels%dqdt,dt,nparcels)
+      call add_to_other(state%parcels%r,state%parcels%ro,state%parcels%drdt,dt,nparcels)
+      
       !$OMP BARRIER
       !$OMP SINGLE
       call timer_pause(handle)
@@ -270,30 +228,21 @@ contains
 
       !add 1/6*k4 to xf
       !k1 is just dt * dxdt so this is already calculated by the previous components called
-      !$OMP WORKSHARE
-      state%parcels%xf(1:nparcels) = state%parcels%xf(1:nparcels) &
-                                   + dt6*state%parcels%dxdt(1:nparcels)
-      state%parcels%yf(1:nparcels) = state%parcels%yf(1:nparcels) &
-                                   + dt6*state%parcels%dydt(1:nparcels)
-      state%parcels%zf(1:nparcels) = state%parcels%zf(1:nparcels) &
-                                   + dt6*state%parcels%dzdt(1:nparcels)
-      state%parcels%pf(1:nparcels) = state%parcels%pf(1:nparcels) &
-                                   + dt6*state%parcels%dpdt(1:nparcels)
-      state%parcels%qf(1:nparcels) = state%parcels%qf(1:nparcels) &
-                                   + dt6*state%parcels%dqdt(1:nparcels)
-      state%parcels%rf(1:nparcels) = state%parcels%rf(1:nparcels) &
-                                   + dt6*state%parcels%drdt(1:nparcels)
+      call add_to_self(state%parcels%xf,state%parcels%dxdt,dt6,nparcels)
+      call add_to_self(state%parcels%yf,state%parcels%dydt,dt6,nparcels)
+      call add_to_self(state%parcels%zf,state%parcels%dzdt,dt6,nparcels)
+      call add_to_self(state%parcels%pf,state%parcels%dpdt,dt6,nparcels)
+      call add_to_self(state%parcels%qf,state%parcels%dqdt,dt6,nparcels)
+      call add_to_self(state%parcels%rf,state%parcels%drdt,dt6,nparcels)
 
       ! finally update xf,yf,zf,pf,qf,rf to x,y,z,p,q,r
-
-      state%parcels%x(1:nparcels) = state%parcels%xf(1:nparcels)
-      state%parcels%y(1:nparcels) = state%parcels%yf(1:nparcels)
-      state%parcels%z(1:nparcels) = state%parcels%zf(1:nparcels)
-
-      state%parcels%p(1:nparcels) = state%parcels%pf(1:nparcels)
-      state%parcels%q(1:nparcels) = state%parcels%qf(1:nparcels)
-      state%parcels%r(1:nparcels) = state%parcels%rf(1:nparcels)
-      !$OMP END WORKSHARE
+      call set_equal_to(state%parcels%x,state%parcels%xf,nparcels)
+      call set_equal_to(state%parcels%y,state%parcels%yf,nparcels)
+      call set_equal_to(state%parcels%z,state%parcels%zf,nparcels)
+      call set_equal_to(state%parcels%p,state%parcels%pf,nparcels)
+      call set_equal_to(state%parcels%q,state%parcels%qf,nparcels)
+      call set_equal_to(state%parcels%r,state%parcels%rf,nparcels)
+      
       !$OMP BARRIER
       !$OMP SINGLE
       call timer_stop(handle)
@@ -336,6 +285,55 @@ contains
 
   end subroutine
 
+  subroutine set_equal_to(varout,varin,nparcels)
+      real(kind=DEFAULT_PRECISION), dimension(:), intent(out) :: varout
+      real(kind=DEFAULT_PRECISION), dimension(:), intent(in) :: varin
+      integer(kind=PARCEL_INTEGER), intent(in) :: nparcels
+      integer(kind=PARCEL_INTEGER) :: n
+  
+      !$OMP PARALLEL SHARED(varout,varin) & 
+      !$OMP& PRIVATE(n) FIRSTPRIVATE(nparcels,chunksize) DEFAULT(NONE) 
+      !$OMP DO SCHEDULE(STATIC,CHUNKSIZE)  
+      do n=1,nparcels
+        varout(n)=varin(n)
+      end do
+      !$OMP END DO
+      !$OMP END PARALLEL     
+  end subroutine
 
-
+  subroutine add_to_self(varinout,varin2,frac,nparcels)
+      real(kind=DEFAULT_PRECISION), dimension(:), intent(inout) :: varinout
+      real(kind=DEFAULT_PRECISION), dimension(:), intent(in) :: varin2
+      real(kind=DEFAULT_PRECISION), intent(in) :: frac
+      integer(kind=PARCEL_INTEGER), intent(in) :: nparcels
+      integer(kind=PARCEL_INTEGER) :: n
+  
+      !$OMP PARALLEL SHARED(varinout,varin2) & 
+      !$OMP& PRIVATE(n) FIRSTPRIVATE(nparcels,frac,chunksize) DEFAULT(NONE) 
+      !$OMP DO SCHEDULE(STATIC,CHUNKSIZE)  
+      do n=1,nparcels
+        varinout(n)=varinout(n)+frac*varin2(n)
+      end do
+      !$OMP END DO
+      !$OMP END PARALLEL 
+  end subroutine
+  
+  subroutine add_to_other(varout,varin1,varin2,frac,nparcels)
+      real(kind=DEFAULT_PRECISION), dimension(:), intent(out) :: varout
+      real(kind=DEFAULT_PRECISION), dimension(:), intent(in) :: varin1
+      real(kind=DEFAULT_PRECISION), dimension(:), intent(in) :: varin2
+      real(kind=DEFAULT_PRECISION), intent(in) :: frac
+      integer(kind=PARCEL_INTEGER), intent(in) :: nparcels
+      integer(kind=PARCEL_INTEGER) :: n
+  
+      !$OMP PARALLEL SHARED(varout,varin1,varin2) & 
+      !$OMP& PRIVATE(n) FIRSTPRIVATE(nparcels,frac,chunksize) DEFAULT(NONE) 
+      !$OMP DO SCHEDULE(STATIC,CHUNKSIZE)  
+      do n=1,nparcels
+        varout(n)=varin1(n)+frac*varin2(n)
+      end do
+      !$OMP END DO
+      !$OMP END PARALLEL  
+  end subroutine
+      
 end module
