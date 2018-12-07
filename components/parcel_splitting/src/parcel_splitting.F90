@@ -148,7 +148,7 @@ contains
 
       if (state%parallel%my_rank .eq. 0) then
         if (state%parcels%numparcels_global .gt. oldtotal) then
-          write(*,"('split ', i6, ' parcels')") state%parcels%numparcels_global - oldtotal
+          write(*,"('split ', i9, ' parcels')") state%parcels%numparcels_global - oldtotal
         else
           write(*,*) "No split parcels"
         endif

@@ -1,5 +1,7 @@
-!reads in parcel options from config file and allocates memory
-!also places uniformly placed parcels in cells
+!reads in parcel options from config file and allocates memory.
+!Also initialises parcel haloswapping and parcel interpolation routines.
+! Does **not** place any parcels, merely allocate memory for them.
+! This has to be done by a user-written component.
 module parcelsetup_base_mod
   use datadefn_mod, only : DEFAULT_PRECISION, PARCEL_INTEGER, MPI_PARCEL_INT, STRING_LENGTH
   use state_mod, only: model_state_type
@@ -124,50 +126,6 @@ contains
 
 
   end subroutine finalisation_callback
-
-
-
-  ! !set up the parcels. Depending on the config file, we either read in from
-  ! !existing files, or set up new parcels according to a custom subroutine
-  ! subroutine setup_parcels(state)
-  !   type(model_state_type), intent(inout) :: state
-  !   logical :: restart
-  !   character (len=STRING_LENGTH) :: setup_routine
-  !
-  !   restart=options_get_logical(state%options_database,"restart")
-  !
-  !
-  !   if (restart) then
-  !     call read_parcels_from_file(state)
-  !   else
-  !
-  !     setup_routine=options_get_string(state%options_database,"initialisation_routine")
-  !
-  !     if (setup_routine .eq. "basic") then
-  !       call basicsetup(state)
-  !     else
-  !       print *, "Selected initialisation routine '",trim(setup_routine),"' not valid"
-  !       call MPI_Finalize(ierr)
-  !       error stop "Select a valid initilisation routine"
-  !     endif
-  !
-  !   endif
-  !
-  !
-  ! end subroutine
-  !
-  !
-  !
-  !
-  !
-  ! subroutine read_configuration(state)
-  !   type(model_state_type), intent(inout) :: state
-  !
-  !   maxparcels_global=options_get_integer(state%options_database,"max_parcels")
-  ! !  n_per_dir=options_get_integer(state%options_database,"parcels_per_cell_dir")
-  !
-  ! end subroutine read_configuration
-
 
 
 

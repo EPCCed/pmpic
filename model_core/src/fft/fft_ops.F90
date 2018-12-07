@@ -53,7 +53,7 @@ contains
     real(kind=DEFAULT_PRECISION) :: xval, yval, ksqmax, lx, ly
 
     if (initialised) then
-      print *, "Warning: fft_ops is already initialised"
+      if (state%parallel%my_rank .eq. 0) print *, "Warning: fft_ops is already initialised"
       return
     endif
 

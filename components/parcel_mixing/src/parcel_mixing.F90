@@ -12,6 +12,7 @@ module parcel_mixing_mod
   use omp_lib
   use timer_mod
   use prognostics_mod, only : prognostic_field_type
+  use MPIC_Haloswap_mod, only: mixing_haloswap
 
   implicit none
 
@@ -101,9 +102,6 @@ contains
        !print *, "qold=", qold
       !! END TEST CODE
 
-      !!$OMP PARALLEL default(shared) private(i,j,k,delx, dely, delz,w000, w001, w010, w011, w100, w101, w110, w111, v) &
-      !!$OMP& firstprivate(norig)
-
       !$OMP parallel WORKSHARE
       npercell(:,:,:) = 0.
       state%vol%data(:,:,:) = 0.
@@ -132,13 +130,12 @@ contains
       !called in a subroutine so we can have a !$OMP DO REDUCTION() on state%var%data variables
       call construct_grids(state,state%vol%data, state%b%data, state%hg%data, state%p%data, state%q%data, state%r%data, nremove)
 
-      !haloswap original grids
-      call perform_halo_swap(state,state%vol%data,perform_sum=.true.)
-      call perform_halo_swap(state,state%b%data,perform_sum=.true.)
-      call perform_halo_swap(state,state%hg%data,perform_sum=.true.)
-      call perform_halo_swap(state,state%p%data,perform_sum=.true.)
-      call perform_halo_swap(state,state%q%data,perform_sum=.true.)
-      call perform_halo_swap(state,state%r%data,perform_sum=.true.)
+      call mixing_haloswap(state,state%vol%data)
+      call mixing_haloswap(state,state%b%data)
+      call mixing_haloswap(state,state%hg%data)
+      call mixing_haloswap(state,state%p%data)
+      call mixing_haloswap(state,state%q%data)
+      call mixing_haloswap(state,state%r%data)
 
       !Apply lower/upper BCs (double values at boundary)
       state%vol%data(1,:,:) = state%vol%data(1,:,:)*2.
@@ -214,8 +211,6 @@ contains
         enddo
       enddo
 
-      !print *, "Parcel mixing: number to be added =        ", nadd
-
 
       !we only end out with more than numparcels_local if we added more parcels than we removed
       !if not, we need to backfill later
@@ -223,12 +218,12 @@ contains
 
 
       !halo swap residual fields
-      call perform_halo_swap(state,vres,perform_sum=.true.)
-      call perform_halo_swap(state,bres,perform_sum=.true.)
-      call perform_halo_swap(state,hres,perform_sum=.true.)
-      call perform_halo_swap(state,pres,perform_sum=.true.)
-      call perform_halo_swap(state,qres,perform_sum=.true.)
-      call perform_halo_swap(state,rres,perform_sum=.true.)
+      call mixing_haloswap(state,vres)
+      call mixing_haloswap(state,bres)
+      call mixing_haloswap(state,hres)
+      call mixing_haloswap(state,pres)
+      call mixing_haloswap(state,qres)
+      call mixing_haloswap(state,rres)
 
       !apply lower/upper BCs
       vres(1,:,:) = vres(1,:,:)*2
@@ -251,7 +246,7 @@ contains
       !$OMP DO
       do n=1,norig
         if (keep(n) .eq. 1) then
-          !calculate tridiagonl weights
+          !calculate trilinear weights
           i=is(n)
           j=js(n)
           k=ks(n)

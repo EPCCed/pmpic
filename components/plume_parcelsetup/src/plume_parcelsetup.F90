@@ -1,5 +1,4 @@
-!reads in parcel options from config file and allocates memory
-!also places uniformly placed parcels in cells
+!Creates an initial condition of a spherical thermal from Dritschel et al. 2018
 module plume_parcelsetup_mod
   use datadefn_mod, only : DEFAULT_PRECISION, PARCEL_INTEGER, MPI_PARCEL_INT, STRING_LENGTH
   use state_mod, only: model_state_type
@@ -20,7 +19,6 @@ module plume_parcelsetup_mod
   integer :: ierr
 
 
-!nicked from parameters.f90 in mpic for now...
   !------------------------------------------------------------------------
  !Note: we take the characteristic scale height 1/lambda = 1, so adjust
  !ellz above as needed.
@@ -136,7 +134,7 @@ contains
 
 
 
-    !now we need to transform dimensionless lengths into dimensional using the scale length lambda
+    !now we need to scale lengths by the scale length lambda
 
     z_c=z_c*lambda
     z_b=z_b*lambda

@@ -3,7 +3,7 @@
 ! dp/dt = vort . grad(u) + db/dy
 ! dq=dt = vort . grad(v) - db/dx
 ! dr/dt = vort . grad(w)
-! on a grid (derivatives are calculated spectrally) then interpolates to the parcels
+! on a grid (derivatives are calculated spectrally) then interpolated to the parcels
 module vorticity_tendency_mod
   use datadefn_mod, only : DEFAULT_PRECISION, PRECISION_TYPE, PARCEL_INTEGER
   use grids_mod, only : X_INDEX, Y_INDEX, Z_INDEX

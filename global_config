@@ -36,9 +36,11 @@ last_group_contents=model_synopsis
 
 # Component ordering for other stages
 
-initialisation_stage_ordering=decomposition, setup_grid, parcelsetup_base, basic_parcelsetup,plume_parcelsetup, readfromfile_parcelsetup,termination_check, model_synopsis, halo_swapper, writeparcels, writegrids, prescribed_parcel_velocity, euler_integrator,rk4_integrator,vort2vel,vorticity_tendency
+initialisation_stage_ordering=decomposition, setup_grid, parcelsetup_base, basic_parcelsetup,plume_parcelsetup, readfromfile_parcelsetup,termination_check, model_synopsis, halo_swapper, writeparcels, writegrids, prescribed_parcel_velocity, euler_integrator,rk4_integrator,vort2vel,vorticity_tendency,parcel_mixing,parcel_splitting
 
-finalisation_stage_ordering=halo_swapper, basic_plume,  parcelsetup_base,model_synopsis, writeparcels, writegrids, rk4_integrator
+integrator_group_contents=vort2vel,vorticity_tendency,euler_integrator,rk4_integrator,parcel_splitting, parcel_mixing
+
+finalisation_stage_ordering=halo_swapper, basic_plume, parcelsetup_base,model_synopsis, writeparcels, writegrids, rk4_integrator,parcel_mixing,parcel_splitting,vort2vel,vorticity_tendency
 
 # Control configuration
 nn_timesteps=-1
@@ -53,35 +55,9 @@ msg_filename=messages
 
 # Decomposition configuration
 decomposition_method = twodim
-
-
-#parcel properties
-max_parcels=1000000
-parcels_per_cell_dir = 2
-
-
-#grid properties
-nx=32
-ny=32
-nz=32
-
-xmin=0
-xmax=6000
-ymin=0
-ymax=6000
-zmin=0
-zmax=6000
-
-# Simplesetup options
-x_size=1
-y_size=1
-z_size=1
-dxx=1
-dyy=1
-kgd=10
-hgd=10.0
-zztop=1.0
 halo_depth=2
+
+
 
 # Science constants
 von_karman_constant=0.4
