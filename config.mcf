@@ -90,6 +90,7 @@ parcel_step_write_netcdf_frequency=10
 grid_step_write_netcdf_frequency = 5
 parcel_time_write_netcdf_frequency = 1.
 grid_time_write_netcdf_frequency = 1.
+parcel_netcdf_deflate_level=0
 
 #timing logging options
 timing_enabled=.true.
