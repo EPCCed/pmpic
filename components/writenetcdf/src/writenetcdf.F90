@@ -396,10 +396,10 @@ contains
     call check_status(nf90_def_var(ncid, "z_end", NF90_DOUBLE, z_end_id))
 
     call check_status(nf90_put_var(ncid, x_start_id, state%local_grid%local_domain_start_index(3)))
-    call check_status(nf90_put_var(ncid, y_start_id, state%local_grid%local_domain_end_index(3)+1))
-    call check_status(nf90_put_var(ncid, z_start_id, state%local_grid%local_domain_start_index(2)))
-    call check_status(nf90_put_var(ncid, x_end_id, state%local_grid%local_domain_end_index(2)+1))
-    call check_status(nf90_put_var(ncid, y_end_id, state%local_grid%local_domain_start_index(1)))
+    call check_status(nf90_put_var(ncid, x_end_id, state%local_grid%local_domain_end_index(3)+1))
+    call check_status(nf90_put_var(ncid, y_start_id, state%local_grid%local_domain_start_index(2)))
+    call check_status(nf90_put_var(ncid, y_end_id, state%local_grid%local_domain_end_index(2)+1))
+    call check_status(nf90_put_var(ncid, z_start_id, state%local_grid%local_domain_start_index(1)))
     call check_status(nf90_put_var(ncid, z_end_id, state%local_grid%local_domain_end_index(1)))
 
     call define_misc_variables(ncid, timestep_id, dtm_id)
