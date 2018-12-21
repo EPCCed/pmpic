@@ -1,8 +1,8 @@
 ifeq ($(NONETCDF),TRUE)
-        SRCSF = src/writegrids_stub.F90
+        SRCSF = src/writenetcdf_stub.F90
         NETCDF_INC=
 else
-        SRCSF = src/writegrids.F90
+        SRCSF = src/writenetcdf.F90
         NETCDF_INC=-I $(NETCDF_DIR)/include
 endif
 

@@ -39,3 +39,4 @@ fort.??
 */*.autogen
 timing_data
 *.png
+*.nc

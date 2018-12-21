@@ -1,10 +1,10 @@
 !writes grid information
 !just dumps x, y, z and the tag
-module writegrids_mod
-  use datadefn_mod, only : DEFAULT_PRECISION, PARCEL_INTEGER, LONG_INTEGER
+module writenetcdf_mod
+  use datadefn_mod, only : DEFAULT_PRECISION, PARCEL_INTEGER, LONG_INTEGER, DOUBLE_PRECISION, STRING_LENGTH
   use state_mod, only: model_state_type
   use monc_component_mod, only: component_descriptor_type
-  use optionsdatabase_mod, only : options_get_integer,options_get_logical
+  use optionsdatabase_mod, only : options_get_integer,options_get_logical,options_get_string,options_get_real
   use prognostics_mod, only : prognostic_field_type
   use conversions_mod, only : conv_to_string
   use grids_mod, only : local_grid_type, X_INDEX, Y_INDEX, Z_INDEX
@@ -14,7 +14,6 @@ module writegrids_mod
        NF90_COLLECTIVE, nf90_def_var, nf90_var_par_access, nf90_def_var_fill, nf90_put_att, nf90_create, nf90_put_var, &
        nf90_def_dim, nf90_enddef, nf90_close, nf90_inq_dimid, nf90_inq_varid,&
        nf90_ebaddim, nf90_enotatt, nf90_enotvar, nf90_noerr, nf90_strerror
-  use datadefn_mod, only : DEFAULT_PRECISION, SINGLE_PRECISION, DOUBLE_PRECISION, STRING_LENGTH
   use logging_mod, only : LOG_ERROR, log_log
   use mpi, only : MPI_INFO_NULL
 
@@ -22,9 +21,13 @@ module writegrids_mod
 
   character(len=*), parameter :: CHECKPOINT_TITLE = "MONC checkpoint file" !< Title of the NetCDF file
 
-  integer :: num, gpersteps, gwritten
+  integer :: num, ppersteps, gpersteps, pwritten, gwritten
 
-  integer :: handleg
+  integer :: handlep, handleg, ierr
+
+  real(kind=DEFAULT_PRECISION) :: dtparcels, dtgrids, tnextgrids, tnextparcels
+
+  CHARACTER(len=4) :: mode
                           
   character(len=*), parameter ::  U_KEY = "u", & 
                                   V_KEY = "v", &
@@ -50,13 +53,13 @@ module writegrids_mod
   
 contains
 
-  type(component_descriptor_type) function writegrids_get_descriptor()
-    writegrids_get_descriptor%name="writegrids"
-    writegrids_get_descriptor%version=0.1
-    writegrids_get_descriptor%initialisation=>initialisation_callback
-    writegrids_get_descriptor%timestep=>timestep_callback
-    writegrids_get_descriptor%finalisation=>finalisation_callback
-  end function writegrids_get_descriptor
+  type(component_descriptor_type) function writenetcdf_get_descriptor()
+    writenetcdf_get_descriptor%name="writenetcdf"
+    writenetcdf_get_descriptor%version=0.1
+    writenetcdf_get_descriptor%initialisation=>initialisation_callback
+    writenetcdf_get_descriptor%timestep=>timestep_callback
+    writenetcdf_get_descriptor%finalisation=>finalisation_callback
+  end function writenetcdf_get_descriptor
 
 
   subroutine initialisation_callback(state)
@@ -64,12 +67,41 @@ contains
 
     if (state%parallel%my_rank .eq. 0) print *, "Writer initialisation"
 
-    gpersteps=options_get_integer(state%options_database,"grid_dump_frequency")
+    !determine the writing mode we want. Write a fixed number of timesteps ("steps") or a
+    ! fixed time interval ("time")
+
+    mode = options_get_string(state%options_database,"writenetcdf_mode")
+
+    if (state%parallel%my_rank .eq. 0) then
+      print *, "Selected writing mode: ",mode
+    endif
+
+    if (mode .eq. "time") then
+      dtparcels = options_get_real(state%options_database,"parcel_time_write_netcdf_frequency")
+      dtgrids = options_get_real(state%options_database,"grid_time_write_netcdf_frequency")
+      tnextgrids=0.
+      tnextparcels=0.
+    else if (mode .eq. "step") then
+      ppersteps=options_get_integer(state%options_database,"parcel_step_write_netcdf_frequency")
+      gpersteps=options_get_integer(state%options_database,"grid_step_write_netcdf_frequency")
+    else if (mode .eq. "none") then
+      if (state%parallel%my_rank .eq. 0) print *, "No grid/parcel files will be produced"
+    else
+      if (state%parallel%my_rank .eq. 0) then
+        print *, "Error: mode '",mode,"' not recognised."
+        print *, "The valid options are 'none', 'time' or 'step'"
+        print *, 'Aborting'
+      endif
+      call mpi_finalize(ierr)
+      stop
+    endif
 
     num=state%iterations
+    pwritten=0
     gwritten=0
 
-    call register_routine_for_timing("write_grids",handleg,state)
+    call register_routine_for_timing("write_netcdf_parcels",handlep,state)
+    call register_routine_for_timing("write_netcdf_grids",handleg,state)
 
   end subroutine
 
@@ -83,39 +115,81 @@ contains
 
     num=state%iterations
 
-    if (gpersteps .ne. 0) then
-      if (mod(num,gpersteps) .eq. 0) then
+    if (mode .eq. "step") then
 
-
-        call cache_parcel_interp_weights(state)
-        call par2grid(state,state%parcels%b,state%b)
-        call par2grid(state,state%parcels%p,state%p)
-        call par2grid(state,state%parcels%q,state%q)
-        call par2grid(state,state%parcels%r,state%r)
-
-        ! obtain the humidity and liquid humidity
-        call par2grid(state,state%parcels%h,state%hg)
-        !$OMP PARALLEL DO
-        do i=1,size(state%hgliq%data,3)
-          do j=1,size(state%hgliq%data,2)
-            do k=1,size(state%hgliq%data,1)
-              state%hgliq%data(k,j,i) = max(0.,state%hg%data(k,j,i) - exp(-z_coords(k)))
-              state%b%data(k,j,i) = state%b%data(k,j,i) + 12.5*state%hgliq%data(k,j,i)
-            enddo
-          enddo
-        enddo
-        !$OMP END PARALLEL DO
-
-
-        call timer_start(handleg)
-        write(filename,"(A,I4.4,A3)") "grids_", num, ".nc"
-        call write_checkpoint_file(state, filename)
-        gwritten=gwritten+1
-        call timer_stop(handleg)
+      if (ppersteps .ne. 0) then
+        if(mod(num,ppersteps) .eq. 0) then
+          call timer_start(handlep)
+          !call write_parcels_to_file(state)
+          pwritten=pwritten+1
+          call timer_stop(handlep)
+        endif
       endif
+
+      if (gpersteps .ne. 0) then
+        if (mod(num,gpersteps) .eq. 0) then
+          call timer_start(handleg)
+          call write_grids_to_file(state)
+          gwritten=gwritten+1
+          call timer_stop(handleg)
+        endif
+      endif
+
+    else if (mode .eq. "time") then
+      if (dtgrids .ne. 0.) then
+        if (state%time .ge. tnextgrids) then
+          call timer_start(handleg)
+          call write_grids_to_file(state)
+          gwritten=gwritten+1
+          call timer_stop(handleg)
+          tnextgrids = tnextgrids + dtgrids
+        endif
+      endif
+
+      if (dtparcels .ne. 0.) then
+        if (state%time .ge. tnextparcels) then
+          call timer_start(handlep)
+          !call write_parcels_to_file(state)
+          pwritten=pwritten+1
+          call timer_stop(handlep)
+          tnextparcels = tnextparcels + dtparcels
+        endif
+      endif
+
     endif
 
     num=num+1
+  end subroutine
+    
+  subroutine write_grids_to_file(state)
+    type(model_state_type), intent(inout), target :: state
+    character (len=23) :: filename
+    integer :: proc
+    integer(kind=PARCEL_INTEGER) :: nparcels
+    integer :: i,j,k
+    
+    call cache_parcel_interp_weights(state)
+    call par2grid(state,state%parcels%b,state%b)
+    call par2grid(state,state%parcels%p,state%p)
+    call par2grid(state,state%parcels%q,state%q)
+    call par2grid(state,state%parcels%r,state%r)
+
+    ! obtain the humidity and liquid humidity
+    call par2grid(state,state%parcels%h,state%hg)
+    !$OMP PARALLEL DO
+    do i=1,size(state%hgliq%data,3)
+      do j=1,size(state%hgliq%data,2)
+        do k=1,size(state%hgliq%data,1)
+          state%hgliq%data(k,j,i) = max(0.,state%hg%data(k,j,i) - exp(-z_coords(k)))
+          state%b%data(k,j,i) = state%b%data(k,j,i) + 12.5*state%hgliq%data(k,j,i)
+        enddo
+      enddo
+    enddo
+    !$OMP END PARALLEL DO
+
+    write(filename,"(A,I4.4,A3)") "grids_", num, ".nc"
+    call write_checkpoint_file(state, filename)
+    gwritten=gwritten+1
   end subroutine
 
   subroutine finalisation_callback(state)
