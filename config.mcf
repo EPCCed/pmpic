@@ -1,43 +1,41 @@
 # Global configuration
 global_configuration=global_config
 
+############### Components to be enabled/disabled #####################
+
 # Override global component defaults
 setup_grid_enabled=.true.
 writeparcels_enabled=.true.
 parcelsetup_base_enabled=.true.
 
-#parcel setup routines
+#parcel setup routines (ensure **only** one of these is enabled at once)
 basic_parcelsetup_enabled=.false.
 plume_parcelsetup_enabled=.true.
 readfromfile_parcelsetup_enabled=.false.
 
-#integrator routines
+#integrator routines (ensure **only** one of these is enabled at once)
 euler_integrator_enabled=.false.
 rk4_integrator_enabled=.true.
 
-#parcel velocity routines
+#test/debug routines. Should be disabled unless you know what you're doing
 prescribed_parcel_velocity_enabled=.false.
-
-vort2vel_enabled=.true.
-vorticity_tendency_enabled=.true.
 laplinv_test_enabled=.false.
-
 ffttest_enabled=.false.
 
 
-#component ordering
+#Core MPIC physics routines
+vort2vel_enabled=.true.
+vorticity_tendency_enabled=.true.
+parcel_splitting_enabled=.true.
+parcel_mixing_enabled=.true.
 
-#initialisation_stage_ordering+=euler_integrator,prescribed_parcel_velocity,writeparcels
 
-integrator_group_contents=grid2partest,prescribed_parcel_velocity,ffttest,vort2vel,vorticity_tendency,laplinv_test,euler_integrator,rk4_integrator
-
-#finalisation_stage_ordering+=model_synopsis,euler_integrator,prescribed_parcel_velocity,writeparcels
+############# Component settings #################################
 
 
 # Control configuration
 display_synopsis_frequency=60
 termination_time=2400
-
 
 #grid properties
 nx=32
@@ -50,11 +48,11 @@ ymax=6280.
 zmin=0
 zmax=6280.
 
-#base parcelsetup properties
-max_parcels=10000000
+#Maximum parcels per process (you can determine this value using the planner.py script)
+max_parcels=1000000
 
-#readfromfile_options
-restart_num=40
+#readfromfile options (only relevant if the readfromfile_parcelsetup component is enabled)
+restart_num=50
 
 #basic_parcelsetup options
 parcels_per_cell_dir = 2
@@ -77,12 +75,16 @@ dtmax=60
 velocity_profile=9
 
 #writeparcels properties
-parcel_dump_frequency=10
-grid_dump_frequency = 5
+# can choose between "time" (write files every dt time intervals) "step" (after every n steps) or "none" (essentially disable component)
+writeparcels_mode="time"
+parcel_step_write_frequency=10
+grid_step_write_frequency = 5
+parcel_time_write_frequency = 1.
+grid_time_write_frequency = 1.
 
 #timing logging options
 timing_enabled=.true.
-timing_logging=.true.
+timing_logging=.false.
 logging_routines=RK4_all_steps,Par_HSWP_entire,Prescribed_velocity,write_parcels
 
 #physical constants

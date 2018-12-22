@@ -1,5 +1,4 @@
-!reads in parcel options from config file and allocates memory
-!also places uniformly placed parcels in cells
+!Creates an initial condition of a spherical thermal from Dritschel et al. 2018
 module plume_parcelsetup_mod
   use datadefn_mod, only : DEFAULT_PRECISION, PARCEL_INTEGER, MPI_PARCEL_INT, STRING_LENGTH
   use state_mod, only: model_state_type
@@ -20,7 +19,6 @@ module plume_parcelsetup_mod
   integer :: ierr
 
 
-!nicked from parameters.f90 in mpic for now...
   !------------------------------------------------------------------------
  !Note: we take the characteristic scale height 1/lambda = 1, so adjust
  !ellz above as needed.
@@ -146,14 +144,14 @@ contains
 
     !determine centre of plume (defined as the centre of the global computational domain)
 
-    x_c_pl = (state%global_grid%top(3)-state%global_grid%bottom(3))/2 +state%global_grid%bottom(3)
-    y_c_pl = (state%global_grid%top(2)-state%global_grid%bottom(2))/2 +state%global_grid%bottom(2)
-    z_c_pl = r_plume
-
     !get grid spacings
     dx = state%global_grid%resolution(3)
     dy = state%global_grid%resolution(2)
     dz = state%global_grid%resolution(1)
+
+    x_c_pl = (state%global_grid%top(3)+dx-state%global_grid%bottom(3))/2 +state%global_grid%bottom(3)
+    y_c_pl = (state%global_grid%top(2)+dy-state%global_grid%bottom(2))/2 +state%global_grid%bottom(2)
+    z_c_pl = r_plume
 
     !determine spacing of parcels in plume
     dxplume = dx / n_per_cell_dir_plume
@@ -164,10 +162,10 @@ contains
     !create parcels in plume
     n=0
 
-    open(unit=10+state%parallel%my_rank)
+    !open(unit=10+state%parallel%my_rank)
 
 
-    vol=(dxplume*dyplume*dzplume)/(dx*dy*dz)
+    vol=(dxplume*dyplume*dzplume)
 
 
     if (xmax_local .gt. x_c_pl-r_plume .and. xmin_local .lt. x_c_pl+r_plume ) then
@@ -185,13 +183,17 @@ contains
               !print *, x, y, z
               if (zp*zp + xp*xp + yp*yp .le. r_plume*r_plume) then
                 n=n+1
+                if (n .gt. state%parcels%maxparcels_local) then
+                  print *, "Error! Maxparcels reached in plume_parcelsetup"
+                  error stop "Maxparcels reached"
+                endif
                 state%parcels%x(n) = x
                 state%parcels%y(n) = y
                 state%parcels%z(n) = z
                 state%parcels%b(n) = b_pl*(1. + e_values(1)*xp*yp + e_values(2)*xp*zp + e_values(3)*yp*zp)
                 state%parcels%h(n) = h_pl
                 state%parcels%vol(n) = vol
-                write(10+state%parallel%my_rank,*) x, y, z, state%parcels%b(n)
+!                write(10+state%parallel%my_rank,*) x, y, z, state%parcels%b(n)
               endif
               z=z+dzplume
             enddo
@@ -213,7 +215,7 @@ contains
     dybg = dy/n_per_cell_dir_bg
     dzbg = dz/n_per_cell_dir_bg
 
-    vol = dxbg*dybg*dzbg/(dx*dy*dz)
+    vol = dxbg*dybg*dzbg
 
     x=xmin_local+dxbg/2.
     y=ymin_local+dybg/2.
@@ -229,6 +231,10 @@ contains
             if (zp*zp + yp*yp + xp*xp .gt. r_plume*r_plume) then
 
               n=n+1
+              if (n .gt. state%parcels%maxparcels_local) then
+                print *, "Error! Maxparcels reached in plume_parcelsetup"
+                error stop "Maxparcels reached"
+              endif
               state%parcels%x(n) = x
               state%parcels%y(n) = y
               state%parcels%z(n) = z
@@ -245,7 +251,7 @@ contains
 
 
               state%parcels%vol(n) = vol
-              write(10+state%parallel%my_rank,*) x, y, z, state%parcels%b(n)
+              !write(10+state%parallel%my_rank,*) x, y, z, state%parcels%b(n)
             endif
 
           z=z+dzbg
@@ -260,7 +266,7 @@ contains
     n_bg = n-n_plume
 
 
-    close(10+state%parallel%my_rank)
+    !close(10+state%parallel%my_rank)
 
     state%parcels%numparcels_local=n
 

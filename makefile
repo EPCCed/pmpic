@@ -43,13 +43,13 @@ else
 	PETSC_LIBS=-lpetsc
 endif
 
-COMPILERFFLAGS=-fopenmp -ffpe-trap=invalid,overflow,denormal,zero -O3
+COMPILERFFLAGS=-fopenmp -ffpe-trap=invalid,overflow,zero -O3
 COMPILERRECURSIVE=
 ACTIVE=-DU_ACTIVE -DV_ACTIVE -DW_ACTIVE -DUSE_MAKE
-DEBUG_FLAGS=-g -fopenmp -fcheck=all -fbacktrace -DDEBUG_MODE -ffpe-trap=invalid,overflow,denormal,zero
+DEBUG_FLAGS=-g -fopenmp -fcheck=all -fbacktrace -DDEBUG_MODE -ffpe-trap=invalid,overflow,zero
 
 FFLAGS=-I $(CORE_DIR)/$(BUILD_DIR) -I $(COMPONENTS_DIR)/$(BUILD_DIR) -I $(TESTCASE_DIR)/$(BUILD_DIR) -I /usr/include $(COMPILERFFLAGS)
-LFLAGS= -lfftw3
+LFLAGS= -lfftw3 -lfftw3_omp
 EXEC_NAME=monc
 
 local: FTN=mpif90
@@ -57,7 +57,11 @@ local: GNU
 
 debug: COMPILERFFLAGS = $(DEBUG_FLAGS)
 debug: OPT=$(ACTIVE)
-debug: local
+ifdef CRAYOS_VERSION
+debug :GNU
+else
+debug :local
+endif
 
 GNU: COMPILERFFLAGS += $(ACTIVE) -cpp -J $(BUILD_DIR) -c
 GNU: COMPILERRECURSIVE= -frecursive

@@ -4,6 +4,7 @@ module parcel_interpolation_mod
   use prognostics_mod, only : prognostic_field_type
   use datadefn_mod, only : DEFAULT_PRECISION, PRECISION_TYPE, PARCEL_INTEGER
   use omp_lib
+  use MPIC_Haloswap_mod, only: MPIC_Haloswap_init, grid2par_haloswap, par2grid_haloswap
 
   use optionsdatabase_mod, only : options_get_integer
 
@@ -39,7 +40,7 @@ module parcel_interpolation_mod
 
   real(kind=default_precision), allocatable, dimension(:) :: x_coords, y_coords, z_coords
 
-  integer :: grid2par_handle, par2grid_handle, cache_handle
+  integer :: grid2par_handle, par2grid_handle, cache_handle, haloswap_handle, sumswap_handle
 
 
 contains
@@ -53,6 +54,8 @@ contains
     integer :: xstart, xstop, ystart, ystop, zstart, zstop
     real(kind=DEFAULT_PRECISION) :: dzdummy
     integer :: halo_depth
+
+    call MPIC_Haloswap_init(state)
 
     if (state%parallel%my_rank .eq. 0 ) print *, "Initialising parcel_interp module"
     if (initialised) error stop "parcel interpolation routines are already initialised - cannot initialise"
@@ -98,50 +101,9 @@ contains
     zstop = state%local_grid%end(1)+state%local_grid%halo_size(1)
 
 
-    ! !try to set up z
-    ! if (allocated(state%global_grid%configuration%vertical%z)) then
-    !   !if it is already set up then take its values from the state
-    ! !  nz=size(state%global_grid%configuration%vertical%z)
-    !   print*, "nz=",nz
-    !   allocate(z(nz))
-    !   z=state%global_grid%configuration%vertical%z
-    !
-    !
-    !   ndz=size(state%global_grid%configuration%vertical%dz)
-    !   print*, "dzn=",ndz
-    !   allocate(dz(ndz))
-    ! else !else we set it up ourselves
-    !   if (state%parallel%my_rank .eq. 0 ) print *, "Warning: no z grid defined. Creating uniform grid"
-    !
-    !   !nz=zstop-zstart+1
-    !   allocate(z(nz))
-    !   ndz=nz-1
-    !   allocate(dz(ndz))
-    !
-    !   !set dz
-    !   dz(1:ndz)=dzdummy
-    !
-    !   meandz=sum(dz)/(nz-1)
-    !
-    !
-    !   z(1)=(zstart-1)*dz(1)
-    !   do n=2,nz
-    !     z(n) = z(n-1)+dz(n-1)
-    !   enddo
-    ! endif
-
-    !print*, state%parallel%my_rank, xstart, xstop, ystart, ystop, zstart, zstop
-    ! do n=1,nz
-    !   print*, state%parallel%my_rank, n, z(n)
-    ! enddo
-
     xmin = (xstart-1)*dx + state%global_grid%bottom(3) !Coordinate of first point in the x grid (inc halo cells)
     ymin = (ystart-1)*dy + state%global_grid%bottom(2)
     zmin = (zstart-1)*dz + state%global_grid%bottom(1)
-
-     !print *, "xmin, ymin, zmin", xmin, ymin, zmin
-    !
-
 
     !coordinate of first point belonging to that grid
     minx = (xstart-1+state%local_grid%halo_size(3))*dx + state%global_grid%bottom(2)
@@ -174,29 +136,6 @@ contains
     enddo
 
 
-    !z_coords(:) = z(:)
-
-    !print *, "parcel_interp setup:", xmin, xmax, ymin, ymax, zmin, zmax
-
-    !call flush()
-
-    ! if (state%parallel%my_rank .eq. 0) then
-    ! do n=1,nz
-    !    print*, state%parallel%my_rank, n, z(n)
-    ! enddo
-    ! endif
-
-    !sanity check to see if grid is set up right
-    !print *, state%parallel%my_rank, ymin+dy, ymax-2*dy
-
-    !call MPI_Barrier(state%parallel%monc_communicator,n)
-
-    !print *, state%parallel%my_rank, y_coords(ny-2:ny), y_coords(1:3)
-
-   !  call MPI_Barrier(state%parallel%monc_communicator,n)
-     !call MPI_Finalize(n)
-   ! !
-     !stop
 
      hx=state%local_grid%halo_size(3)
      hy=state%local_grid%halo_size(2)
@@ -205,10 +144,12 @@ contains
      call register_routine_for_timing("grid2par",grid2par_handle,state)
      call register_routine_for_timing("par2grid",par2grid_handle,state)
      call register_routine_for_timing("cache_weights",cache_handle,state)
+     call register_routine_for_timing("grid_HSwp", haloswap_handle, state)
+     call register_routine_for_timing("grid_HSwp_sum",sumswap_handle, state)
 
      halo_depth = options_get_integer(state%options_database, "halo_depth")
-     call init_halo_communication(state, get_single_field_per_halo_cell, halo_swap_state, &
-          halo_depth, .true.)
+     !call init_halo_communication(state, get_single_field_per_halo_cell, halo_swap_state, &
+    !      halo_depth, .true.)
 
 
 
@@ -272,12 +213,6 @@ contains
       !get the index of the lower left corner of the cell that the parcel is in
       i=floor((xp-xmin)/dx)+1
       j=floor((yp-ymin)/dy)+1
-      ! do nn=1,nz-1 !as z may be a variable size grid we need to search through z to get the cell
-      !   if ((zp .gt. z(nn)) .and. (zp .lt. z(nn+1))) then
-      !     k=nn
-      !     exit
-      !   endif
-      ! enddo
       k=floor((zp-zmin)/dz)+1
 
       !if ((xp .lt. xmin) .or. (xp .gt. xmax)) error stop "x too big/small"
@@ -286,7 +221,10 @@ contains
 
       if ((i .lt. 1) .or. (i .ge. nx)) error stop "parcel out of box (x direction)"
       if ((j .lt. 1) .or. (j .ge. ny)) error stop "parcel out of box (y direction)"
-      if ((k .lt. 1) .or. (k .ge. nz)) error stop "parcel out of box (z direction)"
+      if ((k .lt. 1) .or. (k .ge. nz)) then
+        print *, n, xp, yp, zp, zmin,zmax
+        error stop "parcel out of box (z direction)"
+      endif
 
       !get the fractional position in the cell (from the lower left corner) that the parcel is at
       delx= ((xp-xmin)-(i-1)*dx)/dx
@@ -342,7 +280,8 @@ contains
 
     call timer_start(grid2par_handle)
 
-    call perform_halo_swap(state,grid%data,perform_sum=.false.)
+    call grid2par_haloswap(state,grid%data)
+    !call perform_halo_swap(state,grid%data,perform_sum=.false.)
 
     !$OMP PARALLEL DO DEFAULT(PRIVATE) SHARED(nparcels,delxs,delys,delzs,is,js,ks,grid,var)
     do n=1,nparcels
@@ -447,9 +386,6 @@ contains
 
       !calculate weights on each vertex of cube and add that to grid subtotals
 
-      ! if (n .lt. 10) then
-      !   print *,n, i, j, k, v, w
-      ! endif
 
       w000 = (1-delz)*(1-dely)*(1-delx)*v
       data(k,j,i) = data(k,j,i) + w000*w
@@ -510,11 +446,19 @@ contains
     !$OMP BARRIER
 
     !$OMP MASTER
-    call perform_halo_swap(state,weights,perform_sum=.true.)
-    call perform_halo_swap(state,data,perform_sum=.true.)
+    !call perform_halo_swap(state,weights,perform_sum=.true.)
+    !call perform_halo_swap(state,data,perform_sum=.true.)
+    call par2grid_haloswap(state,weights)
+    call par2grid_haloswap(state,data)
     !$OMP END MASTER
 
     !$OMP BARRIER
+
+    !$OMP WORKSHARE
+    grid%data(1,:,:) = 2*data(1,:,:)
+    grid%data(nz,:,:) = 2*data(nz,:,:)
+    !$OMP END WORKSHARE
+
 
 !$OMP DO
     do n=1,nx
@@ -523,7 +467,10 @@ contains
         grid%data(:,:,n) = data(:,:,n)/weights(:,:,n)
     enddo
 !$OMP END DO
+
 !$OMP END PARALLEL
+
+
 
 
     deallocate(weights)
@@ -535,6 +482,7 @@ contains
 
 
 
+!################# CODE BELOW THIS POINT NO LONGER USED! ###########################
 
   !halo swapping functionality beyond this point
 
@@ -571,6 +519,7 @@ contains
       !values already there. This means we cannot use MONC's inbuilt haloswapping (because it moves grid to halo
       ! not halo to grid) so we have our own version
       if (sum) then
+        call timer_start(sumswap_handle)
 
         !allocate the buffers
         allocate(left_buf(nz,ny,hx), right_buf(nz,ny,hx), up_buf(nz,hy,nx), down_buf(nz,hy,nx))
@@ -604,25 +553,25 @@ contains
         data(:,:,hx+1:hx+2) = data(:,:,hx+1:hx+2) + left_buf(:,:,:) !add buffer to grid
 
 
-        !send left, receive right
-
-        left_buf(:,:,:) = data(:,:,1:hx) !copy halo to buffer
-
-        call MPI_Sendrecv(left_buf, &
-                          nz*ny*hx, &
-                          PRECISION_TYPE, &
-                          left, &
-                          0, &
-                          right_buf,&
-                          nz*ny*hx,&
-                          PRECISION_TYPE,&
-                          right,&
-                          0,&
-                          state%parallel%monc_communicator,&
-                          status,&
-                          ierr)
-
-        data(:,:,nx-2*hx+1:nx-hx) = data(:,:,nx-2*hx+1:nx-hx) + right_buf(:,:,:)
+        ! !send left, receive right
+        !
+        ! left_buf(:,:,:) = data(:,:,1:hx) !copy halo to buffer
+        !
+        ! call MPI_Sendrecv(left_buf, &
+        !                   nz*ny*hx, &
+        !                   PRECISION_TYPE, &
+        !                   left, &
+        !                   0, &
+        !                   right_buf,&
+        !                   nz*ny*hx,&
+        !                   PRECISION_TYPE,&
+        !                   right,&
+        !                   0,&
+        !                   state%parallel%monc_communicator,&
+        !                   status,&
+        !                   ierr)
+        !
+        ! data(:,:,nx-2*hx+1:nx-hx) = data(:,:,nx-2*hx+1:nx-hx) + right_buf(:,:,:)
 
         !send up recv down
 
@@ -644,25 +593,25 @@ contains
 
          data(:,hy+1:2*hy,:) = data(:,hy+1:2*hy,:) + down_buf(:,:,:)
 
-         !send down recv up
-
-         down_buf(:,:,:) = data(:,1:hy,:) !copy halo to buffer
-
-         call MPI_Sendrecv(down_buf, &
-                           nz*nx*hy, &
-                           PRECISION_TYPE, &
-                           down, &
-                           0, &
-                           up_buf,&
-                           nz*nx*hy,&
-                           PRECISION_TYPE,&
-                           up,&
-                           0,&
-                           state%parallel%monc_communicator,&
-                           status,&
-                           ierr)
-
-          data(:,ny-2*hy+1:ny-hy,:) = data(:,ny-2*hy+1:ny-hy,:) + up_buf(:,:,:)
+         ! !send down recv up
+         !
+         ! down_buf(:,:,:) = data(:,1:hy,:) !copy halo to buffer
+         !
+         ! call MPI_Sendrecv(down_buf, &
+         !                   nz*nx*hy, &
+         !                   PRECISION_TYPE, &
+         !                   down, &
+         !                   0, &
+         !                   up_buf,&
+         !                   nz*nx*hy,&
+         !                   PRECISION_TYPE,&
+         !                   up,&
+         !                   0,&
+         !                   state%parallel%monc_communicator,&
+         !                   status,&
+         !                   ierr)
+         !
+         !  data(:,ny-2*hy+1:ny-hy,:) = data(:,ny-2*hy+1:ny-hy,:) + up_buf(:,:,:)
 
 
 
@@ -682,13 +631,16 @@ contains
 
 
         deallocate(up_buf, down_buf, left_buf, right_buf)
+        call timer_stop(sumswap_handle)
 
       else
+        call timer_start(haloswap_handle)
         call blocking_halo_swap(state, halo_swap_state, grid2buff, &
                                local_copy,buff2halo,&
                               copy_corners_to_halo_buffer=corner2buff,&
                               copy_from_halo_buffer_to_corner=buff2corner,&
                               source_data=(/source_data/))
+        call timer_stop(haloswap_handle)
 
       endif
 

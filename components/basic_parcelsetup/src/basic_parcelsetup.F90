@@ -58,10 +58,7 @@ contains
 
     if (state%parallel%my_rank .eq. 0) write(*,"(i2.1,a)")  n_per_dir, " parcels per direction per cell"
     if (state%parallel%my_rank .eq. 0) write(*,"(a,i4.1,a)") " So ", n_per_cell," Parcels per cell"
-    !if (state%parallel%my_rank .eq. 0) write(*,"(a,i12,a,i12)") "Setting up", nparcels,"parcels in", nnx*nny*nnz, "cells"
 
-    !print*, "nnx, nny, nnz=", nnx, nny, nnz
-    !print*, "maxparcels=",state%parcels%maxparcels_local,  " nparcels=", nparcels
 
     if (nparcels .gt. state%parcels%maxparcels_local) then
       error stop "Maxparcels is not big enough for the number of parcels per cell requested"
@@ -78,7 +75,6 @@ contains
                        state%parallel%monc_communicator,&
                        ierr)
 
-    !print *, "dx, dy, dz=", dx, dy, dz
 
     !start and end indices of the bit of grid belonging to that process
     xstart=state%local_grid%halo_size(3)+1
@@ -88,19 +84,6 @@ contains
     xstop=nx-state%local_grid%halo_size(3)!-1
     ystop=ny-state%local_grid%halo_size(2)!-1
     zstop=nz-state%local_grid%halo_size(1)-1
-
-    !call MPI_Barrier(state%parallel%monc_communicator,ierr)
-
-    !print*, "rank, xstart, xstop=", state%parallel%my_rank,x_coords(xstart), x_coords(xstop+1)
-    !print*, "rank, ystart, ystop=", state%parallel%my_rank,y_coords(ystart), y_coords(ystop+1)
-    !print*, "rank, zstart, zstop=", state%parallel%my_rank,z_coords(zstart), z_coords(zstop+1)
-
-    !call MPI_Barrier(state%parallel%monc_communicator,ierr)
-
-    !call MPI_Finalize(ierr)
-
-    !error stop
-
 
 
     !loop over every cell and put n_per_cell parcels in it
@@ -135,17 +118,6 @@ contains
     enddo
 
 
-
-    ! do n=1,8
-    !   print *, state%parcels%x(n), state%parcels%y(n), state%parcels%z(n)
-    ! enddo
-
-    !print*, maxval(state%parcels%x(1:n)), xmax
-    !print*, maxval(state%parcels%y(1:n)), ymax
-    !print*, maxval(state%parcels%z(1:n)), zmax
-
-
-    !print *, n, nparcels
     if (n .ne. nparcels) error stop "incorrect parcel numbers"
 
     !set up q values

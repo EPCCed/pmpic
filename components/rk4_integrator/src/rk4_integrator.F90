@@ -13,7 +13,6 @@ module rk4_integrator_mod
   implicit none
 
   real(kind=DEFAULT_PRECISION) :: originaldt
-  real(kind=DEFAULT_PRECISION), parameter :: cfl=0.1
   integer :: ierr
 
   integer :: rkstep
@@ -284,6 +283,16 @@ contains
                                    + dt6*state%parcels%dqdt(1:nparcels)
       state%parcels%rf(1:nparcels) = state%parcels%rf(1:nparcels) &
                                    + dt6*state%parcels%drdt(1:nparcels)
+
+      ! finally update xf,yf,zf,pf,qf,rf to x,y,z,p,q,r
+
+      state%parcels%x(1:nparcels) = state%parcels%xf(1:nparcels)
+      state%parcels%y(1:nparcels) = state%parcels%yf(1:nparcels)
+      state%parcels%z(1:nparcels) = state%parcels%zf(1:nparcels)
+
+      state%parcels%p(1:nparcels) = state%parcels%pf(1:nparcels)
+      state%parcels%q(1:nparcels) = state%parcels%qf(1:nparcels)
+      state%parcels%r(1:nparcels) = state%parcels%rf(1:nparcels)
       !$OMP END WORKSHARE
       !$OMP BARRIER
       !$OMP SINGLE

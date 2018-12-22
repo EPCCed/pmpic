@@ -15,6 +15,7 @@ module fftops_mod
   use fftw_mod
   use state_mod
   use datadefn_mod, only: DEFAULT_PRECISION, PRECISION_TYPE
+  use timer_mod, only: register_routine_for_timing, timer_start, timer_stop
   use MPI
 
 
@@ -36,6 +37,8 @@ integer :: nx, ny, nz
 logical :: initialised = .false.
 integer :: ierr, comm
 
+integer :: diffxyhandle, diffzhandle, laplinvhandle, filterhandle
+
 logical :: x_start_swap, x_end_swap, y_start_swap, y_end_swap !do we need to swap the first/last array elements with neighbouring processes
 
 
@@ -50,7 +53,7 @@ contains
     real(kind=DEFAULT_PRECISION) :: xval, yval, ksqmax, lx, ly
 
     if (initialised) then
-      print *, "Warning: fft_ops is already initialised"
+      if (state%parallel%my_rank .eq. 0) print *, "Warning: fft_ops is already initialised"
       return
     endif
 
@@ -152,6 +155,11 @@ contains
     !cache dz
     dz=state%global_grid%resolution(1)
 
+    call register_routine_for_timing("diffxy", diffxyhandle, state)
+    call register_routine_for_timing("diffz", diffzhandle, state)
+    call register_routine_for_timing("laplinv", laplinvhandle, state)
+    call register_routine_for_timing("spec_filter", filterhandle, state)
+
 
 
 
@@ -169,6 +177,9 @@ contains
   subroutine spectral_filter(f,out)
     real(kind=DEFAULT_PRECISION), dimension(:,:,:), intent(inout) :: f
     real(kind=DEFAULT_PRECISION), dimension(:,:,:), intent(out), optional :: out
+    !$OMP SINGLE
+    call timer_start(filterhandle)
+    !$OMP END SINGLE
 
     if (present(out)) then
       !$OMP WORKSHARE
@@ -179,6 +190,10 @@ contains
       f(:,:,:) = f(:,:,:)*filter(:,:,:)
       !$OMP END WORKSHARE
     endif
+
+    !$OMP SINGLE
+    call timer_stop(filterhandle)
+    !$OMP END SINGLE
 
   end subroutine
 
@@ -197,7 +212,10 @@ contains
     integer :: requests(4)=MPI_REQUEST_NULL
 
 
+
+
     !$OMP SINGLE
+    call timer_start(diffxyhandle)
     istart=1
     iend=nx
     !send/recv start/end values of arrays if needed (non-blocking)
@@ -278,6 +296,10 @@ contains
     out(:,:,:) = out(:,:,:) * kx(:,:,:)
     !$OMP END WORKSHARE
 
+    !$OMP SINGLE
+    call timer_stop(diffxyhandle)
+    !$OMP END SINGLE
+
   end subroutine
 
   !gives spectral derivative in the y direction: out = 2*pi*i*ky*in
@@ -292,6 +314,7 @@ contains
 
 
     !$OMP SINGLE
+    call timer_start(diffxyhandle)
 
     jstart=1
     jend=ny
@@ -373,6 +396,10 @@ contains
     out(:,:,:) = out(:,:,:) * ky(:,:,:)
     !$OMP END WORKSHARE
 
+    !$OMP SINGLE
+    call timer_stop(diffxyhandle)
+    !$OMP END SINGLE
+
   end subroutine
 
 
@@ -402,6 +429,10 @@ contains
     real(kind=DEFAULT_PRECISION), parameter :: a1=1./6., b1=2./3., c1=1./6.
     real(kind=DEFAULT_PRECISION), parameter :: an=0., bn=1., cn=0.
     real(kind=DEFAULT_PRECISION), parameter :: al = 1./3., cl=1./3.
+
+    !$OMP SINGLE
+    call timer_start(diffzhandle)
+    !$OMP END SINGLE
 
     nz=size(f,1)
     ny=size(f,2)
@@ -447,6 +478,10 @@ contains
     !$OMP END DO
     deallocate(a,b,c,d)
 
+    !$OMP SINGLE
+    call timer_stop(diffzhandle)
+    !$OMP END SINGLE
+
   end subroutine
 
   !inverts B = laplacian(A) using the tridiagonal problem:
@@ -481,6 +516,10 @@ contains
     real(kind=DEFAULT_PRECISION) :: i2dz2, idz2
     integer :: nx, ny, nz
     integer :: i, j, k
+
+    !$OMP SINGLE
+    call timer_start(laplinvhandle)
+    !$OMP END SINGLE
 
 
     df0=.false.
@@ -558,6 +597,9 @@ contains
       enddo
     enddo
     !$OMP ENDDO
+    !$OMP SINGLE
+    call timer_stop(laplinvhandle)
+    !$OMP END SINGLE
   end subroutine
 
 

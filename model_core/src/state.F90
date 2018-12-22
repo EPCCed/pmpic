@@ -62,7 +62,7 @@ module state_mod
 
     type(prognostic_field_type) :: u_s, v_s, w_s !semi-spectral velocities
 
-    type(parcel_type) :: parcels
+    type(parcel_type) :: parcels !stores the parcels
 
   end type model_state_type
 end module state_mod

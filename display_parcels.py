@@ -222,7 +222,7 @@ if __name__ == "__main__":
     #first check that the files exist
     fail=False
     for i in range(numfiles):
-        fname = "parcels_%03d_%04d.dat"%(i,filenum)
+        fname = "parcels_%05d_%05d.dat"%(i,filenum)
         if not os.path.isfile(fname):
             print("Error: cannot find '%s'"%fname)
             fail=True
@@ -238,7 +238,7 @@ if __name__ == "__main__":
 
     #now get the global x/y/z ranges
     for i in range(numfiles):
-        fname = "parcels_%03d_%04d.dat"%(i,filenum)
+        fname = "parcels_%05d_%05d.dat"%(i,filenum)
         f=open(fname,"rb")
         t=np.fromfile(f,dtype=np.float64,count=1)
         t=t[0]
@@ -287,7 +287,7 @@ if __name__ == "__main__":
     tag=np.zeros(0)
 
     for i in range(numfiles):
-        fname = "parcels_%03d_%04d.dat"%(i,filenum)
+        fname = "parcels_%05d_%05d.dat"%(i,filenum)
         xp,yp,zp,pp,qp,rp,dxdtp,dydtp,dzdtp,dpdtp,dqdtp,drdtp,hp,bp,volp,sp,tp = read_file(fname)
         x=np.append(x,xp)
         y=np.append(y,yp)
@@ -309,4 +309,4 @@ if __name__ == "__main__":
         print(len(x))
 
     print("read everything properly")
-    render_slice(x,y,z,b, vol,xrange,yrange,zrange,"x",(xrange[1]-xrange[0])/2,200,kernel="gaussian",number=filenum,root="buoyancy",time=t)
+    render_slice(x,y,z,b, vol,xrange,yrange,zrange,"x",np.pi,200,kernel="gaussian",number=filenum,root="buoyancy",time=t)

@@ -142,8 +142,8 @@ contains
     timings(handle)%n = 0
 
     if (state%parallel%my_rank .eq. 0) then
-      write(*,"('Registered routine `',a,'` for timing with handle =',i4)") &
-       timings(handle)%name,handle
+      !write(*,"('Registered routine `',a,'` for timing with handle =',i4)") &
+       !timings(handle)%name,handle
     endif
 
     if (logging) then
@@ -153,7 +153,7 @@ contains
           !we have a match and need to create a file
           timings(handle)%unit = get_free_file_unit()
           write(fname,"(a,'_',i5.5,'.log')") name, state%parallel%my_rank
-          write(*,*) "opening logfile '",trim(fname),"' in unit number", timings(handle)%unit
+          !write(*,*) "opening logfile '",trim(fname),"' in unit number", timings(handle)%unit
 
           open(unit=timings(handle)%unit,file=timing_dir//"/"//fname)
           write(timings(handle)%unit,"('# Timing information for routine `',a,'` on rank ',i5)"), name,state%parallel%my_rank
