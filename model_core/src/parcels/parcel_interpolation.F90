@@ -361,7 +361,7 @@ contains
 
     !zero the weights and the grid
 !$OMP PARALLEL DEFAULT(PRIVATE) &
-!$OMP              SHARED(nparcels,nx,ny,nz,state,var,grid, weights,data) &
+!$OMP              SHARED(nparcels,nx,ny,nz,var,vol,grid, weights,data) &
 !$OMP              SHARED(is, js, ks, delxs, delys, delzs) &
 !$OMP SHARED(x_coords, y_coords, z_coords)
 
