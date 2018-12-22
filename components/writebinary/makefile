@@ -1,4 +1,4 @@
-SRCSF = src/writeparcels.F90
+SRCSF = src/writebinary.F90
 
 BUILDDIR=build
 COREDIR=../../model_core/build

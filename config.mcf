@@ -5,8 +5,8 @@ global_configuration=global_config
 
 # Override global component defaults
 setup_grid_enabled=.true.
-writeparcels_enabled=.true.
-writegrids_enabled=.true.
+writebinary_enabled=.true.
+writenetcdf_enabled=.true.
 parcelsetup_base_enabled=.true.
 
 #parcel setup routines (ensure **only** one of these is enabled at once)
@@ -77,13 +77,20 @@ dtmax=0.1
 #velocity profile properties
 velocity_profile=9
 
-#writeparcels properties
+#writebinary properties
 # can choose between "time" (write files every dt time intervals) "step" (after every n steps) or "none" (essentially disable component)
-writeparcels_mode="time"
+writebinary_mode="time"
 parcel_step_write_frequency=10
 grid_step_write_frequency = 5
 parcel_time_write_frequency = 1.
 grid_time_write_frequency = 1.
+
+writenetcdf_mode="time"
+parcel_step_write_netcdf_frequency=10
+grid_step_write_netcdf_frequency = 5
+parcel_time_write_netcdf_frequency = 1.
+grid_time_write_netcdf_frequency = 1.
+parcel_netcdf_deflate_level=0
 
 #timing logging options
 timing_enabled=.true.
