@@ -116,9 +116,9 @@ contains
 
     call cache_parcel_interp_weights(current_state)
 
-    call par2grid(current_state,current_state%parcels%p,current_state%p)
-    call par2grid(current_state,current_state%parcels%q,current_state%q)
-    call par2grid(current_state,current_state%parcels%r,current_state%r)
+    call par2grid(current_state,current_state%parcels%p,current_state%p,current_state%parcels%vol)
+    call par2grid(current_state,current_state%parcels%q,current_state%q,current_state%parcels%vol)
+    call par2grid(current_state,current_state%parcels%r,current_state%r,current_state%parcels%vol)
 
     do i=1,3
       start_loc(i)=current_state%local_grid%local_domain_start_index(i)

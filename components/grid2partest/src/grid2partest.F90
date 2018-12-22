@@ -78,21 +78,21 @@ contains
     if (current_state%parallel%my_rank .eq. 0) print*, "Testing in x direction"
     call grid2par(current_state,current_state%u,current_state%parcels%dxdt)
     call check_parcels(current_state,current_state%parcels%dxdt,current_state%parcels%x)
-    call par2grid(current_state,current_state%parcels%p,current_state%p)
+    call par2grid(current_state,current_state%parcels%p,current_state%p,current_state%parcels%vol)
     call check_grid(current_state,current_state%p,current_state%u)
 
     if (current_state%parallel%my_rank .eq. 0) print *, "Testing in y direction"
     call grid2par(current_state,current_state%v,current_state%parcels%dydt)
     call check_parcels(current_state,current_state%parcels%dydt,current_state%parcels%y)
 
-    call par2grid(current_state,current_state%parcels%q,current_state%q)
+    call par2grid(current_state,current_state%parcels%q,current_state%q,current_state%parcels%vol)
     call check_grid(current_state,current_state%q,current_state%v)
 
     if (current_state%parallel%my_rank .eq. 0) print *, "Testing in Z direction"
     call grid2par(current_state,current_state%w,current_state%parcels%dzdt)
     call check_parcels(current_state,current_state%parcels%dzdt,current_state%parcels%z)
 
-    call par2grid(current_state,current_state%parcels%r,current_state%r)
+    call par2grid(current_state,current_state%parcels%r,current_state%r,current_state%parcels%vol)
     call check_grid(current_state,current_state%r,current_state%w)
 
     call MPI_Barrier(current_state%parallel%monc_communicator,ierr)

@@ -336,12 +336,13 @@ contains
 
 
 
-  subroutine par2grid(state,var,grid)
+  subroutine par2grid(state,var,grid,vol)
 
     implicit none
 
     type(model_state_type), intent(inout) :: state
     real(kind=DEFAULT_PRECISION), dimension(:), intent(in) :: var
+    real(kind=DEFAULT_PRECISION), dimension(:), intent(in) :: vol
     type(prognostic_field_type), intent(inout) :: grid
 
     integer(kind=PARCEL_INTEGER) :: n
@@ -383,7 +384,7 @@ contains
       k=ks(n)
 
       !parcel's volume
-      v = state%parcels%vol(n)
+      v = vol(n)
 
       w=var(n)
 

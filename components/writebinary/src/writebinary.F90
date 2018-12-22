@@ -218,13 +218,13 @@ contains
     real(kind=DEFAULT_PRECISION) :: x1, x2, y1, y2, z1, z2
 
     call cache_parcel_interp_weights(state)
-    call par2grid(state,state%parcels%b,state%b)
-    call par2grid(state,state%parcels%p,state%p)
-    call par2grid(state,state%parcels%q,state%q)
-    call par2grid(state,state%parcels%r,state%r)
+    call par2grid(state,state%parcels%b,state%b,state%parcels%vol)
+    call par2grid(state,state%parcels%p,state%p,state%parcels%vol)
+    call par2grid(state,state%parcels%q,state%q,state%parcels%vol)
+    call par2grid(state,state%parcels%r,state%r,state%parcels%vol)
 
     ! obtain the humidity and liquid humidity
-    call par2grid(state,state%parcels%h,state%hg)
+    call par2grid(state,state%parcels%h,state%hg,state%parcels%vol)
     !$OMP PARALLEL DO
     do i=1,size(state%hgliq%data,3)
       do j=1,size(state%hgliq%data,2)

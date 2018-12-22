@@ -124,7 +124,7 @@ contains
     !$OMP END PARALLEL DO
 
 
-    call par2grid(current_state,current_state%parcels%btot,current_state%b)
+    call par2grid(current_state,current_state%parcels%btot,current_state%b,current_state%parcels%vol)
 
     !$OMP PARALLEL DEFAULT(SHARED)
     !$OMP SINGLE
