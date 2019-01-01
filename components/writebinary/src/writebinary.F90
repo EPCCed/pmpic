@@ -1,5 +1,5 @@
 !very basic parcel and grid writing routine
-module writeparcels_mod
+module writebinary_mod
   use datadefn_mod, only : DEFAULT_PRECISION, PARCEL_INTEGER, LONG_INTEGER
   use state_mod, only: model_state_type
   use monc_component_mod, only: component_descriptor_type
@@ -19,13 +19,13 @@ module writeparcels_mod
 
 contains
 
-  type(component_descriptor_type) function writeparcels_get_descriptor()
-    writeparcels_get_descriptor%name="writeparcels"
-    writeparcels_get_descriptor%version=0.1
-    writeparcels_get_descriptor%initialisation=>initialisation_callback
-    writeparcels_get_descriptor%timestep=>timestep_callback
-    writeparcels_get_descriptor%finalisation=>finalisation_callback
-  end function writeparcels_get_descriptor
+  type(component_descriptor_type) function writebinary_get_descriptor()
+    writebinary_get_descriptor%name="writebinary"
+    writebinary_get_descriptor%version=0.1
+    writebinary_get_descriptor%initialisation=>initialisation_callback
+    writebinary_get_descriptor%timestep=>timestep_callback
+    writebinary_get_descriptor%finalisation=>finalisation_callback
+  end function writebinary_get_descriptor
 
 
   subroutine initialisation_callback(state)
@@ -37,7 +37,7 @@ contains
     !determine the writing mode we want. Write a fixed number of timesteps ("steps") or a
     ! fixed time interval ("time")
 
-    mode = options_get_string(state%options_database,"writeparcels_mode")
+    mode = options_get_string(state%options_database,"writebinary_mode")
 
     if (state%parallel%my_rank .eq. 0) then
       print *, "Selected writing mode: ",mode
