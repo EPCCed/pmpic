@@ -77,17 +77,17 @@ velocity_profile=9
 
 #writebinary properties
 # can choose between "time" (write files every dt time intervals) "step" (after every n steps) or "none" (essentially disable component)
-writebinary_mode="time"
-parcel_step_write_frequency=10
+writebinary_mode="step"
+parcel_step_write_frequency=25
 grid_step_write_frequency = 5
-parcel_time_write_frequency = 1.
-grid_time_write_frequency = 1.
+parcel_time_write_frequency = 200.
+grid_time_write_frequency = 200.
 
-writenetcdf_mode="time"
-parcel_step_write_netcdf_frequency=10
+writenetcdf_mode="step"
+parcel_step_write_netcdf_frequency=25
 grid_step_write_netcdf_frequency = 5
-parcel_time_write_netcdf_frequency = 1.
-grid_time_write_netcdf_frequency = 1.
+parcel_time_write_netcdf_frequency = 200.
+grid_time_write_netcdf_frequency = 200.
 parcel_netcdf_deflate_level=0
 
 #timing logging options

@@ -127,7 +127,6 @@ contains
 
     call par2grid(current_state,current_state%parcels%btot,current_state%b)
     call par2grid(current_state,current_state%parcels%h,current_state%hg)
-    !$OMP END SINGLE
 
     !$OMP DO
     do i=1,size(current_state%hgliq%data,3)
