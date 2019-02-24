@@ -40,7 +40,7 @@ module parcel_interpolation_mod
 
   real(kind=default_precision), allocatable, dimension(:) :: x_coords, y_coords, z_coords
 
-  integer :: grid2par_handle, par2grid_handle, cache_handle, haloswap_handle, sumswap_handle
+  integer :: grid2par_handle, grid2par_add_handle, par2grid_handle, cache_handle, haloswap_handle, sumswap_handle
 
 
 contains
@@ -142,6 +142,7 @@ contains
      hz=state%local_grid%halo_size(1)
 
      call register_routine_for_timing("grid2par",grid2par_handle,state)
+     call register_routine_for_timing("grid2par_add",grid2par_add_handle,state)
      call register_routine_for_timing("par2grid",par2grid_handle,state)
      call register_routine_for_timing("cache_weights",cache_handle,state)
      call register_routine_for_timing("grid_HSwp", haloswap_handle, state)
@@ -331,6 +332,73 @@ contains
 
   end subroutine
 
+!interpolate gridded variable (grid) to parcel variable (var)
+  subroutine grid2par_add(state,grid,var)
+    type(model_state_type), intent(inout) :: state
+    type(prognostic_field_type), intent(inout) :: grid
+    real(kind=DEFAULT_PRECISION), dimension(:) :: var
+
+    integer(kind=PARCEL_INTEGER) :: n
+    real(kind=DEFAULT_PRECISION) :: c000, c001, c010, c011, c100, c101, c110, c111
+    real(kind=DEFAULT_PRECISION) :: c00, c01, c10, c11
+    real(kind=DEFAULT_PRECISION) :: c0, c1
+    real(kind=DEFAULT_PRECISION) :: c
+
+    integer :: i, j, k
+    real(kind=DEFAULT_PRECISION) :: delx, dely, delz
+
+    call timer_start(grid2par_add_handle)
+
+    call grid2par_haloswap(state,grid%data)
+    !call perform_halo_swap(state,grid%data,perform_sum=.false.)
+
+    !$OMP PARALLEL DO DEFAULT(PRIVATE) SHARED(nparcels,delxs,delys,delzs,is,js,ks,grid,var)
+    do n=1,nparcels
+
+      !retrieve cached values
+      delx=delxs(n)
+      dely=delys(n)
+      delz=delzs(n)
+      i=is(n)
+      j=js(n)
+      k=ks(n)
+
+      !retrieve corners of grid cell the nth parcel is in
+
+      c000 = grid%data(k,j,i)
+      c001 = grid%data(k,j,i+1)
+      c010 = grid%data(k,j+1,i)
+      c011 = grid%data(k,j+1,i+1)
+      c100 = grid%data(k+1,j,i)
+      c101 = grid%data(k+1,j,i+1)
+      c110 = grid%data(k+1,j+1,i)
+      c111 = grid%data(k+1,j+1,i+1)
+
+      !interpolate in z direction to produce square around parcel in y-x plane
+      c00 = c000*(1-delz) + c100*delz
+      c01 = c001*(1-delz) + c101*delz
+      c10 = c010*(1-delz) + c110*delz
+      c11 = c011*(1-delz) + c111*delz
+
+      !interpolate in y direction to produce line through parcel along x direction
+
+      c0 = c00*(1-dely) + c10*dely
+      c1 = c01*(1-dely) + c11*dely
+
+      !interpolate to parcel position
+
+      c = c0*(1-delx) + c1*delx
+
+      !now update parcel's variable
+
+      var(n) = var(n)+c
+
+    enddo
+    !$OMP END PARALLEL DO
+
+    call timer_stop(grid2par_add_handle)
+
+  end subroutine
 
 
   subroutine par2grid(state,var,grid)
