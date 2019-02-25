@@ -77,3 +77,8 @@ convective_limit=-0.5
 ratio_mol_wts=1.608
 rlargep=1.0e37
 surface_vapour_mixing_ratio=0.0
+
+surf_temp_base=288.
+surf_pres_base=1.0e5
+lapse_base=6.5e-3
+theta_00=300.

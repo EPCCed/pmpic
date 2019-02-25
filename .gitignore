@@ -40,3 +40,8 @@ fort.??
 timing_data
 *.png
 *.nc
+scorep*
+*/*.bbl
+*/*.aux
+*/*.blg
+*/*.log
