@@ -16,6 +16,7 @@ module writenetcdf_mod
        nf90_ebaddim, nf90_enotatt, nf90_enotvar, nf90_noerr, nf90_strerror,NF90_UNLIMITED,nf90_def_var_deflate
   use logging_mod, only : LOG_ERROR, log_log
   use mpi, only : MPI_INFO_NULL
+  use q_indices_mod, only: get_q_index,standard_q_names
 
   implicit none
 
@@ -38,6 +39,7 @@ module writenetcdf_mod
                                   Q_KEY = "q", &      
                                   R_KEY = "r", &
                                   B_KEY = "b", &
+                                  BTOT_KEY = "btot", &
                                   H_KEY = "h", &
                                   HG_KEY = "hg", &
                                   HGLIQ_KEY = "hgliq", &
@@ -184,26 +186,21 @@ contains
     character (len=23) :: filename
     integer :: proc
     integer(kind=PARCEL_INTEGER) :: nparcels
-    integer :: i,j,k
+    integer :: i,j,k,iqv,iqc
+
+    iqv=get_q_index(standard_q_names%VAPOUR, 'saturation_adjust')
+    iqc=get_q_index(standard_q_names%CLOUD_LIQUID_MASS, 'saturation_adjust')
     
     call cache_parcel_interp_weights(state)
+    call par2grid(state,state%parcels%btot,state%btot)
     call par2grid(state,state%parcels%b,state%b)
     call par2grid(state,state%parcels%p,state%p)
     call par2grid(state,state%parcels%q,state%q)
     call par2grid(state,state%parcels%r,state%r)
-
+       
     ! obtain the humidity and liquid humidity
-    call par2grid(state,state%parcels%h,state%hg)
-    !$OMP PARALLEL DO
-    do i=1,size(state%hgliq%data,3)
-      do j=1,size(state%hgliq%data,2)
-        do k=1,size(state%hgliq%data,1)
-          state%hgliq%data(k,j,i) = max(0.,state%hg%data(k,j,i) - exp(-z_coords(k)))
-          state%b%data(k,j,i) = state%b%data(k,j,i) + 12.5*state%hgliq%data(k,j,i)
-        enddo
-      enddo
-    enddo
-    !$OMP END PARALLEL DO
+    call par2grid(state,state%parcels%qvalues(iqv,:),state%hg)
+    call par2grid(state,state%parcels%qvalues(iqc,:),state%hgliq)
 
     write(filename,"(A,I4.4,A3)") "grids_",num,".nc"
     call write_ncgrid_file(state, filename)
@@ -226,7 +223,7 @@ contains
     type(model_state_type), intent(inout) :: current_state
     character(len=*), intent(in) :: filename
 
-    integer :: ncid,u_id,v_id,w_id,p_id,q_id,r_id,b_id,hg_id,hgliq_id,vol_id,time_dim_id,&
+    integer :: ncid,u_id,v_id,w_id,p_id,q_id,r_id,b_id,btot_id,hg_id,hgliq_id,vol_id,time_dim_id,&
                x_dim_id,y_dim_id,z_dim_id,timestep_id,time_id,dtm_id,x_id,y_id,z_id,i
 
     real(kind=DEFAULT_PRECISION), dimension(:), allocatable :: z_arr
@@ -274,7 +271,9 @@ contains
     call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, time_dim_id, field_name=P_KEY, field_id=p_id,field_units="s-1")
     call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, time_dim_id, field_name=Q_KEY, field_id=q_id,field_units="s-1")
     call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, time_dim_id, field_name=R_KEY, field_id=r_id,field_units="s-1")
-    call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, time_dim_id, field_name=B_KEY, field_id=b_id,field_units="m s-2")
+    call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, time_dim_id, field_name=B_KEY, field_id=b_id,field_units="K")
+    call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, time_dim_id, field_name=BTOT_KEY, &
+                            field_id=btot_id,field_units="m s-2")
     call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, time_dim_id, field_name=HG_KEY, field_id=hg_id,field_units="-")
     call define_3d_variable(ncid, z_dim_id, y_dim_id, x_dim_id, time_dim_id, &
          field_name=HGLIQ_KEY, field_id=hgliq_id,field_units="-")
@@ -293,6 +292,7 @@ contains
     call write_out_velocity_field(ncid, current_state%local_grid, current_state%q, q_id)
     call write_out_velocity_field(ncid, current_state%local_grid, current_state%r, r_id)
     call write_out_velocity_field(ncid, current_state%local_grid, current_state%b, b_id)
+    call write_out_velocity_field(ncid, current_state%local_grid, current_state%btot, btot_id)
     call write_out_velocity_field(ncid, current_state%local_grid, current_state%hg, hg_id)
     call write_out_velocity_field(ncid, current_state%local_grid, current_state%hgliq, hgliq_id)
     call write_out_velocity_field(ncid, current_state%local_grid, current_state%vol, vol_id)
@@ -313,8 +313,8 @@ contains
     character (len=24) :: fnamedummy
     integer :: proc
     integer(kind=PARCEL_INTEGER) :: nparcels
-    integer :: nqvalues    
-    integer :: ncid,p_id,q_id,r_id,b_id,h_id,vol_id,tag_id,stretch_id,time_dim_id,&
+    integer :: nqvalues,iqv,iqc    
+    integer :: ncid,p_id,q_id,r_id,b_id,btot_id,h_id,vol_id,tag_id,stretch_id,time_dim_id,&
                x_id,y_id,z_id,timestep_id,time_id,dtm_id,i,&
                dxdt_id,dydt_id,dzdt_id,dpdt_id,dqdt_id,drdt_id,nqvalues_dim_id,&
                qvalues_id,nparcels_dim_id,nparcel_id,nqvalue_id,&
@@ -340,7 +340,7 @@ contains
     ! xmin, xmax, ymin, ymax, zmin, zmax
     ! n_parcels
     ! data
-    
+        
     call check_status(nf90_create(filename, NF90_NETCDF4, ncid))
          
     call write_out_global_attributes(ncid)
@@ -380,7 +380,8 @@ contains
     call define_parcel_variable(ncid, nparcels_dim_id, field_name=DQDT_KEY, field_id=dqdt_id,field_units="s-2")
     call define_parcel_variable(ncid, nparcels_dim_id, field_name=DRDT_KEY, field_id=drdt_id,field_units="s-2")
     call define_parcel_variable(ncid, nparcels_dim_id, field_name=H_KEY, field_id=h_id,field_units="-")
-    call define_parcel_variable(ncid, nparcels_dim_id, field_name=B_KEY, field_id=b_id,field_units="m s-2")
+    call define_parcel_variable(ncid, nparcels_dim_id, field_name=B_KEY, field_id=b_id,field_units="K")
+    call define_parcel_variable(ncid, nparcels_dim_id, field_name=BTOT_KEY, field_id=btot_id,field_units="m s-2")
     call define_parcel_variable(ncid, nparcels_dim_id, field_name=VOL_KEY, field_id=vol_id,field_units="-")
     call define_parcel_variable(ncid, nparcels_dim_id, field_name=STRETCH_KEY, field_id=stretch_id,field_units="-")
     call define_parcel_variable(ncid, nparcels_dim_id, field_name=TAG_KEY, field_id=tag_id,field_units="-")
@@ -420,6 +421,7 @@ contains
     call check_status(nf90_put_var(ncid, drdt_id, state%parcels%drdt(1:nparcels)))
     call check_status(nf90_put_var(ncid, h_id, state%parcels%h(1:nparcels)))
     call check_status(nf90_put_var(ncid, b_id, state%parcels%b(1:nparcels)))
+    call check_status(nf90_put_var(ncid, btot_id, state%parcels%btot(1:nparcels)))
     call check_status(nf90_put_var(ncid, vol_id, state%parcels%vol(1:nparcels)))
     call check_status(nf90_put_var(ncid, stretch_id, state%parcels%stretch(1:nparcels)))
     call check_status(nf90_put_var(ncid, tag_id, state%parcels%tag(1:nparcels)))

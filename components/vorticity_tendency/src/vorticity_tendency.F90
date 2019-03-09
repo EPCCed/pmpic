@@ -15,7 +15,9 @@ module vorticity_tendency_mod
   use timer_mod, only: register_routine_for_timing, timer_start, timer_stop
   use fftops_mod, only: fftops_init, diffx, diffy, diffz, laplinv, spectral_filter
   use prognostics_mod, only: prognostic_field_type
-  use science_constants_mod, only : G,rlvap,cp,thref0,q0,l_condense
+  use science_constants_mod, only : G,rlvap,cp,thref0,q0,l_condense, ratio_mol_wts
+  use q_indices_mod, only: get_q_index, standard_q_names
+
   implicit none
 
 #ifndef TEST_MODE
@@ -108,35 +110,27 @@ contains
 
     integer :: start_loc(3), end_loc(3), i, xi, xf, zi, zf, yi, yf, j, k
     integer(kind=PARCEL_INTEGER):: n
+    integer:: iqv,iqc
 
     real(kind=DEFAULT_PRECISION) :: omax, omaxglobal, dtmax
 
     !print *, "Entering vorticity_tendency"
     call timer_start(handle)
 
-
+    iqv=get_q_index(standard_q_names%VAPOUR, 'vorticity_tendency')
+    iqc=get_q_index(standard_q_names%CLOUD_LIQUID_MASS, 'vorticity_tendency')
 
     !determine total parcel buoyancy
     !$OMP PARALLEL DO
     do n=1,current_state%parcels%numparcels_local
-      current_state%parcels%btot(n) = current_state%parcels%b(n) + G*rlvap/(cp*thref0) &
-      * max(0.0, current_state%parcels%h(n)-q0*exp(-current_state%parcels%z(n)/l_condense))
+      current_state%parcels%btot(n) = G*((current_state%parcels%b(n)+thref0)*&
+      (1.0_DEFAULT_PRECISION+(ratio_mol_wts-1.0_DEFAULT_PRECISION)*&
+      current_state%parcels%qvalues(iqv,n)-current_state%parcels%qvalues(iqc,n))-thref0)/thref0
     enddo
     !$OMP END PARALLEL DO
 
 
-    call par2grid(current_state,current_state%parcels%btot,current_state%b)
-    call par2grid(current_state,current_state%parcels%h,current_state%hg)
-
-    !$OMP DO
-    do i=1,size(current_state%hgliq%data,3)
-      do j=1,size(current_state%hgliq%data,2)
-        do k=1,size(current_state%hgliq%data,1)
-          current_state%hgliq%data(k,j,i) = max(0.,current_state%hg%data(k,j,i) - q0*exp(-z_coords(k)/l_condense))
-        enddo
-      enddo
-    enddo
-    !$OMP END DO
+    call par2grid(current_state,current_state%parcels%btot,current_state%btot)
 
     !$OMP PARALLEL DEFAULT(SHARED)
     !$OMP SINGLE
@@ -154,7 +148,7 @@ contains
   !$OMP END SINGLE
 
     ! get fft of b and put it in bs
-    call perform_forward_3dfft(current_state, current_state%b%data(zi:zf, &
+    call perform_forward_3dfft(current_state, current_state%btot%data(zi:zf, &
          yi:yf, xi:xf), bs)
 
 

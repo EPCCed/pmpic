@@ -7,7 +7,8 @@ decomposition_enabled=.true.
 model_synopsis_enabled=.true.
 termination_check_enabled=.true.
 halo_swapper_enabled=.false.
-parcelsetup_base_enabled=.true.
+parcelsetup_base_enabled=.false.
+wojtek_thermal_enabled=.true.
 setup_grid_enabled=.true.
 
 basic_parcelsetup_enabled=.true.
@@ -15,6 +16,7 @@ readfromfile_parcelsetup_enabled=.false.
 plume_parcelsetup_enabled=.false.
 writebinary_enabled=.true.
 writenetcdf_enabled=.true.
+saturation_adjust_enabled=.true.
 
 # Component enable configuration
 
@@ -36,9 +38,9 @@ last_group_contents=model_synopsis
 
 # Component ordering for other stages
 
-initialisation_stage_ordering=decomposition, setup_grid, parcelsetup_base, basic_parcelsetup,plume_parcelsetup, readfromfile_parcelsetup,termination_check, model_synopsis, halo_swapper, writebinary, writenetcdf, prescribed_parcel_velocity, euler_integrator,rk4_integrator,vort2vel,vorticity_tendency,parcel_mixing,parcel_splitting
+initialisation_stage_ordering=decomposition, setup_grid, parcelsetup_base, basic_parcelsetup, saturation_adjust, thermal_wojtek, readfromfile_parcelsetup,termination_check, model_synopsis, halo_swapper, writebinary, writenetcdf, prescribed_parcel_velocity, euler_integrator,rk4_integrator,vort2vel,saturation_adjust,vorticity_tendency,parcel_mixing,parcel_splitting
 
-integrator_group_contents=vort2vel,vorticity_tendency,euler_integrator,rk4_integrator,parcel_splitting, parcel_mixing
+integrator_group_contents=vort2vel,saturation_adjust,vorticity_tendency,euler_integrator,rk4_integrator,parcel_splitting, parcel_mixing
 
 finalisation_stage_ordering=halo_swapper, basic_plume, parcelsetup_base,model_synopsis, writebinary, writenetcdf, rk4_integrator,parcel_mixing,parcel_splitting,vort2vel,vorticity_tendency
 
@@ -57,8 +59,6 @@ msg_filename=messages
 decomposition_method = twodim
 halo_depth=2
 
-
-
 # Science constants
 von_karman_constant=0.4
 z0=2.0e-3
@@ -72,6 +72,7 @@ pi=3.14159
 cp=1005.0
 rlvap=2.501e6
 r=287.05
+rv=461
 G=9.81
 convective_limit=-0.5
 ratio_mol_wts=1.608
@@ -80,5 +81,16 @@ surface_vapour_mixing_ratio=0.0
 
 surf_temp_base=288.
 surf_pres_base=1.0e5
-lapse_base=6.5e-3
-theta_00=300.
+lapse_ref=6.5e-3
+thref0=300.0
+pref0=1.0e5
+r_thermal=0.0
+r_edge=0.0
+rh_thermal=1.0
+z_c_thermal=800.
+rh_env=0.2
+dlnthdz=1.3e-5
+
+#need to keep these in
+q0=1e-2
+l_condense=1000.

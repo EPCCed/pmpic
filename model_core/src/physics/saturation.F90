@@ -13,7 +13,7 @@ module saturation_mod
    public qsaturation, dqwsatdt
 contains
 
-  !> Function to return the saturation mixing ratio over water based on tetans formular
+  !> Function to return the saturation mixing ratio over water based on teten's formula
   !! QS=3.8/(P*EXP(-17.2693882*(T-273.15)/(T-35.86))-6.109)
   !! @param temperature The temperature
   !! @param pressure The pressure
@@ -35,4 +35,5 @@ contains
     dqwsatdt = -qsa2*(tk0c-qsa3)*(1.0_DEFAULT_PRECISION+qsa4*saturation_mixing_ratio/qsa1)*&
          saturation_mixing_ratio*(temperature-qsa3)**(-2.0_DEFAULT_PRECISION)
   end function dqwsatdt  
+  
 end module saturation_mod

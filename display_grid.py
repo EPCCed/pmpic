@@ -32,6 +32,7 @@ def readfile(fname):
     q=np.fromfile(f,dtype=np.float64,count=nx*ny*nz)
     r=np.fromfile(f,dtype=np.float64,count=nx*ny*nz)
     b=np.fromfile(f,dtype=np.float64,count=nx*ny*nz)
+    btot=np.fromfile(f,dtype=np.float64,count=nx*ny*nz)
     hg=np.fromfile(f,dtype=np.float64,count=nx*ny*nz)
     hgliq=np.fromfile(f,dtype=np.float64,count=nx*ny*nz)
     vol=np.fromfile(f,dtype=np.float64,count=nx*ny*nz)

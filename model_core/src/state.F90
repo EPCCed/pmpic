@@ -57,7 +57,7 @@ module state_mod
 
     type(prognostic_field_type) :: u, v, w, & !gridded velocities
                                    p, q, r, & !gridded vorticities
-                                   b, hg, hgliq, & ! buoyancy, humidity fraction, condensed humidity
+                                   b, btot, hg, hgliq, & ! buoyancy, humidity fraction, condensed humidity
                                    vol !volume fraction
 
     type(prognostic_field_type) :: u_s, v_s, w_s !semi-spectral velocities

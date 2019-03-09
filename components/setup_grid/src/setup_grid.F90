@@ -134,7 +134,8 @@ contains
     allocate(state%p%data(nnz,nny,nnx))
     allocate(state%q%data(nnz,nny,nnx))
     allocate(state%r%data(nnz,nny,nnx))
-
+    
+    allocate(state%btot%data(nnz,nny,nnx))
     allocate(state%b%data(nnz,nny,nnx))
     allocate(state%hg%data(nnz,nny,nnx))
     allocate(state%hgliq%data(nnz,nny,nnx))

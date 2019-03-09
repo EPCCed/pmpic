@@ -6,6 +6,7 @@ module writebinary_mod
   use optionsdatabase_mod, only : options_get_integer,options_get_logical,options_get_string,options_get_real
   use parcel_interpolation_mod, only : x_coords, y_coords, z_coords, par2grid, cache_parcel_interp_weights
   use timer_mod, only: register_routine_for_timing, timer_start, timer_stop
+  use q_indices_mod, only: get_q_index,standard_q_names
 
   implicit none
 
@@ -214,27 +215,22 @@ contains
     character (len=22) :: fnamedummy
     integer :: proc
     integer :: i1, i2, j1, j2, k1, k2
-    integer :: i, j, k
+    integer :: i, j, k, iqv, iqc
     real(kind=DEFAULT_PRECISION) :: x1, x2, y1, y2, z1, z2
 
+    iqv=get_q_index(standard_q_names%VAPOUR, 'saturation_adjust')
+    iqc=get_q_index(standard_q_names%CLOUD_LIQUID_MASS, 'saturation_adjust')
+    
     call cache_parcel_interp_weights(state)
+    call par2grid(state,state%parcels%btot,state%btot)
     call par2grid(state,state%parcels%b,state%b)
     call par2grid(state,state%parcels%p,state%p)
     call par2grid(state,state%parcels%q,state%q)
     call par2grid(state,state%parcels%r,state%r)
-
+       
     ! obtain the humidity and liquid humidity
-    call par2grid(state,state%parcels%h,state%hg)
-    !$OMP PARALLEL DO
-    do i=1,size(state%hgliq%data,3)
-      do j=1,size(state%hgliq%data,2)
-        do k=1,size(state%hgliq%data,1)
-          state%hgliq%data(k,j,i) = max(0.,state%hg%data(k,j,i) - exp(-z_coords(k)))
-          state%b%data(k,j,i) = state%b%data(k,j,i) + 12.5*state%hgliq%data(k,j,i)
-        enddo
-      enddo
-    enddo
-    !$OMP END PARALLEL DO
+    call par2grid(state,state%parcels%qvalues(iqv,:),state%hg)
+    call par2grid(state,state%parcels%qvalues(iqc,:),state%hgliq)
 
     i1=state%local_grid%local_domain_start_index(1)
     i2=state%local_grid%local_domain_end_index(1)
@@ -291,6 +287,7 @@ contains
     write(10) state%q%data(i1:i2, j1:j2, k1:k2)
     write(10) state%r%data(i1:i2, j1:j2, k1:k2)
     write(10) state%b%data(i1:i2, j1:j2, k1:k2)
+    write(10) state%btot%data(i1:i2, j1:j2, k1:k2)
     write(10) state%hg%data(i1:i2, j1:j2, k1:k2)
     write(10) state%hgliq%data(i1:i2, j1:j2, k1:k2)
     write(10) state%vol%data(i1:i2, j1:j2, k1:k2)

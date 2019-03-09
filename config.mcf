@@ -10,8 +10,10 @@ writenetcdf_enabled=.true.
 parcelsetup_base_enabled=.true.
 
 #parcel setup routines (ensure **only** one of these is enabled at once)
-basic_parcelsetup_enabled=.false.
-plume_parcelsetup_enabled=.true.
+basic_parcelsetup_enabled=.true.
+plume_parcelsetup_enabled=.false.
+thermal_wojtek_enabled=.true.
+
 readfromfile_parcelsetup_enabled=.false.
 
 #integrator routines (ensure **only** one of these is enabled at once)
@@ -29,7 +31,7 @@ vort2vel_enabled=.true.
 vorticity_tendency_enabled=.true.
 parcel_splitting_enabled=.true.
 parcel_mixing_enabled=.true.
-
+saturation_adjust_enabled=.true.
 
 ############# Component settings #################################
 
@@ -39,18 +41,18 @@ display_synopsis_frequency=60
 termination_time=2400
 
 #grid properties
-nx=32
-ny=32
-nz=32
+nx=64
+ny=64
+nz=48
 xmin=0
-xmax=6280.
+xmax=3600.
 ymin=0
-ymax=6280.
+ymax=3600.
 zmin=0
-zmax=6280.
+zmax=2400.
 
 #Maximum parcels per process (you can determine this value using the planner.py script)
-max_parcels=1000000
+max_parcels=3600000
 
 #readfromfile options (only relevant if the readfromfile_parcelsetup component is enabled)
 restart_num=50
@@ -59,13 +61,15 @@ restart_num=50
 parcels_per_cell_dir = 2
 
 #basic plume settings
-H=0.8
-z_c=2500
-mu=0.9
-z_d=4000
-z_m=5000
-r_plume=800
-e_values=0.3, -0.4 ,0.5
+surf_temp_base=283.
+surf_pres_base=85000.
+r_thermal=200.0
+r_edge=100.0
+rh_thermal=1.0
+z_c_thermal=800.
+rh_env=0.2
+dlnthdz=1.3e-5
+e_values=0.0, 0.0 ,0.0
 
 
 #integrator properties
@@ -78,14 +82,14 @@ velocity_profile=9
 #writebinary properties
 # can choose between "time" (write files every dt time intervals) "step" (after every n steps) or "none" (essentially disable component)
 writebinary_mode="step"
-parcel_step_write_frequency=25
-grid_step_write_frequency = 5
+parcel_step_write_frequency=200
+grid_step_write_frequency = 50
 parcel_time_write_frequency = 200.
 grid_time_write_frequency = 200.
 
 writenetcdf_mode="step"
-parcel_step_write_netcdf_frequency=25
-grid_step_write_netcdf_frequency = 5
+parcel_step_write_netcdf_frequency=200
+grid_step_write_netcdf_frequency = 50
 parcel_time_write_netcdf_frequency = 200.
 grid_time_write_netcdf_frequency = 200.
 parcel_netcdf_deflate_level=0
@@ -95,10 +99,4 @@ timing_enabled=.true.
 timing_logging=.false.
 logging_routines=RK4_all_steps,Par_HSWP_entire,Prescribed_velocity,write_parcels
 
-#physical constants
-thref0=288.0
-cp=1005.0
-rlvap=2.501e6
-G=9.81
-q0=0.0015
-l_condense=1000.
+
