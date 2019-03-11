@@ -10,7 +10,7 @@ writenetcdf_enabled=.true.
 parcelsetup_base_enabled=.true.
 
 #parcel setup routines (ensure **only** one of these is enabled at once)
-basic_parcelsetup_enabled=.true.
+basic_parcelsetup_enabled=.false.
 plume_parcelsetup_enabled=.false.
 thermal_wojtek_enabled=.true.
 
@@ -41,8 +41,8 @@ display_synopsis_frequency=60
 termination_time=2400
 
 #grid properties
-nx=64
-ny=64
+nx=72
+ny=72
 nz=48
 xmin=0
 xmax=3600.
@@ -52,7 +52,7 @@ zmin=0
 zmax=2400.
 
 #Maximum parcels per process (you can determine this value using the planner.py script)
-max_parcels=3600000
+max_parcels=5000000
 
 #readfromfile options (only relevant if the readfromfile_parcelsetup component is enabled)
 restart_num=50

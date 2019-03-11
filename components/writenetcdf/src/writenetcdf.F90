@@ -419,7 +419,6 @@ contains
     call check_status(nf90_put_var(ncid, dpdt_id, state%parcels%dpdt(1:nparcels)))
     call check_status(nf90_put_var(ncid, dqdt_id, state%parcels%dqdt(1:nparcels)))
     call check_status(nf90_put_var(ncid, drdt_id, state%parcels%drdt(1:nparcels)))
-    call check_status(nf90_put_var(ncid, h_id, state%parcels%h(1:nparcels)))
     call check_status(nf90_put_var(ncid, b_id, state%parcels%b(1:nparcels)))
     call check_status(nf90_put_var(ncid, btot_id, state%parcels%btot(1:nparcels)))
     call check_status(nf90_put_var(ncid, vol_id, state%parcels%vol(1:nparcels)))

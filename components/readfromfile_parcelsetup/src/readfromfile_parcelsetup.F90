@@ -293,8 +293,6 @@ contains
     read(10, pos=loc) state%parcels%drdt(nparcels)
     loc=loc + (ninfile*realsize)
 
-    read(10, pos=loc) state%parcels%h(nparcels)
-    loc=loc + (ninfile*realsize)
     read(10, pos=loc) state%parcels%b(nparcels)
     loc=loc + (ninfile*realsize)
     read(10, pos=loc) state%parcels%vol(nparcels)

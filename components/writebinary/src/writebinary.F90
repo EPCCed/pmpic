@@ -196,7 +196,6 @@ contains
     write(10) state%parcels%dqdt(1:nparcels)
     write(10) state%parcels%drdt(1:nparcels)
 
-    write(10) state%parcels%h(1:nparcels)
     write(10) state%parcels%b(1:nparcels)
     write(10) state%parcels%vol(1:nparcels)
 

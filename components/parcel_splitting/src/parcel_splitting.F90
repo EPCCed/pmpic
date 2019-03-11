@@ -108,7 +108,6 @@ contains
           state%parcels%dqdt(n) = state%parcels%dqdt(i)
           state%parcels%drdt(n) = state%parcels%drdt(i)
 
-          state%parcels%h(n) = state%parcels%h(i)
           state%parcels%b(n) = state%parcels%b(i)
           state%parcels%vol(n) = state%parcels%vol(i)/2
 

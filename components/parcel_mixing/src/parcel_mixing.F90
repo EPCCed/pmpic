@@ -28,7 +28,7 @@ module parcel_mixing_mod
 
   integer, allocatable, dimension(:) :: keep
   integer, ALLOCATABLE, dimension(:,:,:) :: npercell
-  real(kind=DEFAULT_PRECISION), dimension(:,:,:), allocatable :: vres, bres, hres, pres, qres, rres
+  real(kind=DEFAULT_PRECISION), dimension(:,:,:), allocatable :: vres, bres, pres, qres, rres
 
 
 
@@ -49,7 +49,7 @@ contains
     call register_routine_for_timing("mixing", handle, state)
 
     allocate(npercell(nz-1,ny-1,nx-1))
-    allocate(vres(nz,ny,nx),bres(nz,ny,nx),hres(nz,ny,nx),pres(nz,ny,nx),qres(nz,ny,nx),rres(nz,ny,nx))
+    allocate(vres(nz,ny,nx),bres(nz,ny,nx),pres(nz,ny,nx),qres(nz,ny,nx),rres(nz,ny,nx))
 
     vmin = dx*dy*dz/6./6./6.
 
@@ -106,13 +106,11 @@ contains
       npercell(:,:,:) = 0.
       state%vol%data(:,:,:) = 0.
       state%b%data(:,:,:) =0.
-      state%hg%data(:,:,:) =0.
       state%p%data(:,:,:)=0.
       state%q%data(:,:,:)=0.
       state%r%data(:,:,:)=0.
       vres(:,:,:) = 0.
       bres(:,:,:) = 0.
-      hres(:,:,:) = 0.
       pres(:,:,:) = 0.
       qres(:,:,:) = 0.
       rres(:,:,:) = 0.
@@ -128,11 +126,10 @@ contains
 
       !loop over all parcels, determine those to be removed, and construct the residual and keep grid
       !called in a subroutine so we can have a !$OMP DO REDUCTION() on state%var%data variables
-      call construct_grids(state,state%vol%data, state%b%data, state%hg%data, state%p%data, state%q%data, state%r%data, nremove)
+      call construct_grids(state,state%vol%data, state%b%data, state%p%data, state%q%data, state%r%data, nremove)
 
       call mixing_haloswap(state,state%vol%data)
       call mixing_haloswap(state,state%b%data)
-      call mixing_haloswap(state,state%hg%data)
       call mixing_haloswap(state,state%p%data)
       call mixing_haloswap(state,state%q%data)
       call mixing_haloswap(state,state%r%data)
@@ -142,8 +139,6 @@ contains
       state%vol%data(nz,:,:) = state%vol%data(nz,:,:)*2
       state%b%data(1,:,:) = state%b%data(1,:,:)*2.
       state%b%data(nz,:,:) = state%b%data(nz,:,:)*2
-      state%hg%data(1,:,:) = state%hg%data(1,:,:)*2.
-      state%hg%data(nz,:,:) = state%hg%data(nz,:,:)*2
       state%p%data(1,:,:) = state%p%data(1,:,:)*2.
       state%p%data(nz,:,:) = state%p%data(nz,:,:)*2
       state%q%data(1,:,:) = state%q%data(1,:,:)*2.
@@ -184,7 +179,6 @@ contains
               state%parcels%stretch(n) = 0
               ! set the parcel properties to the volume-averaged value for that cell
               state%parcels%b(n) = sum(state%b%data(k:k+1,j:j+1,i:i+1))/v
-              state%parcels%h(n) = sum(state%hg%data(k:k+1,j:j+1,i:i+1))/v
               state%parcels%p(n) = sum(state%p%data(k:k+1,j:j+1,i:i+1))/v
               state%parcels%q(n) = sum(state%q%data(k:k+1,j:j+1,i:i+1))/v
               state%parcels%r(n) = sum(state%r%data(k:k+1,j:j+1,i:i+1))/v
@@ -201,7 +195,6 @@ contains
               !adjust residues to take new parcel into account
               vres(k:k+1,j:j+1,i:i+1) = vres(k:k+1,j:j+1,i:i+1) - portion*state%vol%data(k:k+1,j:j+1,i:i+1)
               bres(k:k+1,j:j+1,i:i+1) = bres(k:k+1,j:j+1,i:i+1) - portion*state%b%data(k:k+1,j:j+1,i:i+1)
-              hres(k:k+1,j:j+1,i:i+1) = hres(k:k+1,j:j+1,i:i+1) - portion*state%hg%data(k:k+1,j:j+1,i:i+1)
               pres(k:k+1,j:j+1,i:i+1) = pres(k:k+1,j:j+1,i:i+1) - portion*state%p%data(k:k+1,j:j+1,i:i+1)
               qres(k:k+1,j:j+1,i:i+1) = qres(k:k+1,j:j+1,i:i+1) - portion*state%q%data(k:k+1,j:j+1,i:i+1)
               rres(k:k+1,j:j+1,i:i+1) = rres(k:k+1,j:j+1,i:i+1) - portion*state%r%data(k:k+1,j:j+1,i:i+1)
@@ -220,7 +213,6 @@ contains
       !halo swap residual fields
       call mixing_haloswap(state,vres)
       call mixing_haloswap(state,bres)
-      call mixing_haloswap(state,hres)
       call mixing_haloswap(state,pres)
       call mixing_haloswap(state,qres)
       call mixing_haloswap(state,rres)
@@ -230,8 +222,6 @@ contains
       vres(nz,:,:) = vres(nz,:,:)*2
       bres(1,:,:) = bres(1,:,:)*2
       bres(nz,:,:) = bres(nz,:,:)*2
-      hres(1,:,:) = hres(1,:,:)*2
-      hres(nz,:,:) = hres(nz,:,:)*2
       pres(1,:,:) = pres(1,:,:)*2
       pres(nz,:,:) = pres(nz,:,:)*2
       qres(1,:,:) = qres(1,:,:)*2
@@ -286,19 +276,6 @@ contains
                   + w110/state%vol%data(k+1,j+1,i)*bres(k+1,j+1,i) &
                   + w111/state%vol%data(k+1,j+1,i+1)*bres(k+1,j+1,i+1)
           state%parcels%b(n) = state%parcels%b(n)/state%parcels%vol(n)
-
-
-          state%parcels%h(n) = state%parcels%h(n)*v &
-                  + w000/state%vol%data(k,j,i)*hres(k,j,i) &
-                  + w001/state%vol%data(k,j,i+1)*hres(k,j,i+1) &
-                  + w010/state%vol%data(k,j+1,i)*hres(k,j+1,i) &
-                  + w011/state%vol%data(k,j+1,i+1)*hres(k,j+1,i+1) &
-                  + w100/state%vol%data(k+1,j,i)*hres(k+1,j,i) &
-                  + w101/state%vol%data(k+1,j,i+1)*hres(k+1,j,i+1) &
-                  + w110/state%vol%data(k+1,j+1,i)*hres(k+1,j+1,i) &
-                  + w111/state%vol%data(k+1,j+1,i+1)*hres(k+1,j+1,i+1)
-          state%parcels%h(n) = state%parcels%h(n)/state%parcels%vol(n)
-
 
           state%parcels%p(n) = state%parcels%p(n)*v &
                   + w000/state%vol%data(k,j,i)*pres(k,j,i) &
@@ -371,7 +348,6 @@ contains
             state%parcels%r(n) = state%parcels%r(last)
 
             state%parcels%b(n) = state%parcels%b(last)
-            state%parcels%h(n) = state%parcels%h(last)
             state%parcels%vol(n) = state%parcels%vol(last)
 
             state%parcels%tag(n) = state%parcels%tag(last)
@@ -437,12 +413,12 @@ contains
   end subroutine
 
 
-  subroutine construct_grids(state,vol, b, h, p, q, r, nremove)
+  subroutine construct_grids(state,vol, b, p, q, r, nremove)
     implicit none
 
     type(model_state_type), intent(inout), target :: state
     integer(kind=PARCEL_INTEGER), intent(inout) :: nremove
-    real(kind=DEFAULT_PRECISION), dimension(:,:,:) :: vol,b,h,p,q,r
+    real(kind=DEFAULT_PRECISION), dimension(:,:,:) :: vol,b,p,q,r
     integer(kind=PARCEL_INTEGER) :: n
     integer :: i, j, k
     real(kind=DEFAULT_PRECISION) :: delx, dely, delz
@@ -465,7 +441,7 @@ contains
       !#####################################################################################################
 
     !$OMP PARALLEL default(shared) private(i,j,k,delx,dely,delz,w000,w001,w010,w011,w100,w101,w110,w111,v)
-    !$OMP DO REDUCTION(+:vol, b, h, p, q, r, vres, bres, hres, pres, qres, rres, nremove, npercell)
+    !$OMP DO REDUCTION(+:vol, b, p, q, r, vres, bres, pres, qres, rres, nremove, npercell)
     do n=1,state%parcels%numparcels_local
       !calculate tridiagonal weights
       i=is(n)
@@ -509,16 +485,6 @@ contains
         bres(k+1,j,i+1) = bres(k+1,j,i+1) + w101*state%parcels%b(n)
         bres(k+1,j+1,i) = bres(k+1,j+1,i) + w110*state%parcels%b(n)
         bres(k+1,j+1,i+1) = bres(k+1,j+1,i+1) + w111*state%parcels%b(n)
-
-        !humidity
-        hres(k,j,i) = hres(k,j,i) + w000*state%parcels%h(n)
-        hres(k,j,i+1) = hres(k,j,i+1) + w001*state%parcels%h(n)
-        hres(k,j+1,i) = hres(k,j+1,i) + w010*state%parcels%h(n)
-        hres(k,j+1,i+1) = hres(k,j+1,i+1) + w011*state%parcels%h(n)
-        hres(k+1,j,i) = hres(k+1,j,i) + w100*state%parcels%h(n)
-        hres(k+1,j,i+1) = hres(k+1,j,i+1) + w101*state%parcels%h(n)
-        hres(k+1,j+1,i) = hres(k+1,j+1,i) + w110*state%parcels%h(n)
-        hres(k+1,j+1,i+1) = hres(k+1,j+1,i+1) + w111*state%parcels%h(n)
 
         !p
         pres(k,j,i) = pres(k,j,i) + w000*state%parcels%p(n)
@@ -576,16 +542,6 @@ contains
         b(k+1,j,i+1) = b(k+1,j,i+1) + w101*state%parcels%b(n)
         b(k+1,j+1,i) = b(k+1,j+1,i) + w110*state%parcels%b(n)
         b(k+1,j+1,i+1) = b(k+1,j+1,i+1) + w111*state%parcels%b(n)
-
-        !humidity
-        h(k,j,i) = h(k,j,i) + w000*state%parcels%h(n)
-        h(k,j,i+1) = h(k,j,i+1) + w001*state%parcels%h(n)
-        h(k,j+1,i) = h(k,j+1,i) + w010*state%parcels%h(n)
-        h(k,j+1,i+1) = h(k,j+1,i+1) + w011*state%parcels%h(n)
-        h(k+1,j,i) = h(k+1,j,i) + w100*state%parcels%h(n)
-        h(k+1,j,i+1) = h(k+1,j,i+1) + w101*state%parcels%h(n)
-        h(k+1,j+1,i) = h(k+1,j+1,i) + w110*state%parcels%h(n)
-        h(k+1,j+1,i+1) = h(k+1,j+1,i+1) + w111*state%parcels%h(n)
 
         !p
         p(k,j,i) = p(k,j,i) + w000*state%parcels%p(n)
