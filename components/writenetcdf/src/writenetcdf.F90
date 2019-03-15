@@ -311,20 +311,21 @@ contains
     type(model_state_type), intent(inout), target :: state
     character (len=23) :: filename
     character (len=24) :: fnamedummy
+    character (len=20) :: fieldnamedummy
     integer :: proc
     integer(kind=PARCEL_INTEGER) :: nparcels
     integer :: nqvalues    
     integer :: ncid,p_id,q_id,r_id,b_id,h_id,vol_id,tag_id,stretch_id,time_dim_id,&
                x_id,y_id,z_id,timestep_id,time_id,dtm_id,i,&
                dxdt_id,dydt_id,dzdt_id,dpdt_id,dqdt_id,drdt_id,nqvalues_dim_id,&
-               qvalues_id,nparcels_dim_id,nparcel_id,nqvalue_id,&
+               nparcels_dim_id,nparcel_id,nqvalue_id,&
                x_start_id,y_start_id,z_start_id,&
-               x_end_id,y_end_id,z_end_id,&
+               x_end_id,y_end_id,z_end_id,dummy_id,&
                nparcels_id
 
     real(kind=DEFAULT_PRECISION), dimension(:), allocatable :: nparcel_arr
-    real(kind=DEFAULT_PRECISION), dimension(:), allocatable :: nqvalue_arr
     real(kind=DEFAULT_PRECISION), dimension(:), allocatable :: time_arr
+    real(kind=DEFAULT_PRECISION), dimension(:), allocatable :: qvalues_id
 
     proc=state%parallel%my_rank
     nparcels=state%parcels%numparcels_local
@@ -348,24 +349,19 @@ contains
 !    ! define dimensions
     call check_status(nf90_def_dim(ncid, TIME_KEY, 1, time_dim_id))
     call check_status(nf90_def_dim(ncid, NPARCEL_KEY, NF90_UNLIMITED, nparcels_dim_id))
-    call check_status(nf90_def_dim(ncid, NQVALUE_KEY, nqvalues, nqvalues_dim_id))
     call define_1d_variable(ncid, time_dim_id, field_name=TIME_KEY, field_id=time_id,field_units="-")
     call define_1d_variable(ncid, nparcels_dim_id, field_name=NPARCEL_DIM_KEY, field_id=nparcel_id,field_units="-")
-    call define_1d_variable(ncid, nqvalues_dim_id, field_name=QVAL_DIM_KEY, field_id=nqvalue_id,field_units="-")
     allocate(time_arr(1))
     allocate(nparcel_arr(nparcels))
-    allocate(nqvalue_arr(nqvalues))
+    allocate(qvalues_id(nqvalues))
+
     do i=1,nparcels
         nparcel_arr(i)=i
-    end do
-    do i=1,nqvalues
-        nqvalue_arr(i)=i
     end do
     
     time_arr(1)=state%time+state%dtm
     call check_status(nf90_put_var(ncid, time_id, time_arr))
     call check_status(nf90_put_var(ncid, nparcel_id, nparcel_arr))
-    call check_status(nf90_put_var(ncid, nqvalue_id, nqvalue_arr))
     
     call define_parcel_variable(ncid, nparcels_dim_id, field_name=X_KEY, field_id=x_id,field_units="m")
     call define_parcel_variable(ncid, nparcels_dim_id, field_name=Y_KEY, field_id=y_id,field_units="m")
@@ -384,8 +380,12 @@ contains
     call define_parcel_variable(ncid, nparcels_dim_id, field_name=VOL_KEY, field_id=vol_id,field_units="-")
     call define_parcel_variable(ncid, nparcels_dim_id, field_name=STRETCH_KEY, field_id=stretch_id,field_units="-")
     call define_parcel_variable(ncid, nparcels_dim_id, field_name=TAG_KEY, field_id=tag_id,field_units="-")
-    call define_parcel_q_variable(ncid, nqvalues_dim_id,nparcels_dim_id,&
-     field_name=QVALUES_KEY, field_id=qvalues_id,field_units="-")
+    
+    do i=1,nqvalues
+      fieldnamedummy=QVALUES_KEY//"_"//trim(conv_to_string(i))
+      call define_parcel_variable(ncid, nparcels_dim_id, field_name=fieldnamedummy, field_id=dummy_id,field_units="-")
+      qvalues_id(i)=dummy_id
+    end do
 
     ! STILL EXPORT THESE AS WELL        
     call check_status(nf90_def_var(ncid, "x_start", NF90_DOUBLE, x_start_id))
@@ -423,13 +423,17 @@ contains
     call check_status(nf90_put_var(ncid, vol_id, state%parcels%vol(1:nparcels)))
     call check_status(nf90_put_var(ncid, stretch_id, state%parcels%stretch(1:nparcels)))
     call check_status(nf90_put_var(ncid, tag_id, state%parcels%tag(1:nparcels)))
-    call check_status(nf90_put_var(ncid, qvalues_id, state%parcels%qvalues(1:nqvalues,1:nparcels)))
-
+    
+    do i=1,nqvalues
+       dummy_id=qvalues_id(i)
+       call check_status(nf90_put_var(ncid, dummy_id, state%parcels%qvalues(i,1:nparcels)))
+    end do
+    
     call write_out_misc_variables(state, ncid, timestep_id, dtm_id)
     
     call check_status(nf90_close(ncid))
 
-    deallocate(time_arr,nparcel_arr,nqvalue_arr)
+    deallocate(time_arr,nparcel_arr,qvalues_id)
 
     
   end subroutine
