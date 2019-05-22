@@ -141,8 +141,12 @@ contains
     z_d=z_d*lambda
     z_m=z_m*lambda
     r_plume=r_plume*lambda
-
-    e_values=e_values/r_plume/r_plume
+    
+    if (r_plume .gt. 1.0e-10_DEFAULT_PRECISION) then
+      e_values=e_values/r_plume/r_plume
+    else
+      e_values=0.0_DEFAULT_PRECISION
+    endif
 
     if (master) then
       write(*,*) "Box layout:"
