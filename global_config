@@ -15,6 +15,7 @@ readfromfile_parcelsetup_enabled=.false.
 plume_parcelsetup_enabled=.false.
 writebinary_enabled=.true.
 writenetcdf_enabled=.true.
+surface_fluxes_enabled=.false.
 
 # Component enable configuration
 
@@ -36,9 +37,9 @@ last_group_contents=model_synopsis
 
 # Component ordering for other stages
 
-initialisation_stage_ordering=decomposition, setup_grid, parcelsetup_base, basic_parcelsetup,plume_parcelsetup, readfromfile_parcelsetup,termination_check, model_synopsis, halo_swapper, writebinary, writenetcdf, prescribed_parcel_velocity, euler_integrator,rk4_integrator,vort2vel,vorticity_tendency,parcel_mixing,parcel_splitting
+initialisation_stage_ordering=decomposition, setup_grid, parcelsetup_base, basic_parcelsetup,plume_parcelsetup, readfromfile_parcelsetup,termination_check, model_synopsis, halo_swapper, writebinary, writenetcdf, prescribed_parcel_velocity, euler_integrator,rk4_integrator,vort2vel,vorticity_tendency,parcel_mixing,parcel_splitting,surface_fluxes
 
-integrator_group_contents=vort2vel,vorticity_tendency,euler_integrator,rk4_integrator,parcel_splitting, parcel_mixing
+integrator_group_contents=vort2vel,vorticity_tendency,surface_fluxes,euler_integrator,rk4_integrator,parcel_splitting, parcel_mixing
 
 finalisation_stage_ordering=halo_swapper, basic_plume, parcelsetup_base,model_synopsis, writebinary, writenetcdf, rk4_integrator,parcel_mixing,parcel_splitting,vort2vel,vorticity_tendency
 
