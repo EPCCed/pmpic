@@ -15,6 +15,7 @@ module surface_fluxes_mod
   integer :: handle
   integer :: iteration=0
   integer :: nx, ny
+  integer :: myrank
 
 contains
 
@@ -23,7 +24,7 @@ contains
     surface_fluxes_get_descriptor%version=0.1
     surface_fluxes_get_descriptor%initialisation=>initialisation_callback
     surface_fluxes_get_descriptor%timestep=>timestep_callback
-    !surface_fluxes_get_descriptor%finalisation=>finalisation_callback
+    surface_fluxes_get_descriptor%finalisation=>finalisation_callback
   end function surface_fluxes_get_descriptor
   
   pure real(kind=DEFAULT_PRECISION) function fluxprof(y, x, eps, width, del, y_c, x_c)
@@ -40,8 +41,10 @@ contains
 
   subroutine initialisation_callback(state)
     type(model_state_type), intent(inout), target :: state
+    
+    myrank=state%parallel%my_rank
 
-    if (state%parallel%my_rank .eq. 0) print *, "In Surface Flux Initialisation"
+    if (myrank .eq. 0) print *, "In Surface Flux Initialisation"
     
     nx = state%local_grid%size(3) + 2*state%local_grid%halo_size(3) 
     ny = state%local_grid%size(2) + 2*state%local_grid%halo_size(2)
@@ -198,6 +201,15 @@ contains
   
   end subroutine
 
-
+subroutine finalisation_callback(state)
+  type(model_state_type), intent(inout), target :: state
+  
+  if (myrank .eq. 0) print *, "Deallocating gridded surface flux profiles"
+  deallocate(bflux)
+  deallocate(hflux)
+  
+  if (myrank .eq. 0) print *, "Done!"
+  
+end subroutine finalisation_callback
 
 end module
