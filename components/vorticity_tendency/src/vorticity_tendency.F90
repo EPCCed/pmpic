@@ -10,6 +10,7 @@ module vorticity_tendency_mod
   use state_mod, only : model_state_type
   use monc_component_mod, only : component_descriptor_type
   use pencil_fft_mod, only : initialise_pencil_fft, finalise_pencil_fft, perform_forward_3dfft, perform_backwards_3dfft
+  use optionsdatabase_mod, only : options_get_logical, options_get_real
   use MPI
   use parcel_interpolation_mod, only: x_coords, y_coords, z_coords, grid2par, par2grid
   use timer_mod, only: register_routine_for_timing, timer_start, timer_stop
@@ -25,12 +26,14 @@ module vorticity_tendency_mod
   real(kind=DEFAULT_PRECISION) :: PI
   real(kind=DEFAULT_PRECISION), dimension(:,:,:), allocatable :: as, bs !spectral variables
   real(kind=DEFAULT_PRECISION), dimension(:,:,:), ALLOCATABLE :: ap, dudx, dwdx, dvdy, dwdy
+  real(kind=DEFAULT_PRECISION) :: ang_vel, lat_ref, f_cor, ft_cor 
   type(prognostic_field_type) :: dp, dq, dr
   integer :: fourier_space_sizes(3)
   integer :: ierr
   integer :: handle
   integer :: nx, ny, nz
   integer :: iteration
+  logical :: l_coriolis
 
 
 
@@ -55,10 +58,21 @@ contains
     integer :: nxp, nyp, nzp
 
     iteration=0
-
-
+    
     PI=4.0_DEFAULT_PRECISION*atan(1.0_DEFAULT_PRECISION)
-
+    
+    l_coriolis = options_get_logical(current_state%options_database, "coriolis_enabled")
+    
+    if (l_coriolis)  then 
+      lat_ref = options_get_real(current_state%options_database,"lat_degrees")*PI/180.0_DEFAULT_PRECISION
+      ang_vel = options_get_real(current_state%options_database,"angular_vel")
+      f_cor = 2.0_DEFAULT_PRECISION*ang_vel*sin(lat_ref)
+      ft_cor = 2.0_DEFAULT_PRECISION*ang_vel*cos(lat_ref)
+    else  
+      f_cor = 0.0_DEFAULT_PRECISION
+      ft_cor = 0.0_DEFAULT_PRECISION
+    endif
+      
     fourier_space_sizes=initialise_pencil_fft(current_state, my_y_start, my_x_start)
 
     !initialise spectral derivatives module
@@ -176,7 +190,7 @@ contains
     !add q*du/dy to dp
     !$OMP WORKSHARE
     dp%data(zi:zf,yi:yf,xi:xf) = dp%data(zi:zf,yi:yf,xi:xf) &
-      + current_state%q%data(zi:zf,yi:yf,xi:xf)*ap(zi:zf,yi:yf,xi:xf)
+      + (current_state%q%data(zi:zf,yi:yf,xi:xf)+ft_cor)*ap(zi:zf,yi:yf,xi:xf)
     !$OMP END WORKSHARE
 
     !calculate dw/dx (spectral)
@@ -187,7 +201,7 @@ contains
     !!$OMP END SINGLE
     !$OMP WORKSHARE
     dp%data(zi:zf,yi:yf,xi:xf) = dp%data(zi:zf,yi:yf,xi:xf) &
-      + current_state%r%data(zi:zf,yi:yf,xi:xf) &
+      + (current_state%r%data(zi:zf,yi:yf,xi:xf)+f_cor) &
       * ( current_state%q%data(zi:zf,yi:yf,xi:xf) + dwdx(zi:zf,yi:yf,xi:xf))
     !$OMP END WORKSHARE
 
@@ -217,10 +231,10 @@ contains
   !  !$OMP SINGLE
     call perform_backwards_3dfft(current_state, as, dvdy(zi:zf,yi:yf,xi:xf))
   !  !$OMP END SINGLE
-    !add p*dv/dy to dq
+    !add q*dv/dy to dq
     !$OMP WORKSHARE
     dq%data(zi:zf,yi:yf,xi:xf) = dq%data(zi:zf,yi:yf,xi:xf) &
-      + current_state%q%data(zi:zf,yi:yf,xi:xf)*dvdy(zi:zf,yi:yf,xi:xf)
+      + (current_state%q%data(zi:zf,yi:yf,xi:xf)+ft_cor)*dvdy(zi:zf,yi:yf,xi:xf)
     !$OMP END WORKSHARE
 
     !calculate dw/dy (spectral)
@@ -231,7 +245,7 @@ contains
 !    !$OMP END SINGLE
     !$OMP WORKSHARE
     dq%data(zi:zf,yi:yf,xi:xf) = dq%data(zi:zf,yi:yf,xi:xf) &
-      + current_state%r%data(zi:zf,yi:yf,xi:xf) &
+      + (current_state%r%data(zi:zf,yi:yf,xi:xf)+f_cor) &
       * ( -current_state%p%data(zi:zf,yi:yf,xi:xf) + dwdy(zi:zf,yi:yf,xi:xf))
     !$OMP END WORKSHARE
 
@@ -249,16 +263,16 @@ contains
 
     !add q*dw/dy to dr
     dr%data(zi:zf,yi:yf,xi:xf) = dr%data(zi:zf,yi:yf,xi:xf) &
-      + current_state%q%data(zi:zf,yi:yf,xi:xf)*dwdy(zi:zf,yi:yf,xi:xf)
+      + (current_state%q%data(zi:zf,yi:yf,xi:xf)+ft_cor)*dwdy(zi:zf,yi:yf,xi:xf)
 
     !add r*(-du/dx) to dr
     dr%data(zi:zf,yi:yf,xi:xf) = dr%data(zi:zf,yi:yf,xi:xf) &
-      + current_state%r%data(zi:zf,yi:yf,xi:xf) &
+      + (current_state%r%data(zi:zf,yi:yf,xi:xf)+f_cor) &
       * (-dudx(zi:zf,yi:yf,xi:xf))
 
     !add r*(-dv/dy) to dr
     dr%data(zi:zf,yi:yf,xi:xf) = dr%data(zi:zf,yi:yf,xi:xf) &
-      + current_state%r%data(zi:zf,yi:yf,xi:xf) &
+      + (current_state%r%data(zi:zf,yi:yf,xi:xf)+f_cor) &
       * (-dvdy(zi:zf,yi:yf,xi:xf))
     !$OMP END WORKSHARE
 

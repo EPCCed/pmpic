@@ -76,4 +76,13 @@ G=9.81
 convective_limit=-0.5
 ratio_mol_wts=1.608
 rlargep=1.0e37
-surface_vapour_mixing_ratio=0.0
+surface_vapour_mixing_ratio=0.
+
+#parameters for coriolis and mean wind
+#non-dimensional ang_vel of earth = t_scale*Omega 
+#t_scale = 142.8571428571 Omega = 7.2921159e-5
+lat_degrees=45.0
+angular_vel=0.0104173 
+coriolis_enabled = .true.
+u_bar = 1.0
+v_bar = 1.0

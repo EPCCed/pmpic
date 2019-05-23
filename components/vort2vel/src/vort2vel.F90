@@ -6,6 +6,7 @@ module vort2vel_mod
   use state_mod, only : model_state_type
   use monc_component_mod, only : component_descriptor_type
   use pencil_fft_mod, only : initialise_pencil_fft, finalise_pencil_fft, perform_forward_3dfft, perform_backwards_3dfft
+  use optionsdatabase_mod, only : options_get_real
   use MPI
   use parcel_interpolation_mod, only: x_coords, y_coords, z_coords, par2grid, cache_parcel_interp_weights, grid2par
   use timer_mod, only: register_routine_for_timing, timer_start, timer_stop
@@ -20,6 +21,7 @@ module vort2vel_mod
   real(kind=DEFAULT_PRECISION), dimension(:,:,:), allocatable :: a, b, c, d, e, f
   real(kind=DEFAULT_PRECISION), dimension(:), allocatable :: kx, ky, kz
   real(kind=DEFAULT_PRECISION), dimension(:,:,:), allocatable :: k2
+  real(kind=DEFAULT_PRECISION) :: u_bar, v_bar
   integer :: fourier_space_sizes(3)
   integer :: ierr
   integer :: handle
@@ -51,6 +53,9 @@ contains
     integer :: i, my_y_start, my_x_start, rank, j, k
 
     iteration=0
+    
+    u_bar = options_get_real(current_state%options_database, "u_bar")
+    v_bar = options_get_real(current_state%options_database, "v_bar")
 
     PI=4.0_DEFAULT_PRECISION*atan(1.0_DEFAULT_PRECISION)
 
@@ -320,6 +325,9 @@ contains
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
 
     !$OMP END PARALLEL
+    
+    current_state%u%data = current_state%u%data + u_bar
+    current_state%v%data = current_state%v%data + v_bar
 
     !interpolate velocity to parcels
     call grid2par(current_state, current_state%u, current_state%parcels%dxdt)
