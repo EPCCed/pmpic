@@ -62,7 +62,7 @@ contains
     real(kind=DEFAULT_PRECISION) :: x_shift, y_shift, fluxfac, AmpB, AmpH
     real(kind=DEFAULT_PRECISION) :: eps1, width1, del1, prefac
     real(kind=DEFAULT_PRECISION) :: bfluxsum, bparsum, hfluxsum, hparsum, bfcorr, hfcorr
-    real(kind=DEFAULT_PRECISION) :: start_x, start_y, end_x, end_y
+    integer :: start_x, start_y, end_x, end_y
     integer(kind=PARCEL_INTEGER) :: nparcels, n
     integer :: i, j
 
