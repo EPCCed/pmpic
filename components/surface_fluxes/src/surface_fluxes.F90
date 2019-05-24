@@ -75,8 +75,8 @@ contains
       nparcels=state%parcels%numparcels_local
 
       dt = state%dtm
-      AmpB = 0.02_DEFAULT_PRECISION
-      AmpH = 0.0005_DEFAULT_PRECISION
+      AmpB = 0.05_DEFAULT_PRECISION
+      AmpH = 0.005_DEFAULT_PRECISION
       eps1 = 0.2_DEFAULT_PRECISION
       width1 = 1.0_DEFAULT_PRECISION
       del1 = 0.2_DEFAULT_PRECISION
