@@ -5,6 +5,7 @@ module parcel_haloswap_mod
   use datadefn_mod, only : DEFAULT_PRECISION, PRECISION_TYPE, MPI_PARCEL_INT, PARCEL_INTEGER
   use MPI
   use timer_mod
+  use parcel_interpolation_mod, only : zmin,zmax
 
   implicit none
 
@@ -135,7 +136,9 @@ contains
     !!index(nparcels_initial+1:state%parcels%maxparcels_local) = -1
 
     lastparcel=1
-
+    
+    call parcels_reflect_vertical_boundaries(state)
+    
     !$OMP PARALLEL default(shared)
 
     !$OMP MASTER
@@ -434,7 +437,23 @@ contains
    end subroutine
 
 
+   subroutine parcels_reflect_vertical_boundaries(state)
+     type(model_state_type), intent(inout) :: state
 
+
+     real (kind=DEFAULT_PRECISION) :: z
+     integer(kind=PARCEL_INTEGER) :: i
+
+     do i=1,state%parcels%numparcels_local
+       z=state%parcels%z(i)
+       if (z<zmin) then
+         state%parcels%z(i)=zmin+(zmin-z)
+       else if (z>zmax) then
+         state%parcels%z(i)=zmax-(z-zmax)
+       endif         
+     enddo
+
+   end subroutine
 
 
 
