@@ -16,7 +16,7 @@ plume_parcelsetup_enabled=.false.
 writebinary_enabled=.true.
 writenetcdf_enabled=.true.
 surface_fluxes_enabled=.false.
-
+large_scale_forcing_enabled=.false.
 # Component enable configuration
 
 simplesetup_enabled=.false.
@@ -37,9 +37,9 @@ last_group_contents=model_synopsis
 
 # Component ordering for other stages
 
-initialisation_stage_ordering=decomposition, setup_grid, parcelsetup_base, basic_parcelsetup,plume_parcelsetup, readfromfile_parcelsetup,termination_check, model_synopsis, halo_swapper, writebinary, writenetcdf, prescribed_parcel_velocity, euler_integrator,rk4_integrator,vort2vel,vorticity_tendency,parcel_mixing,parcel_splitting,surface_fluxes
+initialisation_stage_ordering=decomposition, setup_grid, parcelsetup_base, basic_parcelsetup,plume_parcelsetup, readfromfile_parcelsetup,termination_check, model_synopsis, halo_swapper, writebinary, writenetcdf, prescribed_parcel_velocity, euler_integrator,rk4_integrator,vort2vel,vorticity_tendency,parcel_mixing,parcel_splitting,surface_fluxes,large_scale_forcing
 
-integrator_group_contents=vort2vel,vorticity_tendency,surface_fluxes,euler_integrator,rk4_integrator,parcel_splitting, parcel_mixing
+integrator_group_contents=vort2vel,vorticity_tendency,surface_fluxes,large_scale_forcing,euler_integrator,rk4_integrator,parcel_splitting, parcel_mixing
 
 finalisation_stage_ordering=halo_swapper, basic_plume, parcelsetup_base,model_synopsis, writebinary, writenetcdf, rk4_integrator,parcel_mixing,parcel_splitting,vort2vel,vorticity_tendency
 
@@ -84,6 +84,11 @@ surface_vapour_mixing_ratio=0.
 #t_scale = 142.8571428571 Omega = 7.2921159e-5
 lat_degrees=45.0
 angular_vel=0.0104173 
-coriolis_enabled = .true.
-u_bar = 1.0
-v_bar = 1.0
+coriolis_enabled = .false.
+u_bar = 0.0
+v_bar = 0.0
+
+#options for large-scale forcings
+cooling_enabled = .false. 
+coolrate = 2.0 #K/day
+dryrate = 0.01
