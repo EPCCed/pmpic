@@ -157,8 +157,8 @@ contains
       nadd=0
       n = 1
       !now loop over internal grid cells and see if they have enough parcels. If not, create a new parcel (backfilling)
-      do i=3,nx-2
-        do j=3,ny-2
+      do i=4,nx-2
+        do j=4,ny-2
           do k=1,nz-1
             if (npercell(k,j,i) < 3) then
               nadd=nadd+1
