@@ -48,6 +48,7 @@ display_synopsis_frequency=10
 termination_time=1.0
 walltime_limit=none
 dtm=0.001
+timestep_prefactor=0.5
 logging=3  #INFO level logging
 check_msg_frequency=500
 check_walltime_frequency=200

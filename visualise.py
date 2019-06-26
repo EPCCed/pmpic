@@ -63,7 +63,7 @@ zs=[]
 tags=[]
 
 for p in range(num_p):
-    filename="parcels_%03d_%04d.dat"%(p,nt)
+    filename="parcels_%05d_%05d.dat"%(p,nt)
 #filename="parcels_000_0100.dat"
 
     print(filename)
