@@ -9,6 +9,7 @@ module vorticity_tendency_mod
   use grids_mod, only : X_INDEX, Y_INDEX, Z_INDEX
   use state_mod, only : model_state_type
   use monc_component_mod, only : component_descriptor_type
+  use optionsdatabase_mod, only: options_get_real
   use pencil_fft_mod, only : initialise_pencil_fft, finalise_pencil_fft, perform_forward_3dfft, perform_backwards_3dfft
   use optionsdatabase_mod, only : options_get_logical, options_get_real
   use MPI
@@ -24,6 +25,7 @@ module vorticity_tendency_mod
 
 
   real(kind=DEFAULT_PRECISION) :: PI
+  real(kind=DEFAULT_PRECISION) :: timestep_prefactor
   real(kind=DEFAULT_PRECISION), dimension(:,:,:), allocatable :: as, bs !spectral variables
   real(kind=DEFAULT_PRECISION), dimension(:,:,:), ALLOCATABLE :: ap, dudx, dwdx, dvdy, dwdy
   real(kind=DEFAULT_PRECISION) :: ang_vel, lat_ref, f_cor, ft_cor 
@@ -105,7 +107,7 @@ contains
 
 
 
-
+    timestep_prefactor=options_get_real(current_state%options_database,"timestep_prefactor")
     call register_routine_for_timing("vort_tend",handle,current_state)
 
   end subroutine initialisation_callback
@@ -304,7 +306,7 @@ contains
 
       !this is the maximum timestep in vorticity
       if (omaxglobal .gt. 0.) then
-        dtmax = 0.5/omaxglobal
+        dtmax = timestep_prefactor/omaxglobal
       else
         dtmax=current_state%dtmax
       endif

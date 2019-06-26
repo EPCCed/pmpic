@@ -530,20 +530,24 @@ contains
      !off the end then we need to adjust the parcel positions so they wrap around
      if ((dir .eq. E ) .or. (dir .eq. NE) .or. (dir .eq. SE)) then
        if (state%parallel%my_coords(3) .eq. state%parallel%dim_sizes(3)-1) then
-         xshift = state%global_grid%bottom(3)-state%global_grid%top(3)
+         xshift = state%global_grid%bottom(3)-state%global_grid%top(3)-&
+         state%global_grid%resolution(3)
        endif
      else if ((dir .eq. W ) .or. (dir .eq. NW) .or. (dir .eq. SW)) then
        if (state%parallel%my_coords(3) .eq. 0) then
-         xshift = state%global_grid%top(3)-state%global_grid%bottom(3)
+         xshift = state%global_grid%top(3)-state%global_grid%bottom(3)+&
+         state%global_grid%resolution(3)
        endif
      endif
      if ((dir .eq. N ) .or. (dir .eq. NE) .or. (dir .eq. NW)) then
        if (state%parallel%my_coords(2) .eq. state%parallel%dim_sizes(2)-1) then
-         yshift = state%global_grid%bottom(2)-state%global_grid%top(2)
+         yshift = state%global_grid%bottom(2)-state%global_grid%top(2)-&
+         state%global_grid%resolution(2)
        endif
      else if ((dir .eq. S ) .or. (dir .eq. SW) .or. (dir .eq. SE)) then
        if (state%parallel%my_coords(2) .eq. 0) then
-         yshift = state%global_grid%top(2)-state%global_grid%bottom(2)
+         yshift = state%global_grid%top(2)-state%global_grid%bottom(2)+&
+         state%global_grid%resolution(2)
        endif
      endif
 
