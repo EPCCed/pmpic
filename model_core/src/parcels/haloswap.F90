@@ -582,24 +582,6 @@ contains
 
      q=state%parcels%qnum+1
 
-     if (state%parcels%n_rk .gt. 0) then
-       !$OMP WORKSHARE
-       buff(:,Q_START_INDEX+q-1) = state%parcels%xo(myindex) + xshift
-       buff(:,Q_START_INDEX+q+0) = state%parcels%yo(myindex) + yshift
-       buff(:,Q_START_INDEX+q+1) = state%parcels%zo(myindex)
-       buff(:,Q_START_INDEX+q+2) = state%parcels%xf(myindex) + xshift
-       buff(:,Q_START_INDEX+q+3) = state%parcels%yf(myindex) + yshift
-       buff(:,Q_START_INDEX+q+4) = state%parcels%zf(myindex)
-       buff(:,Q_START_INDEX+q+5) = state%parcels%po(myindex)
-       buff(:,Q_START_INDEX+q+6) = state%parcels%qo(myindex)
-       buff(:,Q_START_INDEX+q+7) = state%parcels%ro(myindex)
-       buff(:,Q_START_INDEX+q+8) = state%parcels%pf(myindex)
-       buff(:,Q_START_INDEX+q+9) = state%parcels%qf(myindex)
-       buff(:,Q_START_INDEX+q+10)= state%parcels%rf(myindex)
-       !$OMP END WORKSHARE
-     endif
-
-
      !$OMP SINGLE
      deallocate(myindex)
      !$OMP END SINGLE
@@ -746,23 +728,6 @@ contains
 
       q=state%parcels%qnum+1
 
-      if (state%parcels%n_rk .gt. 0) then
-        !$OMP WORKSHARE
-         state%parcels%xo(myindex) = buff(:,Q_START_INDEX+q-1)
-         state%parcels%yo(myindex) = buff(:,Q_START_INDEX+q+0)
-         state%parcels%zo(myindex) = buff(:,Q_START_INDEX+q+1)
-         state%parcels%xf(myindex) = buff(:,Q_START_INDEX+q+2)
-         state%parcels%yf(myindex) = buff(:,Q_START_INDEX+q+3)
-         state%parcels%zf(myindex) = buff(:,Q_START_INDEX+q+4)
-         state%parcels%po(myindex) = buff(:,Q_START_INDEX+q+5)
-         state%parcels%qo(myindex) = buff(:,Q_START_INDEX+q+6)
-         state%parcels%ro(myindex) = buff(:,Q_START_INDEX+q+7)
-         state%parcels%pf(myindex) = buff(:,Q_START_INDEX+q+8)
-         state%parcels%qf(myindex) = buff(:,Q_START_INDEX+q+9)
-         state%parcels%rf(myindex) = buff(:,Q_START_INDEX+q+10)
-        !$OMP END WORKSHARE
-      endif
-
       !$OMP SINGLE
       deallocate(myindex)
       call timer_stop(handle_unpack)
@@ -852,24 +817,6 @@ contains
           state%parcels%qvalues(q,to) =  state%parcels%qvalues(q,from)
         enddo
         !$OMP END SINGLE
-
-        if (state%parcels%n_rk .gt. 0) then
-          !$OMP WORKSHARE
-           state%parcels%xo(to) = state%parcels%xo(from)
-           state%parcels%yo(to) = state%parcels%yo(from)
-           state%parcels%zo(to) = state%parcels%zo(from)
-           state%parcels%xf(to) = state%parcels%xf(from)
-           state%parcels%yf(to) = state%parcels%yf(from)
-           state%parcels%zf(to) = state%parcels%zf(from)
-           state%parcels%po(to) = state%parcels%po(from)
-           state%parcels%qo(to) = state%parcels%qo(from)
-           state%parcels%ro(to) = state%parcels%ro(from)
-           state%parcels%pf(to) = state%parcels%pf(from)
-           state%parcels%qf(to) = state%parcels%qf(from)
-           state%parcels%rf(to) = state%parcels%rf(from)
-          !$OMP END WORKSHARE
-        endif
-
 
         !$OMP SINGLE
         deallocate(to)

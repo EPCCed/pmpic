@@ -13,7 +13,7 @@ module vorticity_tendency_mod
   use pencil_fft_mod, only : initialise_pencil_fft, finalise_pencil_fft, perform_forward_3dfft, perform_backwards_3dfft
   use optionsdatabase_mod, only : options_get_logical, options_get_real
   use MPI
-  use parcel_interpolation_mod, only: x_coords, y_coords, z_coords, grid2par, par2grid
+  use parcel_interpolation_mod, only: x_coords, y_coords, z_coords, grid2par, par2grid, grid2par_add
   use timer_mod, only: register_routine_for_timing, timer_start, timer_stop
   use fftops_mod, only: fftops_init, diffx, diffy, diffz, laplinv, spectral_filter
   use prognostics_mod, only: prognostic_field_type
@@ -284,9 +284,9 @@ contains
     !interpolate back to parcels
 
 
-    call grid2par(current_state,dp,current_state%parcels%dpdt)
-    call grid2par(current_state,dq,current_state%parcels%dqdt)
-    call grid2par(current_state,dr,current_state%parcels%drdt)
+    call grid2par_add(current_state,dp,current_state%parcels%dpdt)
+    call grid2par_add(current_state,dq,current_state%parcels%dqdt)
+    call grid2par_add(current_state,dr,current_state%parcels%drdt)
 
     if ( mod(iteration,current_state%rksteps) == 0) then
       !We now want to determine the maximum vorticity

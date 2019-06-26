@@ -26,15 +26,6 @@ private
                 btot !total humidity
     real (kind=DEFAULT_PRECISION), allocatable, dimension(:,:) :: qvalues !an arrayof various values the user may wish to add into the code
 
-    !rk4 variables (if the rk4 integrator component isn't enabled we don't bother allocating these)
-    real (kind=DEFAULT_PRECISION), allocatable, dimension(:) :: &
-                xo, yo, zo, &
-                xf, yf, zf, &
-                po, qo, ro, &
-                pf, qf, rf
-
-
-
   end type parcel_type
 
 end module

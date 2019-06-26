@@ -1,4 +1,4 @@
-!Runge Kutta 4th order integrator component
+!Runge Kutta 4th order integrator component, using low-storage RK method
 module rk4_integrator_mod
   use datadefn_mod, only : DEFAULT_PRECISION, PRECISION_TYPE, PARCEL_INTEGER
   use state_mod, only: model_state_type
@@ -17,13 +17,25 @@ module rk4_integrator_mod
 
   integer :: rkstep
 
-  integer :: handle, handle1, handle2, handle3, handle4
+  integer :: handle, handle1, handle2, handle3, handle4, handle5
+  
+  real(kind=DEFAULT_PRECISION), parameter :: cA_1=0.
+  real(kind=DEFAULT_PRECISION), parameter :: cA_2=- 567301805773./1357537059087.
+  real(kind=DEFAULT_PRECISION), parameter :: cA_3=-2404267990393./2016746695238.
+  real(kind=DEFAULT_PRECISION), parameter :: cA_4=-3550918686646./2091501179385.
+  real(kind=DEFAULT_PRECISION), parameter :: cA_5=-1275806237668./ 842570457699.
+
+  real(kind=DEFAULT_PRECISION), parameter :: cB_1=1432997174477./ 9575080441755.
+  real(kind=DEFAULT_PRECISION), parameter :: cB_2=5161836677717./13612068292357.
+  real(kind=DEFAULT_PRECISION), parameter :: cB_3=1720146321549./ 2090206949498.
+  real(kind=DEFAULT_PRECISION), parameter :: cB_4=3134564353537./ 4481467310338.
+  real(kind=DEFAULT_PRECISION), parameter :: cB_5=2277821191437./14882151754819.
 
 contains
 
   type(component_descriptor_type) function rk4_integrator_get_descriptor()
     rk4_integrator_get_descriptor%name="rk4_integrator"
-    rk4_integrator_get_descriptor%version=0.1
+    rk4_integrator_get_descriptor%version=0.2
     rk4_integrator_get_descriptor%initialisation=>initialisation_callback
     rk4_integrator_get_descriptor%timestep=>timestep_callback
     rk4_integrator_get_descriptor%finalisation=>finalisation_callback
@@ -48,23 +60,9 @@ contains
       print *, "Error - another integrator component is present. ABORTING"
       stop
     endif
-    state%rksteps = 4
+    state%rksteps = 5
 
-    state%parcels%n_rk=12
-
-    !allocate RK variables
-    allocate(state%parcels%xo(state%parcels%maxparcels_local))
-    allocate(state%parcels%yo(state%parcels%maxparcels_local))
-    allocate(state%parcels%zo(state%parcels%maxparcels_local))
-    allocate(state%parcels%xf(state%parcels%maxparcels_local))
-    allocate(state%parcels%yf(state%parcels%maxparcels_local))
-    allocate(state%parcels%zf(state%parcels%maxparcels_local))
-    allocate(state%parcels%po(state%parcels%maxparcels_local))
-    allocate(state%parcels%qo(state%parcels%maxparcels_local))
-    allocate(state%parcels%ro(state%parcels%maxparcels_local))
-    allocate(state%parcels%pf(state%parcels%maxparcels_local))
-    allocate(state%parcels%qf(state%parcels%maxparcels_local))
-    allocate(state%parcels%rf(state%parcels%maxparcels_local))
+    state%parcels%n_rk=0
 
     rkstep=1
 
@@ -73,36 +71,21 @@ contains
     call register_routine_for_timing("RK4_step_2",handle2,state)
     call register_routine_for_timing("RK4_step_3",handle3,state)
     call register_routine_for_timing("RK4_step_4",handle4,state)
+    call register_routine_for_timing("RK4_step_5",handle5,state)
 
 
   end subroutine
 
 
-!solves dY/dt = F(Y(t,Y)) by calculating:
-!
-! Y(t+h) = Y(t) + 1/6 (k1 + 2k2 + 2k3 + k4)
-!
-!where:
-! k1 = h f(Y(t    , Y))
-! k2 = h f(Y(t+h/2, Y+k1/2))
-! k3 = h f(Y(t+h/2, Y+k2/2))
-! k4 = h f(Y(t+h  , Y+k3))
-!
-! the xo, yo, zo etc... variables cache the initial values of x, y, z
-! the xf, yf, zf etc... variables store the subtotal for the sum of kn
-! x, y, z etc contain Y(t,Y)
-! dxdt, dydt, dzdt etc are essentially f(t,Y)
+! RK4 attempt using low storage (Carpenter and Kennedy) approach
+
   subroutine timestep_callback(state)
     type(model_state_type), intent(inout), target :: state
 
     integer(kind=PARCEL_INTEGER) :: nparcels, n
-
-    real(kind=DEFAULT_PRECISION) :: dt, dt6, dt3, dt2
-
+    real(kind=DEFAULT_PRECISION) :: dt
+        
     dt=state%dtm
-    dt6=dt/6
-    dt2=dt/2
-    dt3=dt/3
 
     nparcels=state%parcels%numparcels_local
     !$OMP PARALLEL
@@ -115,52 +98,29 @@ contains
       if (state%parallel%my_rank .eq. 0) write(*,"('RK4 integrator: t= ',f10.2,'s -> ',f10.2,'s')") state%time, state%time+dt
       !$OMP END SINGLE
 
-      !cache initial parcel positions/vorticities
       !$OMP WORKSHARE
-      state%parcels%xo(1:nparcels) = state%parcels%x(1:nparcels)
-      state%parcels%yo(1:nparcels) = state%parcels%y(1:nparcels)
-      state%parcels%zo(1:nparcels) = state%parcels%z(1:nparcels)
-
-      state%parcels%po(1:nparcels) = state%parcels%p(1:nparcels)
-      state%parcels%qo(1:nparcels) = state%parcels%q(1:nparcels)
-      state%parcels%ro(1:nparcels) = state%parcels%r(1:nparcels)
-      !$OMP END WORKSHARE
-
-      !dxdt * dt = k1
-
-      !add 1/6*k1 to xf
-      !k1 is just dt * dxdt so this is already calculated by the previous components called
-      !$OMP WORKSHARE
-      state%parcels%xf(1:nparcels) = state%parcels%xo(1:nparcels) &
-                                   + dt6*state%parcels%dxdt(1:nparcels)
-      state%parcels%yf(1:nparcels) = state%parcels%yo(1:nparcels) &
-                                   + dt6*state%parcels%dydt(1:nparcels)
-      state%parcels%zf(1:nparcels) = state%parcels%zo(1:nparcels) &
-                                   + dt6*state%parcels%dzdt(1:nparcels)
-      state%parcels%pf(1:nparcels) = state%parcels%po(1:nparcels) &
-                                   + dt6*state%parcels%dpdt(1:nparcels)
-      state%parcels%qf(1:nparcels) = state%parcels%qo(1:nparcels) &
-                                   + dt6*state%parcels%dqdt(1:nparcels)
-      state%parcels%rf(1:nparcels) = state%parcels%ro(1:nparcels) &
-                                   + dt6*state%parcels%drdt(1:nparcels)
-
-
-
-      !update Y to position inside the k2 bracket
-      state%parcels%x(1:nparcels) = state%parcels%xo(1:nparcels) &
-                                  + dt2*state%parcels%dxdt(1:nparcels)
-      state%parcels%y(1:nparcels) = state%parcels%yo(1:nparcels) &
-                                  + dt2*state%parcels%dydt(1:nparcels)
-      state%parcels%z(1:nparcels) = state%parcels%zo(1:nparcels) &
-                                  + dt2*state%parcels%dzdt(1:nparcels)
-      state%parcels%p(1:nparcels) = state%parcels%po(1:nparcels) &
-                                  + dt2*state%parcels%dpdt(1:nparcels)
-      state%parcels%q(1:nparcels) = state%parcels%qo(1:nparcels) &
-                                  + dt2*state%parcels%dqdt(1:nparcels)
-      state%parcels%r(1:nparcels) = state%parcels%ro(1:nparcels) &
-                                  + dt2*state%parcels%drdt(1:nparcels)
+      state%parcels%x(1:nparcels) = state%parcels%x(1:nparcels) &
+                                  + cB_1*dt*state%parcels%dxdt(1:nparcels)
+      state%parcels%y(1:nparcels) = state%parcels%y(1:nparcels) &
+                                  + cB_1*dt*state%parcels%dydt(1:nparcels)
+      state%parcels%z(1:nparcels) = state%parcels%z(1:nparcels) &
+                                  + cB_1*dt*state%parcels%dzdt(1:nparcels)
+      state%parcels%p(1:nparcels) = state%parcels%p(1:nparcels) &
+                                  + cB_1*dt*state%parcels%dpdt(1:nparcels)
+      state%parcels%q(1:nparcels) = state%parcels%q(1:nparcels) &
+                                  + cB_1*dt*state%parcels%dqdt(1:nparcels)
+      state%parcels%r(1:nparcels) = state%parcels%r(1:nparcels) &
+                                  + cB_1*dt*state%parcels%drdt(1:nparcels)
+                                  
+      state%parcels%dxdt(1:nparcels) = cA_1*state%parcels%dxdt(1:nparcels)
+      state%parcels%dydt(1:nparcels) = cA_1*state%parcels%dydt(1:nparcels)
+      state%parcels%dzdt(1:nparcels) = cA_1*state%parcels%dzdt(1:nparcels)
+      state%parcels%dpdt(1:nparcels) = cA_1*state%parcels%dpdt(1:nparcels)
+      state%parcels%dqdt(1:nparcels) = cA_1*state%parcels%dqdt(1:nparcels)
+      state%parcels%drdt(1:nparcels) = cA_1*state%parcels%drdt(1:nparcels)
       !$OMP END WORKSHARE
       !$OMP BARRIER
+      
       !$OMP SINGLE
       call timer_pause(handle)
       call timer_stop(handle1)
@@ -174,44 +134,34 @@ contains
       call timer_start(handle2)
       !if (state%parallel%my_rank .eq. 0) print *, "rkstep 2: t=", state%time
       !$OMP END SINGLE
-      !dxdt * dt = k2
-
-      !add 1/3*k2 to xf
-      !k1 is just dt * dxdt so this is already calculated by the previous components called
+      
       !$OMP WORKSHARE
-      state%parcels%xf(1:nparcels) = state%parcels%xf(1:nparcels) &
-                                   + dt3*state%parcels%dxdt(1:nparcels)
-      state%parcels%yf(1:nparcels) = state%parcels%yf(1:nparcels) &
-                                   + dt3*state%parcels%dydt(1:nparcels)
-      state%parcels%zf(1:nparcels) = state%parcels%zf(1:nparcels) &
-                                   + dt3*state%parcels%dzdt(1:nparcels)
-      state%parcels%pf(1:nparcels) = state%parcels%pf(1:nparcels) &
-                                   + dt3*state%parcels%dpdt(1:nparcels)
-      state%parcels%qf(1:nparcels) = state%parcels%qf(1:nparcels) &
-                                   + dt3*state%parcels%dqdt(1:nparcels)
-      state%parcels%rf(1:nparcels) = state%parcels%rf(1:nparcels) &
-                                   + dt3*state%parcels%drdt(1:nparcels)
-
-      !update Y to position inside the k3 bracket
-      state%parcels%x(1:nparcels) = state%parcels%xo(1:nparcels) &
-                                  + dt2*state%parcels%dxdt(1:nparcels)
-      state%parcels%y(1:nparcels) = state%parcels%yo(1:nparcels) &
-                                  + dt2*state%parcels%dydt(1:nparcels)
-      state%parcels%z(1:nparcels) = state%parcels%zo(1:nparcels) &
-                                  + dt2*state%parcels%dzdt(1:nparcels)
-      state%parcels%p(1:nparcels) = state%parcels%po(1:nparcels) &
-                                  + dt2*state%parcels%dpdt(1:nparcels)
-      state%parcels%q(1:nparcels) = state%parcels%qo(1:nparcels) &
-                                  + dt2*state%parcels%dqdt(1:nparcels)
-      state%parcels%r(1:nparcels) = state%parcels%ro(1:nparcels) &
-                                  + dt2*state%parcels%drdt(1:nparcels)
+      state%parcels%x(1:nparcels) = state%parcels%x(1:nparcels) &
+                                  + cB_2*dt*state%parcels%dxdt(1:nparcels)
+      state%parcels%y(1:nparcels) = state%parcels%y(1:nparcels) &
+                                  + cB_2*dt*state%parcels%dydt(1:nparcels)
+      state%parcels%z(1:nparcels) = state%parcels%z(1:nparcels) &
+                                  + cB_2*dt*state%parcels%dzdt(1:nparcels)
+      state%parcels%p(1:nparcels) = state%parcels%p(1:nparcels) &
+                                  + cB_2*dt*state%parcels%dpdt(1:nparcels)
+      state%parcels%q(1:nparcels) = state%parcels%q(1:nparcels) &
+                                  + cB_2*dt*state%parcels%dqdt(1:nparcels)
+      state%parcels%r(1:nparcels) = state%parcels%r(1:nparcels) &
+                                  + cB_2*dt*state%parcels%drdt(1:nparcels)
+                                  
+      state%parcels%dxdt(1:nparcels) = cA_2*state%parcels%dxdt(1:nparcels)
+      state%parcels%dydt(1:nparcels) = cA_2*state%parcels%dydt(1:nparcels)
+      state%parcels%dzdt(1:nparcels) = cA_2*state%parcels%dzdt(1:nparcels)
+      state%parcels%dpdt(1:nparcels) = cA_2*state%parcels%dpdt(1:nparcels)
+      state%parcels%dqdt(1:nparcels) = cA_2*state%parcels%dqdt(1:nparcels)
+      state%parcels%drdt(1:nparcels) = cA_2*state%parcels%drdt(1:nparcels)
       !$OMP END WORKSHARE
       !$OMP BARRIER
+      
       !$OMP SINGLE
       call timer_pause(handle)
       call timer_stop(handle2)
       !$OMP END SINGLE
-
 
     else if (rkstep .eq. 3) then
       !$OMP SINGLE
@@ -219,40 +169,30 @@ contains
       call timer_start(handle3)
       !if (state%parallel%my_rank .eq. 0) print *, "rkstep 3: t=", state%time
       !$OMP END SINGLE
-
-      !dxdt * dt = k3
-
-      !add 1/3*k3 to xf
-      !k1 is just dt * dxdt so this is already calculated by the previous components called
+      
       !$OMP WORKSHARE
-      state%parcels%xf(1:nparcels) = state%parcels%xf(1:nparcels) &
-                                   + dt3*state%parcels%dxdt(1:nparcels)
-      state%parcels%yf(1:nparcels) = state%parcels%yf(1:nparcels) &
-                                   + dt3*state%parcels%dydt(1:nparcels)
-      state%parcels%zf(1:nparcels) = state%parcels%zf(1:nparcels) &
-                                   + dt3*state%parcels%dzdt(1:nparcels)
-      state%parcels%pf(1:nparcels) = state%parcels%pf(1:nparcels) &
-                                   + dt3*state%parcels%dpdt(1:nparcels)
-      state%parcels%qf(1:nparcels) = state%parcels%qf(1:nparcels) &
-                                   + dt3*state%parcels%dqdt(1:nparcels)
-      state%parcels%rf(1:nparcels) = state%parcels%rf(1:nparcels) &
-                                   + dt3*state%parcels%drdt(1:nparcels)
-
-      !update Y to position inside the k4 bracket
-      state%parcels%x(1:nparcels) = state%parcels%xo(1:nparcels) &
-                                  + dt*state%parcels%dxdt(1:nparcels)
-      state%parcels%y(1:nparcels) = state%parcels%yo(1:nparcels) &
-                                  + dt*state%parcels%dydt(1:nparcels)
-      state%parcels%z(1:nparcels) = state%parcels%zo(1:nparcels) &
-                                  + dt*state%parcels%dzdt(1:nparcels)
-      state%parcels%p(1:nparcels) = state%parcels%po(1:nparcels) &
-                                  + dt*state%parcels%dpdt(1:nparcels)
-      state%parcels%q(1:nparcels) = state%parcels%qo(1:nparcels) &
-                                  + dt*state%parcels%dqdt(1:nparcels)
-      state%parcels%r(1:nparcels) = state%parcels%ro(1:nparcels) &
-                                  + dt*state%parcels%drdt(1:nparcels)
+      state%parcels%x(1:nparcels) = state%parcels%x(1:nparcels) &
+                                  + cB_3*dt*state%parcels%dxdt(1:nparcels)
+      state%parcels%y(1:nparcels) = state%parcels%y(1:nparcels) &
+                                  + cB_3*dt*state%parcels%dydt(1:nparcels)
+      state%parcels%z(1:nparcels) = state%parcels%z(1:nparcels) &
+                                  + cB_3*dt*state%parcels%dzdt(1:nparcels)
+      state%parcels%p(1:nparcels) = state%parcels%p(1:nparcels) &
+                                  + cB_3*dt*state%parcels%dpdt(1:nparcels)
+      state%parcels%q(1:nparcels) = state%parcels%q(1:nparcels) &
+                                  + cB_3*dt*state%parcels%dqdt(1:nparcels)
+      state%parcels%r(1:nparcels) = state%parcels%r(1:nparcels) &
+                                  + cB_3*dt*state%parcels%drdt(1:nparcels)
+                                  
+      state%parcels%dxdt(1:nparcels) = cA_3*state%parcels%dxdt(1:nparcels)
+      state%parcels%dydt(1:nparcels) = cA_3*state%parcels%dydt(1:nparcels)
+      state%parcels%dzdt(1:nparcels) = cA_3*state%parcels%dzdt(1:nparcels)
+      state%parcels%dpdt(1:nparcels) = cA_3*state%parcels%dpdt(1:nparcels)
+      state%parcels%dqdt(1:nparcels) = cA_3*state%parcels%dqdt(1:nparcels)
+      state%parcels%drdt(1:nparcels) = cA_3*state%parcels%drdt(1:nparcels)
       !$OMP END WORKSHARE
       !$OMP BARRIER
+      
       !$OMP SINGLE
       call timer_pause(handle)
       call timer_stop(handle3)
@@ -265,50 +205,77 @@ contains
       call timer_start(handle4)
       !if (state%parallel%my_rank .eq. 0) print *, "rkstep 4: t=", state%time
       !$OMP END SINGLE
-
-      !dxdt*dt = k4
-
-      !add 1/6*k4 to xf
-      !k1 is just dt * dxdt so this is already calculated by the previous components called
+      
       !$OMP WORKSHARE
-      state%parcels%xf(1:nparcels) = state%parcels%xf(1:nparcels) &
-                                   + dt6*state%parcels%dxdt(1:nparcels)
-      state%parcels%yf(1:nparcels) = state%parcels%yf(1:nparcels) &
-                                   + dt6*state%parcels%dydt(1:nparcels)
-      state%parcels%zf(1:nparcels) = state%parcels%zf(1:nparcels) &
-                                   + dt6*state%parcels%dzdt(1:nparcels)
-      state%parcels%pf(1:nparcels) = state%parcels%pf(1:nparcels) &
-                                   + dt6*state%parcels%dpdt(1:nparcels)
-      state%parcels%qf(1:nparcels) = state%parcels%qf(1:nparcels) &
-                                   + dt6*state%parcels%dqdt(1:nparcels)
-      state%parcels%rf(1:nparcels) = state%parcels%rf(1:nparcels) &
-                                   + dt6*state%parcels%drdt(1:nparcels)
-
-      ! finally update xf,yf,zf,pf,qf,rf to x,y,z,p,q,r
-
-      state%parcels%x(1:nparcels) = state%parcels%xf(1:nparcels)
-      state%parcels%y(1:nparcels) = state%parcels%yf(1:nparcels)
-      state%parcels%z(1:nparcels) = state%parcels%zf(1:nparcels)
-
-      state%parcels%p(1:nparcels) = state%parcels%pf(1:nparcels)
-      state%parcels%q(1:nparcels) = state%parcels%qf(1:nparcels)
-      state%parcels%r(1:nparcels) = state%parcels%rf(1:nparcels)
+      state%parcels%x(1:nparcels) = state%parcels%x(1:nparcels) &
+                                  + cB_4*dt*state%parcels%dxdt(1:nparcels)
+      state%parcels%y(1:nparcels) = state%parcels%y(1:nparcels) &
+                                  + cB_4*dt*state%parcels%dydt(1:nparcels)
+      state%parcels%z(1:nparcels) = state%parcels%z(1:nparcels) &
+                                  + cB_4*dt*state%parcels%dzdt(1:nparcels)
+      state%parcels%p(1:nparcels) = state%parcels%p(1:nparcels) &
+                                  + cB_4*dt*state%parcels%dpdt(1:nparcels)
+      state%parcels%q(1:nparcels) = state%parcels%q(1:nparcels) &
+                                  + cB_4*dt*state%parcels%dqdt(1:nparcels)
+      state%parcels%r(1:nparcels) = state%parcels%r(1:nparcels) &
+                                  + cB_4*dt*state%parcels%drdt(1:nparcels)
+                                  
+      state%parcels%dxdt(1:nparcels) = cA_4*state%parcels%dxdt(1:nparcels)
+      state%parcels%dydt(1:nparcels) = cA_4*state%parcels%dydt(1:nparcels)
+      state%parcels%dzdt(1:nparcels) = cA_4*state%parcels%dzdt(1:nparcels)
+      state%parcels%dpdt(1:nparcels) = cA_4*state%parcels%dpdt(1:nparcels)
+      state%parcels%dqdt(1:nparcels) = cA_4*state%parcels%dqdt(1:nparcels)
+      state%parcels%drdt(1:nparcels) = cA_4*state%parcels%drdt(1:nparcels)
       !$OMP END WORKSHARE
       !$OMP BARRIER
+      
       !$OMP SINGLE
-      call timer_stop(handle)
+      call timer_pause(handle)
       call timer_stop(handle4)
       !$OMP END SINGLE
-
+    else if (rkstep .eq. 5) then
+      !$OMP SINGLE
+      call timer_resume(handle)
+      call timer_start(handle5)
+      !if (state%parallel%my_rank .eq. 0) print *, "rkstep 4: t=", state%time
+      !$OMP END SINGLE
+      
+      !$OMP WORKSHARE
+      state%parcels%x(1:nparcels) = state%parcels%x(1:nparcels) &
+                                  + cB_5*dt*state%parcels%dxdt(1:nparcels)
+      state%parcels%y(1:nparcels) = state%parcels%y(1:nparcels) &
+                                  + cB_5*dt*state%parcels%dydt(1:nparcels)
+      state%parcels%z(1:nparcels) = state%parcels%z(1:nparcels) &
+                                  + cB_5*dt*state%parcels%dzdt(1:nparcels)
+      state%parcels%p(1:nparcels) = state%parcels%p(1:nparcels) &
+                                  + cB_5*dt*state%parcels%dpdt(1:nparcels)
+      state%parcels%q(1:nparcels) = state%parcels%q(1:nparcels) &
+                                  + cB_5*dt*state%parcels%dqdt(1:nparcels)
+      state%parcels%r(1:nparcels) = state%parcels%r(1:nparcels) &
+                                  + cB_5*dt*state%parcels%drdt(1:nparcels)
+                                  
+      state%parcels%dxdt(1:nparcels) = cA_5*state%parcels%dxdt(1:nparcels)
+      state%parcels%dydt(1:nparcels) = cA_5*state%parcels%dydt(1:nparcels)
+      state%parcels%dzdt(1:nparcels) = cA_5*state%parcels%dzdt(1:nparcels)
+      state%parcels%dpdt(1:nparcels) = cA_5*state%parcels%dpdt(1:nparcels)
+      state%parcels%dqdt(1:nparcels) = cA_5*state%parcels%dqdt(1:nparcels)
+      state%parcels%drdt(1:nparcels) = cA_5*state%parcels%drdt(1:nparcels)
+      !$OMP END WORKSHARE
+      !$OMP BARRIER
+      
+      !$OMP SINGLE
+      call timer_stop(handle)
+      call timer_stop(handle5)
+      !$OMP END SINGLE
     else
-      print *, "Error: rkstep beyond maximum value (4)"
+      print *, "Error: rkstep beyond maximum value (5)"
       print *, "rkstep=", rkstep
       stop
     endif
 
     !$OMP END PARALLEL
 
-    if (rkstep .lt. 4) then
+    if (rkstep .lt. 5) then
       rkstep=rkstep+1
     else
       rkstep=1
@@ -320,19 +287,6 @@ contains
 
   subroutine finalisation_callback(state)
     type(model_state_type), intent(inout), target :: state
-
-    deallocate(state%parcels%xo)
-    deallocate(state%parcels%yo)
-    deallocate(state%parcels%zo)
-    deallocate(state%parcels%po)
-    deallocate(state%parcels%qo)
-    deallocate(state%parcels%ro)
-    deallocate(state%parcels%xf)
-    deallocate(state%parcels%yf)
-    deallocate(state%parcels%zf)
-    deallocate(state%parcels%pf)
-    deallocate(state%parcels%qf)
-    deallocate(state%parcels%rf)
 
   end subroutine
 
