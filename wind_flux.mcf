@@ -74,6 +74,7 @@ e_values=0.3, -0.4 ,0.5
 #integrator properties
 dtm=0.1
 dtmax=0.1
+timestep_prefactor=0.5
 
 #velocity profile properties
 velocity_profile=9
