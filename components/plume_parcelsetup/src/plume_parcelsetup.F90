@@ -69,6 +69,7 @@ contains
     real(kind=DEFAULT_PRECISION) :: vol
     integer :: i, j, k
     real(kind=DEFAULT_PRECISION) :: xp, yp, zp, x, y, z
+    real(kind=DEFAULT_PRECISION) :: randx, randy, randz
     integer(kind=PARCEL_INTEGER) :: n, n_plume, n_bg
 
 
@@ -207,9 +208,9 @@ contains
     if (xmax_local .gt. x_c_pl-r_plume .and. xmin_local .lt. x_c_pl+r_plume ) then
       if (ymax_local .gt. y_c_pl-r_plume .and. ymin_local .lt. y_c_pl+r_plume ) then
 
-        x=xmin_local+dxplume/2.
-        y=ymin_local+dyplume/2.
-        z=zmin_local+dzplume/2.
+        x=xmin_local
+        y=ymin_local
+        z=zmin_local
         do i=1,(nx)*n_per_cell_dir_plume
           xp=x-x_c_pl
           do j=1,(ny)*n_per_cell_dir_plume
@@ -223,9 +224,12 @@ contains
                   print *, "Error! Maxparcels reached in plume_parcelsetup"
                   error stop "Maxparcels reached"
                 endif
-                state%parcels%x(n) = x
-                state%parcels%y(n) = y
-                state%parcels%z(n) = z
+                call random_number(randx)
+                call random_number(randy)
+                call random_number(randz)
+                state%parcels%x(n) = x+randx*dxplume
+                state%parcels%y(n) = y+randy*dyplume
+                state%parcels%z(n) = z+randz*dzplume
                 state%parcels%b(n) = b_pl*(1. + e_values(1)*xp*yp + e_values(2)*xp*zp + e_values(3)*yp*zp)
                 state%parcels%h(n) = h_pl
                 state%parcels%vol(n) = vol
@@ -233,10 +237,10 @@ contains
               endif
               z=z+dzplume
             enddo
-            z=zmin_local+dzplume/2.
+            z=zmin_local
             y=y+dyplume
           enddo
-          y=ymin_local+dyplume/2.
+          y=ymin_local
           x=x+dxplume
         enddo
 
@@ -253,9 +257,9 @@ contains
 
     vol = dxbg*dybg*dzbg
 
-    x=xmin_local+dxbg/2.
-    y=ymin_local+dybg/2.
-    z=zmin_local+dzbg/2.
+    x=xmin_local
+    y=ymin_local
+    z=zmin_local
     do i=1,nx*n_per_cell_dir_bg
       xp=x-x_c_pl
       do j=1,ny*n_per_cell_dir_bg
@@ -271,9 +275,12 @@ contains
                 print *, "Error! Maxparcels reached in plume_parcelsetup"
                 error stop "Maxparcels reached"
               endif
-              state%parcels%x(n) = x
-              state%parcels%y(n) = y
-              state%parcels%z(n) = z
+              call random_number(randx)
+              call random_number(randy)
+              call random_number(randz)
+              state%parcels%x(n) = x+randx*dxbg
+              state%parcels%y(n) = y+randy*dybg
+              state%parcels%z(n) = z+randz*dzbg
 
               if (z .lt. z_b) then
             ! Mixed layer:
@@ -292,10 +299,10 @@ contains
 
           z=z+dzbg
         enddo
-        z=zmin_local+dzbg/2.
+        z=zmin_local
         y=y+dybg
       enddo
-      y=ymin_local+dybg/2.
+      y=ymin_local
       x=x+dxbg
     enddo
 
