@@ -331,6 +331,142 @@ contains
 
   end subroutine
 
+  !interpolate gridded variable (grid) to parcel variable (var)
+  subroutine divfree(state,u,v,w,paru,parv,parw)
+    type(model_state_type), intent(inout) :: state
+    type(prognostic_field_type), intent(inout) :: u,v,w
+    real(kind=DEFAULT_PRECISION), dimension(:) :: paru,parv,parw
+
+    integer(kind=PARCEL_INTEGER) :: n
+    real(kind=DEFAULT_PRECISION) :: u000, u001, u010, u011, u100, u101, u110, u111
+    real(kind=DEFAULT_PRECISION) :: v000, v001, v010, v011, v100, v101, v110, v111
+    real(kind=DEFAULT_PRECISION) :: w000, w001, w010, w011, w100, w101, w110, w111
+
+    real(kind=DEFAULT_PRECISION) :: u00, u01, u10, u11
+    real(kind=DEFAULT_PRECISION) :: v00, v01, v10, v11
+    real(kind=DEFAULT_PRECISION) :: w00, w01, w10, w11
+
+    real(kind=DEFAULT_PRECISION) :: u0, u1
+    real(kind=DEFAULT_PRECISION) :: v0, v1
+    real(kind=DEFAULT_PRECISION) :: w0, w1
+
+    real(kind=DEFAULT_PRECISION) :: uu
+    real(kind=DEFAULT_PRECISION) :: vv
+    real(kind=DEFAULT_PRECISION) :: ww
+
+    real(kind=DEFAULT_PRECISION) :: qx,cx,deltau
+    real(kind=DEFAULT_PRECISION) :: qy,cy,deltav
+    real(kind=DEFAULT_PRECISION) :: qz,cz,deltaw
+        
+    integer :: i, j, k
+    real(kind=DEFAULT_PRECISION) :: delx, dely, delz
+
+    call timer_start(grid2par_handle)
+
+    call grid2par_haloswap(state,u%data)
+    call grid2par_haloswap(state,v%data)
+    call grid2par_haloswap(state,w%data)
+      
+    !$OMP PARALLEL DO DEFAULT(PRIVATE) SHARED(nparcels,delxs,delys,delzs,is,js,ks,u,v,w,paru,parv,parw,dx,dy,dz)
+    do n=1,nparcels
+
+      !retrieve cached values
+      delx=delxs(n)
+      dely=delys(n)
+      delz=delzs(n)
+      i=is(n)
+      j=js(n)
+      k=ks(n)
+
+      !retrieve corners of grid cell the nth parcel is in
+
+      u000 = u%data(k,j,i)
+      u001 = u%data(k,j,i+1)
+      u010 = u%data(k,j+1,i)
+      u011 = u%data(k,j+1,i+1)
+      u100 = u%data(k+1,j,i)
+      u101 = u%data(k+1,j,i+1)
+      u110 = u%data(k+1,j+1,i)
+      u111 = u%data(k+1,j+1,i+1)
+
+      v000 = v%data(k,j,i)
+      v001 = v%data(k,j,i+1)
+      v010 = v%data(k,j+1,i)
+      v011 = v%data(k,j+1,i+1)
+      v100 = v%data(k+1,j,i)
+      v101 = v%data(k+1,j,i+1)
+      v110 = v%data(k+1,j+1,i)
+      v111 = v%data(k+1,j+1,i+1)
+      
+      w000 = w%data(k,j,i)
+      w001 = w%data(k,j,i+1)
+      w010 = w%data(k,j+1,i)
+      w011 = w%data(k,j+1,i+1)
+      w100 = w%data(k+1,j,i)
+      w101 = w%data(k+1,j,i+1)
+      w110 = w%data(k+1,j+1,i)
+      w111 = w%data(k+1,j+1,i+1)
+      
+      !interpolate in z direction to produce square around parcel in y-x plane
+      u00 = u000*(1-delz) + u100*delz
+      u01 = u001*(1-delz) + u101*delz
+      u10 = u010*(1-delz) + u110*delz
+      u11 = u011*(1-delz) + u111*delz
+
+      v00 = v000*(1-delz) + v100*delz
+      v01 = v001*(1-delz) + v101*delz
+      v10 = v010*(1-delz) + v110*delz
+      v11 = v011*(1-delz) + v111*delz
+      
+      w00 = w000*(1-delz) + w100*delz
+      w01 = w001*(1-delz) + w101*delz
+      w10 = w010*(1-delz) + w110*delz
+      w11 = w011*(1-delz) + w111*delz
+      
+      !interpolate in y direction to produce line through parcel along x direction
+
+      u0 = u00*(1-dely) + u10*dely
+      u1 = u01*(1-dely) + u11*dely
+
+      v0 = v00*(1-dely) + v10*dely
+      v1 = v01*(1-dely) + v11*dely
+      
+      w0 = w00*(1-dely) + w10*dely
+      w1 = w01*(1-dely) + w11*dely
+      
+      !interpolate to parcel position
+
+      uu = u0*(1-delx) + u1*delx
+      vv = v0*(1-delx) + v1*delx
+      ww = w0*(1-delx) + w1*delx
+
+      !now update parcel's variable
+   
+      qx=(dx/(2.0*dy))*(-v000+v001+v100-v101+v010-v011-v110+v111)
+      qy=(dy/(2.0*dz))*(-w000+w001+w100-w101+w010-w011-w110+w111)
+      qz=(dz/(2.0*dx))*(-u000+u001+u100-u101+u010-u011-u110+u111)
+
+      cx=(dx/(2.0*dz))*(w000-w100+w101-w001)+&
+         (dx/(2.0*dy))*(v000-v010+v011-v001+qy)
+      cy=(dy/(2.0*dx))*(u000-u001+u011-u010)+&
+         (dy/(2.0*dz))*(w000-w100+w110-w010+qz)
+      cz=(dz/(2.0*dy))*(v000-v010+v110-v100)+&
+         (dz/(2.0*dx))*(u000-u001+u101-u100+qx)
+
+      deltau=delx*(1-delx)*(cx+delz*qx)
+      deltav=dely*(1-dely)*(cy+delx*qy)
+      deltaw=delz*(1-delz)*(cz+dely*qz)
+
+      paru(n) = uu+deltau
+      parv(n) = vv+deltav
+      parw(n) = ww+deltaw
+
+    enddo
+    !$OMP END PARALLEL DO
+
+    call timer_stop(grid2par_handle)
+
+  end subroutine
 
 
   subroutine par2grid(state,var,grid)

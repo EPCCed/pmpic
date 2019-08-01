@@ -8,7 +8,7 @@ module vort2vel_mod
   use pencil_fft_mod, only : initialise_pencil_fft, finalise_pencil_fft, perform_forward_3dfft, perform_backwards_3dfft
   use optionsdatabase_mod, only : options_get_real
   use MPI
-  use parcel_interpolation_mod, only: x_coords, y_coords, z_coords, par2grid, cache_parcel_interp_weights, grid2par
+  use parcel_interpolation_mod, only: x_coords, y_coords, z_coords, par2grid, divfree, cache_parcel_interp_weights, grid2par
   use timer_mod, only: register_routine_for_timing, timer_start, timer_stop
   use fftops_mod, only: fftops_init, diffx, diffy, diffz, laplinv, spectral_filter
   implicit none
@@ -330,9 +330,8 @@ contains
     current_state%v%data = current_state%v%data + v_bar
 
     !interpolate velocity to parcels
-    call grid2par(current_state, current_state%u, current_state%parcels%dxdt)
-    call grid2par(current_state, current_state%v, current_state%parcels%dydt)
-    call grid2par(current_state, current_state%w, current_state%parcels%dzdt)
+    call divfree(current_state, current_state%u, current_state%v, current_state%w, &
+    current_state%parcels%dxdt, current_state%parcels%dydt, current_state%parcels%dzdt)
 
     if (mod(iteration,current_state%rksteps) ==0 ) then
       !determine the maximum velocity in each direction
