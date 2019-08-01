@@ -442,6 +442,7 @@ contains
 
       !now update parcel's variable
    
+      ! Jenny and Meyer correction
       qx=(dx/(2.0*dy))*(-v000+v001+v100-v101+v010-v011-v110+v111)
       qy=(dy/(2.0*dz))*(-w000+w001+w100-w101+w010-w011-w110+w111)
       qz=(dz/(2.0*dx))*(-u000+u001+u100-u101+u010-u011-u110+u111)
@@ -456,7 +457,7 @@ contains
       deltau=delx*(1-delx)*(cx+delz*qx)
       deltav=dely*(1-dely)*(cy+delx*qy)
       deltaw=delz*(1-delz)*(cz+dely*qz)
-
+      
       paru(n) = uu+deltau
       parv(n) = vv+deltav
       parw(n) = ww+deltaw

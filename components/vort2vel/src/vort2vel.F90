@@ -267,9 +267,9 @@ contains
     if (k2eq0) then
       f(:,1,1) = ubar(:)
       !these steps should be unneccessary but let's put them in to be safe
-    !  f(:,1,2) = 0.
-  !    f(:,2,1) = 0.
-  !    f(:,2,2) = 0.
+      !f(:,1,2) = 0.
+      !f(:,2,1) = 0.
+      !f(:,2,2) = 0.
     endif
     !$OMP END SINGLE
 
@@ -319,8 +319,7 @@ contains
 
     call spectral_filter(f, out=current_state%w_s%data)
 
-
-
+     
     call perform_backwards_3dfft(current_state, f, current_state%w%data(start_loc(Z_INDEX):end_loc(Z_INDEX), &
          start_loc(Y_INDEX):end_loc(Y_INDEX), start_loc(X_INDEX):end_loc(X_INDEX)))
 
@@ -328,7 +327,7 @@ contains
     
     current_state%u%data = current_state%u%data + u_bar
     current_state%v%data = current_state%v%data + v_bar
-
+    
     !interpolate velocity to parcels
     call divfree(current_state, current_state%u, current_state%v, current_state%w, &
     current_state%parcels%dxdt, current_state%parcels%dydt, current_state%parcels%dzdt)

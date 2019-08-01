@@ -37,7 +37,7 @@ surface_fluxes_enabled=.true.
 
 # Control configuration
 display_synopsis_frequency=10
-termination_time=30
+termination_time=100
 
 
 #grid properties
@@ -52,7 +52,7 @@ zmin=0
 zmax=6.28
 
 #Maximum parcels per process (you can determine this value using the planner.py script)
-max_parcels=1000000
+max_parcels=5000000
 
 #readfromfile options (only relevant if the readfromfile_parcelsetup component is enabled)
 restart_num=50
