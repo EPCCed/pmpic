@@ -40,3 +40,10 @@ fort.??
 timing_data
 *.png
 *.nc
+*.nav
+*.aux
+*.snm
+*.toc
+*.vrb
+*.log
+report/pmpic.pdf
