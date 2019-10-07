@@ -225,11 +225,11 @@
 %----------------------------------------------------------------------------------------
 %\title[LES discussions]{LES and more...}
 
-\title[MPIC]{The Parallel Moist Parcel-In-Cell code}
+\title[MPIC]{Webinar: Parallel Moist Parcel-In-Cell code}
 
-\author[B\"oing, Gibb, Dritschel, et al.]{{S.\ B\"oing, G. Gibb, D.\ Dritschel, N.\ Brown, M.\ Weiland, D.\ Parker \& A.\ Blyth}\vspace{-0.5cm}}
+\author[B\"oing, Gibb, Dritschel, et al.]{{Steef B\"oing, Gordon Gibb, David Dritschel, Nick Brown, \newline Mich\`ele Weiland, Doug Parker \& Alan Blyth}\vspace{-0.5cm}}
 
-\institute[]{{Universities of Leeds \& St Andrews \& EPCC}\vspace{-0.4cm}}
+\institute[]{{University of Leeds, University of St Andrews, EPCC}\vspace{-0.4cm}}
 
 \date{November 13, 2019}
 
@@ -254,7 +254,29 @@
 \tableofcontents
 \end{frame}
 
-\section{MPIC recap}
+\begin{frame}
+\frametitle{eCSE project}
+\textit{A fully Lagrangian dynamical core for the Met Office NERC Cloud Model}
+\vspace{0.2cm}
+\begin{center}
+St Andrews, Leeds, EPCC
+\end{center}
+
+\vspace{0.1cm}
+\begin{itemize}
+\item Most fluid dynamics codes are either fully Eulerian (grid-based), or semi-Lagrangian (advection using \textit{departure points} and regridding)
+\item MPIC: \textit{essentially Lagrangian} (prognostics on parcels, solver uses grid)
+\item Atmospheric Large-Eddy Simulation e.g. Met Office NERC Cloud model. Evaporation and condensation in clouds: discontinuity in underlying equations.
+\end{itemize}
+\vspace{-0.8cm}
+
+\begin{center}
+  \includegraphics[width = 0.3\textwidth]{pmpic_images/parcels.pdf}
+\end{center}
+
+\end{frame}
+
+\section{Moist Parcel-in-Cell code: overview}
 
 %------------------------------------------------
 \begin{frame}
@@ -316,24 +338,9 @@ $L$ is the {\re latent heat of condensation.}
 
 \end{frame}
 
+\section{Met Office NERC Cloud model: parallel framework}
+
 %-------------------------------------------------------------------
-\section{What is PMPIC? What is PMPIC not?}
-
-\begin{frame}
-\frametitle{Parallelism}
-
-\vspace{0.2cm}
-\begin{itemize}
-\item Vector Poisson solver: requires global communication. {\bl Efficient algorithms} exist.
-\item First implementation OpenMP. Inherent limitation of problem size. HPC trend to {\pu large distributed memory systems}. 
-\item Much more {\re parcel data} than {\gr grid data}.
-\item Parcel data: {\oran local communication}.
-\end{itemize}
-
-\centering
-
-\end{frame}
-
 \begin{frame}
 \frametitle{eCSE project}
 \textit{A fully Lagrangian dynamical core for the Met Office NERC Cloud Model}
@@ -355,6 +362,21 @@ Ideas:
 \end{frame}
 
 \begin{frame}
+\frametitle{Parallelism}
+
+\vspace{0.2cm}
+\begin{itemize}
+\item Vector Poisson solver: requires global communication. {\bl Efficient algorithms} exist.
+\item First implementation OpenMP. Inherent limitation of problem size. HPC trend to {\pu large distributed memory systems}. 
+\item Much more {\re parcel data} than {\gr grid data}.
+\item Parcel data: {\oran local communication}.
+\end{itemize}
+
+\centering
+
+\end{frame}
+
+\begin{frame}
 \frametitle{PMPIC}
 \begin{itemize}
 \item Implementation of MPIC in MONC's framework.
@@ -366,7 +388,6 @@ Ideas:
 \end{frame}
 
 \section{Design and performance}
-
 
 \begin{frame}
 \frametitle{Design choices}
@@ -444,35 +465,8 @@ Ideas:
 
 \end{frame}
 
-
-\section{Conclusions and future work}
-
-\begin{frame}
-\frametitle{Conclusions and future work}
-
-\begin{itemize}
-\item eCSE outcome: MPIC model that scales on thousands of cores.
-\item Improving scalability: analyse issues with OpenMP, replace FFT-derivatives by compact finite difference (currently 18 FFTs per time step).  
-\end{itemize}
-
-\end{frame}
-
-%-------------------------------------------------------------------
-
-\begin{frame}
-\frametitle{Further steps}
-
-\vspace{0.2cm}
-\begin{itemize}
-\item More flexible {\pu boundary conditions}, in particular for momentum.
-\item Work on {\re marginally resolved and subgrid-scale dynamics} to improve mixing representation (convergence).
-\item Realistic {\bl thermodynamics} and {\bl microphysics}. From idealised to atmospheric model.
-\item Exploitation of {\oran vorticity diagnostics} and {\oran Lagrangian analysis} (with David Dritschel and Sam Wallace)
-\end{itemize}
-
-\centering
-
-\end{frame}
+\hypertarget{welcome-to-the-pmpic-wiki}{%
+\section{Repository, installation, adding components}\label{welcome-to-the-pmpic-wiki}}
 
 \begin{frame}{PMPIC code repository}
 \protect\hypertarget{pmpic-code-repository}{}
@@ -542,9 +536,6 @@ eCSE project ``A fully Lagrangian dynamical core for the Met Office NERC
 Cloud Model''
 
 \end{frame}
-
-\hypertarget{welcome-to-the-pmpic-wiki}{%
-\section{Welcome to the PMPIC wiki}\label{welcome-to-the-pmpic-wiki}}
 
 \begin{frame}{Physics in PMPIC}
 \protect\hypertarget{physics-in-pmpic}{}
@@ -810,7 +801,7 @@ For zlib:
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\ExtensionTok{./configure}\NormalTok{ --prefix=}\VariableTok{$HOME}\NormalTok{/dependencies/zlib CC=mpicc  }
+\ExtensionTok{./configure}\NormalTok{ --prefix=}\VariableTok{\$HOME}\NormalTok{/dependencies/zlib CC=mpicc  }
 \FunctionTok{sudo}\NormalTok{ make install}
 \end{Highlighting}
 \end{Shaded}
@@ -857,7 +848,7 @@ The compilation settings can be found by running:
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\VariableTok{$HOME}\ExtensionTok{/dependencies/netcdf/bin/nf-config}\NormalTok{ --all}
+\VariableTok{\$HOME}\ExtensionTok{/dependencies/netcdf/bin/nf-config}\NormalTok{ --all}
 \end{Highlighting}
 \end{Shaded}
 
@@ -865,7 +856,7 @@ Finally, you may need to set:
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\BuiltInTok{export} \VariableTok{LD_LIBRARY_PATH=}\StringTok{"}\VariableTok{$HOME}\StringTok{/dependencies/netcdf/lib:}\VariableTok{$HOME}\StringTok{/dependencies/hdf5/lib:}\VariableTok{$HOME}\StringTok{/dependencies/zlib/lib:}\VariableTok{$LD_LIBRARY_PATH}\StringTok{"}
+\BuiltInTok{export} \VariableTok{LD_LIBRARY_PATH=}\StringTok{"}\VariableTok{$HOME}\StringTok{/dependencies/netcdf/lib:}\VariableTok{\$HOME}\StringTok{/dependencies/hdf5/lib:}\VariableTok{\$HOME}\StringTok{/dependencies/zlib/lib:}\VariableTok{$LD_LIBRARY_PATH}\StringTok{"}
 \end{Highlighting}
 \end{Shaded}
 
@@ -873,7 +864,7 @@ and
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\BuiltInTok{export} \VariableTok{NETCDF_ROOT=}\StringTok{"}\VariableTok{$HOME}\StringTok{/dependencies/netcdf/"}
+\BuiltInTok{export} \VariableTok{NETCDF_ROOT=}\StringTok{"}\VariableTok{\$HOME}\StringTok{/dependencies/netcdf/"}
 \end{Highlighting}
 \end{Shaded}
 
@@ -881,7 +872,7 @@ and
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\BuiltInTok{export} \VariableTok{PKG_CONFIG_PATH=}\StringTok{"}\VariableTok{$HOME}\StringTok{/dependencies/netcdf/lib/pkgconfig/:}\VariableTok{$PKG_CONFIG_PATH}\StringTok{"}
+\BuiltInTok{export} \VariableTok{PKG_CONFIG_PATH=}\StringTok{"}\VariableTok{\$HOME}\StringTok{/dependencies/netcdf/lib/pkgconfig/:}\VariableTok{\$PKG_CONFIG_PATH}\StringTok{"}
 \end{Highlighting}
 \end{Shaded}
 
@@ -896,6 +887,35 @@ generate an error. You may want to set
 \end{Shaded}
 
 Or empty the LD\_LIBRARY\_PATH before using ncview.
+
+\end{frame}
+
+\section{Conclusions and future work}
+
+\begin{frame}
+\frametitle{Conclusions and future work}
+
+\begin{itemize}
+\item eCSE outcome: MPIC model that scales on thousands of cores.
+\item Improving scalability: analyse issues with OpenMP, replace FFT-derivatives by compact finite difference (currently 18 FFTs per time step).  
+\end{itemize}
+
+\end{frame}
+
+%-------------------------------------------------------------------
+
+\begin{frame}
+\frametitle{Further steps}
+
+\vspace{0.2cm}
+\begin{itemize}
+\item More flexible {\pu boundary conditions}, in particular for momentum.
+\item Work on {\re marginally resolved and subgrid-scale dynamics} to improve mixing representation (convergence).
+\item Realistic {\bl thermodynamics} and {\bl microphysics}. From idealised to atmospheric model.
+\item Exploitation of {\oran vorticity diagnostics} and {\oran Lagrangian analysis} (with David Dritschel and Sam Wallace)
+\end{itemize}
+
+\centering
 
 \end{frame}
 
