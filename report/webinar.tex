@@ -280,8 +280,8 @@ St Andrews, Leeds, EPCC
 \vspace{-0.2cm}
 \begin{itemize}
 \item Most fluid dynamics codes are either fully Eulerian (grid-based), or semi-Lagrangian (advection using \textit{departure points} and regridding)
-\item MPIC: \textit{essentially Lagrangian} (prognostics on parcels, solver uses grid)
-\item Atmospheric Large-Eddy Simulation: e.g. Met Office NERC Cloud model. 
+\item Here: \textit{essentially Lagrangian} (prognostics on parcels, solver uses grid)
+\item Atmospheric Large-Eddy Simulation: e.g. Met Office/NERC Cloud model (MONC). 
 \item Evaporation and condensation in clouds: discontinuity in underlying equations.
 \end{itemize}
 \vspace{-0.8cm}
@@ -361,7 +361,7 @@ $\alpha$ is a scale factor related to the {\re latent heat of condensation.} \ne
 \end{frame}
 
 \begin{frame}
-\frametitle{Solution}
+\frametitle{N}
 
 Rather than evolving momentum, we evolve the vorticity:
 \begin{equation}
@@ -377,7 +377,7 @@ Vector Poisson solver (finite difference) to find velocity potential $\v{A}$ and
   \gv{\omega} = \v{\nabla}^2 \v{A}. \nonumber
 \end{equation}
 
-Some further subtleties in ensuring the vorticity is divergence free.
+Some further subtleties to ensure the vorticity is divergence free.
 
 \end{frame}
 
@@ -386,7 +386,7 @@ Some further subtleties in ensuring the vorticity is divergence free.
 
 \begin{itemize}
 \item Parcels stretch and can split into 2 smaller parcels, depending on vorticity.
-\item Splitting: creates new parcel. Old and new parcel are change position.
+\item Splitting: creates new parcel. Old and new parcel change position.
 \item When parcel becomes too small: merged into surrounding parcels using conservative operation via grid.
 \end{itemize}
 
@@ -404,6 +404,54 @@ Some further subtleties in ensuring the vorticity is divergence free.
 \end{frame}
 
 \section{The Met Office NERC Cloud model (parallelisation framework)}
+
+ 
+\begin{frame}
+\frametitle{MONC history}
+
+Very high resolution ($\mathsf{\sim}$ 2 to 50 m), flexible, portable cloud modelling 
+framework, developed through collaboration between NCAS, the Met 
+Office, EPCC and the universities.
+\begin{itemize}
+\item Based on Met Office LEM (1980s, infrastructure outdated by 2014)
+\item Fortran 2003
+\item Modular structure
+\item Funded though NERC/JWCRP/eCSE
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{MONC parallelism}
+
+MONC supports decomposition in both the x and y dimensions with at least one column per process
+\begin{itemize}
+\item Number of columns can be distributed unevenly
+\item Improved decomposition means more parallelism to be exploited
+\item Asynchronous MPI
+\item Includes FFT solver, based on FFTW
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Core and components}
+
+The model core  contains the MONC entry point, registry functionality and some utility modules
+
+Architected as plugins called components
+\begin{itemize}
+\item Independent of each other
+\item Standardized format
+\item Enabled/disabled at runtime through configuration files
+\item Easy to create new components for testing
+\item Managed via a registry
+\item Each can be called at different times, e.g. \newline
+1. Initialisation \newline
+2. Each time step \newline
+3. Finalisation \newline
+\end{itemize}
+\end{frame}
+
+\section{Design and performance}
 
 %-------------------------------------------------------------------
 \begin{frame}
@@ -452,7 +500,6 @@ Ideas:
 \end{itemize}
 \end{frame}
 
-\section{Design and performance}
 
 \begin{frame}
 \frametitle{Design choices}
@@ -697,11 +744,11 @@ See PMPIC wiki for details on local compilation.
 \section{Conclusions and future work}
 
 \begin{frame}
-\frametitle{Conclusions and future work}
+\frametitle{Conclusions}
 
 \begin{itemize}
 \item eCSE outcome: MPIC model that scales on thousands of cores.
-\item Improving scalability: analyse issues with OpenMP, replace FFT-derivatives by compact finite difference (currently 18 FFTs per time step).  
+\item Improving scalability: analyse issues with OpenMP, replace FFT-derivatives by compact finite differencing where possible (currently 18 FFTs per time step).  
 \end{itemize}
 
 \end{frame}
@@ -709,14 +756,14 @@ See PMPIC wiki for details on local compilation.
 %-------------------------------------------------------------------
 
 \begin{frame}
-\frametitle{Further steps}
+\frametitle{Future plans for MPIC}
 
 \vspace{0.2cm}
 \begin{itemize}
+\item Realistic {\bl thermodynamics} and {\bl precipitation}. From idealised to atmospheric model.
 \item More flexible {\pu boundary conditions}, in particular for momentum.
 \item Work on {\re marginally resolved and subgrid-scale dynamics} to improve mixing representation (convergence).
-\item Realistic {\bl thermodynamics} and {\bl microphysics}. From idealised to atmospheric model.
-\item Exploitation of {\oran vorticity diagnostics} and {\oran Lagrangian analysis} (with David Dritschel and Sam Wallace)
+\item Exploitation of {\oran vorticity diagnostics} and {\oran Lagrangian analysis}. 
 \end{itemize}
 
 \centering

@@ -46,4 +46,5 @@ timing_data
 *.toc
 *.vrb
 *.log
+*.synctex.gz
 report/webinar.pdf
