@@ -161,6 +161,22 @@
 \newcommand{\grad}{\bm \nabla}
 \newcommand{\degrees}{\mbox{$^{\circ}$}}
 
+\let\vaccent=\v % rename builtin command \v{} to \vaccent{}
+\renewcommand{\v}[1]{\ensuremath{\mathbf{#1}}} % for vectors
+%\renewcommand{\v}[1]{\ensuremath{\mbox{\boldmath$ #1 $}}}
+\newcommand{\gv}[1]{\ensuremath{\mbox{\boldmath$ #1 $}}}
+% for vectors of Greek letters
+\newcommand{\uv}[1]{\hat{\ensuremath{\mathbf{ #1 }}}} % for unit vector
+\newcommand{\abs}[1]{\left| #1 \right|} % for absolute value
+\newcommand{\avg}[1]{\left< #1 \right>} % for average
+\let\underdot=\d % rename builtin command \d{} to \underdot{}
+\renewcommand{\d}[2]{\frac{d #1}{d #2}} % for derivatives
+\newcommand{\pd}[2]{\frac{\partial #1}{\partial #2}}
+% for partial derivatives
+\let\divsymb=\div % rename builtin command \div to \divsymb
+\renewcommand{\div}[1]{\v{\nabla} \cdot #1} % for divergence
+\newcommand{\curl}[1]{\v{\nabla} \times #1} % for curl
+
 \usepackage{fancyvrb}
 \DefineShortVerb[commandchars=\\\{\}]{\|}
 \DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
@@ -255,23 +271,23 @@
 \end{frame}
 
 \begin{frame}
-\frametitle{eCSE project}
+\frametitle{eCSE project 12-10}
 \textit{A fully Lagrangian dynamical core for the Met Office NERC Cloud Model}
-\vspace{0.2cm}
+\vspace{-0.2cm}
 \begin{center}
 St Andrews, Leeds, EPCC
 \end{center}
-
-\vspace{0.1cm}
+\vspace{-0.2cm}
 \begin{itemize}
 \item Most fluid dynamics codes are either fully Eulerian (grid-based), or semi-Lagrangian (advection using \textit{departure points} and regridding)
 \item MPIC: \textit{essentially Lagrangian} (prognostics on parcels, solver uses grid)
-\item Atmospheric Large-Eddy Simulation e.g. Met Office NERC Cloud model. Evaporation and condensation in clouds: discontinuity in underlying equations.
+\item Atmospheric Large-Eddy Simulation: e.g. Met Office NERC Cloud model. 
+\item Evaporation and condensation in clouds: discontinuity in underlying equations.
 \end{itemize}
 \vspace{-0.8cm}
 
 \begin{center}
-  \includegraphics[width = 0.3\textwidth]{pmpic_images/parcels.pdf}
+  \includegraphics[width = 0.28\textwidth]{pmpic_images/parcels.pdf}
 \end{center}
 
 \end{frame}
@@ -284,7 +300,7 @@ St Andrews, Leeds, EPCC
 
 \begin{block}{}
 {\bl The basic conservation principles} of fluid dynamics 
-{\gr are naturally expressed} in a \underline{\pu Lagrangian} way: 
+{\gr are naturally expressed} in a {\pu Lagrangian} way: 
 e.g.\ mass is conserved {\it \re following} fluid ``parcels''.
 \end{block}
 
@@ -309,36 +325,85 @@ e.g.\ pressure.  Here, one needs to solve for the entire field through
 \frametitle{Moist Parcel-In-Cell (MPIC)}
 
 The new ``Moist Parcel-In-Cell'' (MPIC) algorithm 
-{\re represents the continuum by discrete} {\bl ``cloud parcels''}.
+{\re represents the continuum by discrete} {\bl ``cloud (or environment) parcels''}.
 
 \vspace{0.15cm}
 We use {\pu freely-moving} 
 {\pu parcels} carrying {\it any number} of {\re attributes} 
-(e.g.\ {\bl a conserved potential temperature} 
-$\theta_\ell$, {\bl specific humidity} $q$, etc...)
+(e.g.\ {\bl a conserved temperature} 
+$b_\ell$, {\bl specific humidity} $q$, etc...)
 
 \vspace{0.15cm}
 Prototype model for 3D incompressible flow
 (Boussinesq, no rotation, no precipitation):
-\begin{equation}
-\DD{\uu}{t} = - \frac{\grad{p}}{\rho_0} + b\eez\,,\qquad
-\DD{\bel}{t} = 0\,,\qquad
-\DD{q}{t} = 0\,,\qquad
-\grad\bcdot\uu =0\qquad
+\begin{flalign}
+\DD{\uu}{t} & = - \frac{\grad{p}}{\rho_0} + b \uv{z} \qquad & \textsf{momentum} \nonumber \\ 
+\DD{\bel}{t}&  = 0  \qquad & \textsf{conserved temperature} \nonumber \\
+\DD{q}{t} & = 0  \qquad & \textsf{specific humidity, total amount of water} \nonumber \\
+\grad\bcdot\uu & =0  \qquad & \textsf{incompressibility} \nonumber  \\
 \nonumber
-\end{equation}
-where the {\re total buoyancy} $b$ is approximated by
-\begin{equation}
-b = \bel+\frac{gL}{c_p\thlo} q_\ell \,,\qquad q_\ell ={\rm max}\left(0,q-q_0 e^{-\lambda z}\right) \,.
-\nonumber
-\end{equation}
-Here, $q_0$ is a threshold {\bl saturation humidity}, and $\lambda$ is the
-{\pu inverse condensation scale height}.
-$L$ is the {\re latent heat of condensation.}
+\end{flalign}
 
 \end{frame}
 
-\section{Met Office NERC Cloud model: parallel framework}
+\begin{frame}
+\frametitle{Phase transitions}
+The {\re total buoyancy} $b$ is approximated by
+\begin{equation}
+b = \bel+\alpha q_\ell \,,\qquad q_\ell =q-q_s(z) \qquad \textsf{if } q>q_s(z) \textsf{, otherwise 0}.
+\nonumber
+\end{equation}
+
+$q_\ell$ is the {\bl liquid water content}. \newline
+$q_s$ is the {\oran saturation humidity}, which decreases with height. \newline
+$\alpha$ is a scale factor related to the {\re latent heat of condensation.} \newline
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Solution}
+
+Rather than evolving momentum, we evolve the vorticity:
+\begin{equation}
+  \pd{\gv{\omega}}{t} = ( \div{\v{F}},\div{\v{G}},\div{\v{H}}), \nonumber
+\end{equation}
+Where $\v{F} = \gv{\omega}u + b \uv{y} $, $\v{G}=\gv{\omega}v - b \uv{x}$, $\v{H}=\gv{\omega}w$ and $\v{u}= (u,v,w)$.
+
+\vspace{0.5cm}
+
+Vector Poisson solver (finite difference) to find velocity potential $\v{A}$ and velocity $\v{u} = - \curl{\v{A}}$.
+
+\begin{equation}
+  \gv{\omega} = \v{\nabla}^2 \v{A}. \nonumber
+\end{equation}
+
+Some further subtleties in ensuring the vorticity is divergence free.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Parcel splitting and mixing}
+
+\begin{itemize}
+\item Parcels stretch and can split into 2 smaller parcels, depending on vorticity.
+\item Splitting: creates new parcel. Old and new parcel are change position.
+\item When parcel becomes too small: merged into surrounding parcels using conservative operation via grid.
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Elements of parallelism}
+
+\begin{itemize}
+\item Change of parcel position: advection, splitting (local)
+\item Parcel merging (local)
+\item Vector Poisson solver (global)
+\end{itemize}
+
+\end{frame}
+
+\section{The Met Office NERC Cloud model (parallelisation framework)}
 
 %-------------------------------------------------------------------
 \begin{frame}
