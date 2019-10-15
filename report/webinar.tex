@@ -349,10 +349,11 @@ Prototype model for 3D incompressible flow
 \begin{frame}
 \frametitle{Phase transitions}
 The {\re total buoyancy} $b$ is approximated by
-\begin{equation}
-b = \bel+\alpha q_\ell \,,\qquad q_\ell =q-q_s(z) \qquad \textsf{if } q>q_s(z) \textsf{, otherwise 0}.
+\begin{flalign}
+b & = \bel+\alpha q_\ell \nonumber \\
+q_\ell & =q-q_s(z) \textsf{ if } q>q_s(z) \textsf{, otherwise 0}.
 \nonumber
-\end{equation}
+\end{flalign}
 
 $q_\ell$ is the {\bl liquid water content}. \newline
 $q_s$ is the {\oran saturation humidity}, which decreases with height. \newline
@@ -361,17 +362,19 @@ $\alpha$ is a scale factor related to the {\re latent heat of condensation.} \ne
 \end{frame}
 
 \begin{frame}
-\frametitle{N}
+\frametitle{Numerical implementation}
 
-Rather than evolving momentum, we evolve the vorticity:
+We evolve vorticity (instead of momentum) and parcel position using RK4
+
 \begin{equation}
-  \pd{\gv{\omega}}{t} = ( \div{\v{F}},\div{\v{G}},\div{\v{H}}), \nonumber
+  \DD{\gv{\omega}}{t} = ( \div{\v{F}},\div{\v{G}},\div{\v{H}}), \nonumber
 \end{equation}
-Where $\v{F} = \gv{\omega}u + b \uv{y} $, $\v{G}=\gv{\omega}v - b \uv{x}$, $\v{H}=\gv{\omega}w$ and $\v{u}= (u,v,w)$.
+Where $\v{F} = \gv{\omega}u + b \uv{y} $, $\v{G}=\gv{\omega}v - b \uv{x}$, $\v{H}=\gv{\omega}w$ and $\v{u}= (u,v,w)$. 
+Needs velocity field (from grid).
 
 \vspace{0.5cm}
 
-Vector Poisson solver (finite difference) to find velocity potential $\v{A}$ and velocity $\v{u} = - \curl{\v{A}}$.
+Vector Poisson solver (finite difference on grid) to find velocity potential $\v{A}$ and velocity $\v{u} = - \curl{\v{A}}$.
 
 \begin{equation}
   \gv{\omega} = \v{\nabla}^2 \v{A}. \nonumber
@@ -393,7 +396,11 @@ Some further subtleties to ensure the vorticity is divergence free.
 \end{frame}
 
 \begin{frame}
-\frametitle{Elements of parallelism}
+\frametitle{Parallelism}
+
+Initially, MPIC was developed using shared-memory parallelism (OpenMP), which limits problem sizes to be addressed.
+
+To implement hybrid (MPI+OpenMP) parallelism, we need to consider
 
 \begin{itemize}
 \item Change of parcel position: advection, splitting (local)
@@ -413,10 +420,11 @@ Very high resolution ($\mathsf{\sim}$ 2 to 50 m), flexible, portable cloud model
 framework, developed through collaboration between NCAS, the Met 
 Office, EPCC and the universities.
 \begin{itemize}
-\item Based on Met Office LEM (1980s, infrastructure outdated by 2014)
+\item Based on Met Office Large Eddy Model (scaling up to 512 cores)
 \item Fortran 2003
 \item Modular structure
 \item Funded though NERC/JWCRP/eCSE
+\item Leap-frog time integration
 \end{itemize}
 \end{frame}
 
@@ -429,15 +437,17 @@ MONC supports decomposition in both the x and y dimensions with at least one col
 \item Improved decomposition means more parallelism to be exploited
 \item Asynchronous MPI
 \item Includes FFT solver, based on FFTW
+\item IO-server (not used here)
+\item Scales on up to 32,768 cores
 \end{itemize}
 \end{frame}
 
 \begin{frame}
-\frametitle{Core and components}
+\frametitle{Model core and components}
 
 The model core  contains the MONC entry point, registry functionality and some utility modules
 
-Architected as plugins called components
+Plugins called components
 \begin{itemize}
 \item Independent of each other
 \item Standardized format
@@ -449,6 +459,12 @@ Architected as plugins called components
 2. Each time step \newline
 3. Finalisation \newline
 \end{itemize}
+\end{frame}
+
+\begin{frame}[plain]
+  \begin{center}
+    \includegraphics[scale=0.42]{pmpic_images/flowchart.pdf}
+  \end{center}
 \end{frame}
 
 \section{Design and performance}
@@ -675,6 +691,18 @@ visualise.py: older visualisation routine (obsolete?)
 
 \end{frame}
 
+\begin{frame}{Subgrid visualisation}
+
+\begin{figure}
+  \begin{center}
+    \includegraphics[scale=0.3]{pmpic_images/32grid.png}
+    \includegraphics[scale=0.3]{pmpic_images/32parcels.png}
+  \end{center}
+  \caption{Comparison of the buoyancy in the $z-y$ plane for a $32^3$ grid cell simulation constructed from the gridded values (left) and from the parcels (right). It can be seen that images constructed from the parcels have considerably more detail as they are able to resolve sub-gridcell structure. \label{lowres}}
+\end{figure}
+
+\end{frame}
+
 \begin{frame}[fragile]{Writing your own initial condition component}
 \protect\hypertarget{writing-your-own-initial-condition-component}{}
 
@@ -697,7 +725,7 @@ in this directory to point to the newly renamed file.
 
 Now to edit \texttt{my\_parcelsetup.F90}. First of all, change the
 module name to \texttt{my\_parcelsetup\_mod}. Change the
-\texttt{basic\_parcelsetup\_get\_descriptor} function to
+\texttt{basic\_parcelsetup\_get\_descriptor} function to (next slide)
 \end{frame}
 
 \begin{frame}[fragile]
