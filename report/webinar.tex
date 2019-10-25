@@ -338,7 +338,7 @@ Prototype model for 3D incompressible flow
 (Boussinesq, no rotation, no precipitation, non-dimensional):
 \begin{flalign}
 \DD{\uu}{t} & = - \frac{\grad{p}}{\rho_0} + b \uv{z} \qquad & \textsf{momentum} \nonumber \\ 
-\DD{\bel}{t}&  = 0  \qquad & \textsf{conserved temperature} \nonumber \\
+\DD{\bel}{t}&  = 0  \qquad & \textsf{conserved temperature (pressure/phase changes)} \nonumber \\
 \DD{q}{t} & = 0  \qquad & \textsf{specific humidity, total amount of water} \nonumber \\
 \grad\bcdot\uu & =0  \qquad & \textsf{incompressibility} \nonumber  \\
 \nonumber
@@ -354,10 +354,20 @@ b & = \bel+\alpha q_\ell \nonumber \\
 q_\ell & =q-q_s(z) \textsf{ if } q>q_s(z) \textsf{, otherwise 0}.
 \nonumber
 \end{flalign}
+\vspace{-0.5cm}
 
 $q_\ell$ is the {\bl liquid water content}. \newline
 $q_s$ is the {\oran saturation humidity}, which decreases with height. \newline
 $\alpha$ is a scale factor related to the {\re latent heat of condensation.} \newline
+
+\vspace{-0.5cm}
+\begin{figure}
+  \begin{center}
+    \includegraphics[scale=0.6]{pmpic_images/cropped_l_proposal.pdf}
+  \end{center}
+  \caption{Zoom of the condensed liquid water distribution
+in a rising thermal. MPIC uses an underlying grid with the same resolution as MONC.}
+\end{figure}
 
 \end{frame}
 
@@ -369,12 +379,11 @@ We evolve vorticity (instead of momentum) and parcel position using RK4
 \begin{equation}
   \DD{\gv{\omega}}{t} = ( \div{\v{F}},\div{\v{G}},\div{\v{H}}), \nonumber
 \end{equation}
-Where $\v{F} = \gv{\omega}u + b \uv{y} $, $\v{G}=\gv{\omega}v - b \uv{x}$, $\v{H}=\gv{\omega}w$ and $\v{u}= (u,v,w)$. 
+Where $\v{F} = \gv{\omega}u + b \uv{y} $, $\v{G}=\gv{\omega}v - b \uv{x}$, $\v{H}=\gv{\omega}w$. 
+
 Needs velocity field (from grid).
 
-\vspace{0.5cm}
-
-Vector Poisson solver (finite difference on grid) to find velocity potential $\v{A}$ and velocity $\v{u} = - \curl{\v{A}}$.
+Vector Poisson solver (finite difference, grid-based) to find velocity potential $\v{A}$ and velocity $\v{u} = - \curl{\v{A}}$.
 
 \begin{equation}
   \gv{\omega} = \v{\nabla}^2 \v{A}. \nonumber
@@ -400,13 +409,29 @@ Some further subtleties to ensure the vorticity is divergence free.
 
 Initially, MPIC was developed using shared-memory parallelism (OpenMP), which limits problem sizes to be addressed.
 
-To implement hybrid (MPI+OpenMP) parallelism, we need to consider
+To implement hybrid (MPI+OpenMP) parallelism, we need to consider:
 
 \begin{itemize}
 \item Change of parcel position: advection, splitting (local)
 \item Parcel merging (local)
 \item Vector Poisson solver (global)
 \end{itemize}
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Parallelism}
+
+\vspace{0.2cm}
+\begin{itemize}
+\item Vector Poisson solver: requires global communication. {\bl Efficient algorithms} exist.
+\item First implementation OpenMP. Inherent limitation of problem size. HPC trend to {\pu large distributed memory systems}. 
+\item Much more {\re parcel data} than {\gr grid data}.
+\item Parcel data: {\oran local communication}.
+\end{itemize}
+
+\centering
 
 \end{frame}
 
@@ -418,9 +443,9 @@ To implement hybrid (MPI+OpenMP) parallelism, we need to consider
 
 Very high resolution ($\mathsf{\sim}$ 2 to 50 m), flexible, portable cloud modelling 
 framework, developed through collaboration between NCAS, the Met 
-Office, EPCC and the universities.
+Office, EPCC and several UK universities.
 \begin{itemize}
-\item Based on Met Office Large Eddy Model (scaling up to 512 cores)
+\item Based on Met Office Large Eddy Model (limited to $\sim$  512 cores)
 \item Fortran 2003
 \item Modular structure
 \item Funded though NERC/JWCRP/eCSE
@@ -436,9 +461,9 @@ MONC supports decomposition in both the x and y dimensions with at least one col
 \item Number of columns can be distributed unevenly
 \item Improved decomposition means more parallelism to be exploited
 \item Asynchronous MPI
-\item Includes FFT solver, based on FFTW
+\item Includes FFT solver, based on FFTW (other solvers not tested)
 \item IO-server (not used here)
-\item Scales on up to 32,768 cores
+\item Scales well on up to 32,768 cores
 \end{itemize}
 \end{frame}
 
@@ -472,13 +497,11 @@ Plugins called components
 %-------------------------------------------------------------------
 \begin{frame}
 \frametitle{eCSE project}
-\textit{A fully Lagrangian dynamical core for the Met Office NERC Cloud Model}
-\vspace{0.2cm}
+
 \begin{center}
 St Andrews, Leeds, EPCC (Mich\`ele Weiland, Nick Brown, Gordon Gibb)
 \end{center}
 
-\vspace{0.1cm}
 Ideas:
 \begin{itemize}
 \item Harness {\gr MONC's parallelism}: hybrid OpenMP+MPI.
@@ -487,21 +510,6 @@ Ideas:
 \item {\re Lagrangian diagnostics} can feed back into standard MONC.
 \item {\pu Component testing} using simplified code.
 \end{itemize}
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Parallelism}
-
-\vspace{0.2cm}
-\begin{itemize}
-\item Vector Poisson solver: requires global communication. {\bl Efficient algorithms} exist.
-\item First implementation OpenMP. Inherent limitation of problem size. HPC trend to {\pu large distributed memory systems}. 
-\item Much more {\re parcel data} than {\gr grid data}.
-\item Parcel data: {\oran local communication}.
-\end{itemize}
-
-\centering
 
 \end{frame}
 
@@ -522,7 +530,7 @@ Ideas:
 \begin{itemize}
 \item Data held in arrays, rather than parcel-types (more difficult halo-swap, but efficient). \\
 \includegraphics[width=0.45\textwidth]{pmpic_images/grid2par.png} 
-\item New group type: RK4 (not all operations substepped). Note: higher memory footprint.
+\item New group type: RK4 (not all operations substepped). \newline Higher memory footprint: work in progress on low-storage variant.
 \item Binary dumps (parcels/grids) and NetCDF (optional, grids only so far), instead of IO-server. Memory requirements of main code.
 \end{itemize}
 
@@ -531,11 +539,12 @@ Ideas:
 \begin{frame}
 \frametitle{Halo-swapping}
 \begin{itemize}
-\item Parcel halo-swap needed testing. In particular: backfill.
+\item Parcel halo-swap needed testing. \newline In particular: backfill (parcel deletion/creation).
 \item Modified grid halo-swap in solver. Decision to write new simple halo-swapper for grids. 
 \item Halo-swapping also comes into parcel mixing. Systematic parcel creation/removal tests.
 \end{itemize}
 
+\vspace{-0.3cm}
 \includegraphics[width=0.45\textwidth]{pmpic_images/vel0.png} 
 \includegraphics[width=0.45\textwidth]{pmpic_images/vel1.png} 
 
@@ -601,7 +610,7 @@ Ideas:
 
 Example usage:
 
-mpiexec -n 2 monc --config=config.mcf
+\texttt{mpiexec -n 2 monc  -\/-config=config.mcf}
 
 Dependencies:
 
@@ -631,6 +640,13 @@ Compilers tested:
 Default test case is a spherical moist and
 warm thermal in a neutrally-stable boundary layer overlaid with a
 stably-stratified atmosphere. 
+
+\begin{figure}
+  \begin{center}
+    \includegraphics[scale=0.45]{pmpic_images/profile_init.pdf}
+  \end{center}
+\end{figure}
+
 \end{frame}
 
 \begin{frame}[fragile]{Running PMPIC}
@@ -648,15 +664,7 @@ edited unless you know what you're doing.
 The config file and global\_config should be placed in the working
 directory.
 
-The final files should have timestep number 144, and using
-\texttt{display\_parcels.py} as
-
-\texttt{python\ display\ parcels.py\ 144\ {[}N{]}}
-
-(where N is the number of processes used in the simulation).
-%\includegraphics{https://user-images.githubusercontent.com/17198605/49156538-82419900-f315-11e8-89a3-8533f580acc8.png}
-
-Congratulations you have successfully run PMPIC! The default case is small and should be able to run on a laptop in around a minute or less.
+The default case is small and should be able to run on a laptop in around a minute or less.
 
 \end{frame}
 
@@ -678,19 +686,6 @@ A list of components is provided on the PMPIC wiki
 
 \end{frame}
 
-\begin{frame}{Included scripts}
-\protect\hypertarget{included-scripts}{}
-
-display\_grid.py: displays a field (currently buoyancy)\\
-display\_parcels.py: renders a field based on a Gaussian kernel\\
-planner.py: calculates the approximate memory footprint of PMPIC (total
-and per process)\\
-timing.py: reads previously created timing data (need to specify this
-beforehand in MONC configuration file)\\
-visualise.py: older visualisation routine (obsolete?)
-
-\end{frame}
-
 \begin{frame}{Subgrid visualisation}
 
 \begin{figure}
@@ -698,10 +693,23 @@ visualise.py: older visualisation routine (obsolete?)
     \includegraphics[scale=0.3]{pmpic_images/32grid.png}
     \includegraphics[scale=0.3]{pmpic_images/32parcels.png}
   \end{center}
-  \caption{Comparison of the buoyancy in the $z-y$ plane for a $32^3$ grid cell simulation constructed from the gridded values (left) and from the parcels (right). It can be seen that images constructed from the parcels have considerably more detail as they are able to resolve sub-gridcell structure. \label{lowres}}
+  \caption{Comparison of the buoyancy in the $y-z$ plane for a $32^3$ grid cell simulation constructed from the gridded values (left) and from the parcels (right). It can be seen that images constructed from the parcels have considerably more detail as they are able to resolve sub-gridcell structure. \label{lowres}}
 \end{figure}
 
 \end{frame}
+
+\begin{frame}{Included scripts}
+\protect\hypertarget{included-scripts}{}
+
+display\_grid.py: displays a field (buoyancy by default)\\
+display\_parcels.py: renders a field based on a Gaussian kernel\\
+planner.py: calculates the approximate memory footprint of PMPIC (total
+and per process)\\
+timing.py: reads previously created timing data (need to specify this
+beforehand in MONC configuration file)\\
+visualise.py: older visualisation routine
+\end{frame}
+
 
 \begin{frame}[fragile]{Writing your own initial condition component}
 \protect\hypertarget{writing-your-own-initial-condition-component}{}
@@ -743,14 +751,14 @@ module name to \texttt{my\_parcelsetup\_mod}. Change the
 \end{Shaded}
 \end{footnotesize}
 
-Now you can go and edit the subroutine \texttt{initalisation\_callback}
+Now you can go and edit the subroutine \texttt{initialisation\_callback}
 to put in the initial conditions you want.
 
 To enable this component, alter your config file to have the line
 \texttt{my\_parcelsetup\_enabled=.true.} (ensuring that the other
 parcelsetup components are disabled).
 
-After recompiling monc you should now be able to use your new component!
+After recompiling you should now be able to use your new component!
 
 \end{frame}
 
@@ -788,13 +796,18 @@ See PMPIC wiki for details on local compilation.
 
 \vspace{0.2cm}
 \begin{itemize}
-\item Realistic {\bl thermodynamics} and {\bl precipitation}. From idealised to atmospheric model.
+\item Developing a full cloud model: realistic {\bl thermodynamics} and {\bl precipitation}, {\bl  radiation}.
 \item More flexible {\pu boundary conditions}, in particular for momentum.
 \item Work on {\re marginally resolved and subgrid-scale dynamics} to improve mixing representation (convergence).
 \item Exploitation of {\oran vorticity diagnostics} and {\oran Lagrangian analysis}. 
 \end{itemize}
 
-\centering
+\begin{figure}
+  \begin{center}
+    \includegraphics[scale=0.1]{pmpic_images/Cumulonimbus_cloud_over_Africa.jpg}
+  \end{center}
+\tiny{Image: NASA Johnson Space Center (public domain).}
+\end{figure}
 
 \end{frame}
 
