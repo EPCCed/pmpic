@@ -408,6 +408,7 @@ Some further subtleties to ensure the vorticity is divergence free.
 \frametitle{Parallelism}
 
 Initially, MPIC was developed using shared-memory parallelism (OpenMP), which limits problem sizes to be addressed.
+HPC trend to {\pu large distributed memory systems}. 
 
 To implement hybrid (MPI+OpenMP) parallelism, we need to consider:
 
@@ -426,7 +427,6 @@ To implement hybrid (MPI+OpenMP) parallelism, we need to consider:
 \vspace{0.2cm}
 \begin{itemize}
 \item Vector Poisson solver: requires global communication. {\bl Efficient algorithms} exist.
-\item First implementation OpenMP. Inherent limitation of problem size. HPC trend to {\pu large distributed memory systems}. 
 \item Much more {\re parcel data} than {\gr grid data}.
 \item Parcel data: {\oran local communication}.
 \end{itemize}
@@ -445,7 +445,7 @@ Very high resolution ($\mathsf{\sim}$ 2 to 50 m), flexible, portable cloud model
 framework, developed through collaboration between NCAS, the Met 
 Office, EPCC and several UK universities.
 \begin{itemize}
-\item Based on Met Office Large Eddy Model (limited to $\sim$  512 cores)
+\item Based on Met Office Large Eddy Model (was limited to $\sim$  512 cores)
 \item Fortran 2003
 \item Modular structure
 \item Funded though NERC/JWCRP/eCSE
@@ -461,7 +461,7 @@ MONC supports decomposition in both the x and y dimensions with at least one col
 \item Number of columns can be distributed unevenly
 \item Improved decomposition means more parallelism to be exploited
 \item Asynchronous MPI
-\item Includes FFT solver, based on FFTW (other solvers not tested)
+\item Includes FFT solver, based on FFTW (others not tested for PMIC)
 \item IO-server (not used here)
 \item Scales well on up to 32,768 cores
 \end{itemize}
@@ -529,7 +529,14 @@ Ideas:
 \frametitle{Design choices}
 \begin{itemize}
 \item Data held in arrays, rather than parcel-types (more difficult halo-swap, but efficient). \\
-\includegraphics[width=0.45\textwidth]{pmpic_images/grid2par.png} 
+\includegraphics[width=0.65\textwidth]{pmpic_images/grid2par.png} 
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Design choices}
+\begin{itemize}
 \item New group type: RK4 (not all operations substepped). \newline Higher memory footprint: work in progress on low-storage variant.
 \item Binary dumps (parcels/grids) and NetCDF (optional, grids only so far), instead of IO-server. Memory requirements of main code.
 \end{itemize}
@@ -583,8 +590,8 @@ Ideas:
 \begin{frame}
 \frametitle{Performance: large simulations}
 
-\includegraphics[width=0.45\textwidth]{pmpic_images/864.png} 
-\includegraphics[width=0.45\textwidth]{pmpic_images/6.png} 
+\includegraphics[width=0.48\textwidth]{pmpic_images/864.png} 
+\includegraphics[width=0.48\textwidth]{pmpic_images/6.png} 
 
 \end{frame}
 
@@ -690,8 +697,8 @@ A list of components is provided on the PMPIC wiki
 
 \begin{figure}
   \begin{center}
-    \includegraphics[scale=0.3]{pmpic_images/32grid.png}
-    \includegraphics[scale=0.3]{pmpic_images/32parcels.png}
+    \includegraphics[scale=0.35]{pmpic_images/32grid.png}
+    \includegraphics[scale=0.35]{pmpic_images/32parcels.png}
   \end{center}
   \caption{Comparison of the buoyancy in the $y-z$ plane for a $32^3$ grid cell simulation constructed from the gridded values (left) and from the parcels (right). It can be seen that images constructed from the parcels have considerably more detail as they are able to resolve sub-gridcell structure. \label{lowres}}
 \end{figure}
