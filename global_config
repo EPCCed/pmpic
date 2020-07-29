@@ -2,6 +2,8 @@
 # unless you know what you are doing. These have to be on
 # for MONC to run
 
+FFTE = .true.
+
 #core components
 decomposition_enabled=.true.
 model_synopsis_enabled=.true.
