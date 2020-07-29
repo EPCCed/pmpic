@@ -231,8 +231,8 @@ if __name__ == "__main__":
         istop = (p%dims[0]+1)*nx[0]-1
         irange.append([istart,istop])
         
-        jstart = (p/dims[0])*ny[0]
-        jstop =  (p/dims[0]+1)*ny[0] -1
+        jstart = (p//dims[0])*ny[0]
+        jstop =  (p//dims[0]+1)*ny[0] -1
         jrange.append([jstart,jstop])
 
         kstart=0
@@ -268,7 +268,12 @@ if __name__ == "__main__":
             xindex = int(round((xcut-xrange[0])/dx))
             xindex = xindex-irange[i][0]
 
+            print(xindex)
+            print(jrange[i][0],jrange[i][1]+1,krange[i][0],krange[i][1]+1)
+
             img[jrange[i][0]:jrange[i][1]+1][krange[i][0]:krange[i][1]+1] = b[xindex][:][:]
+
+
     print("Done!")
     print("Now displaying image")
 
