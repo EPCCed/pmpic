@@ -133,11 +133,11 @@ if __name__ == "__main__":
     zmax=[]
 
     #now get the global x/y/z ranges
-    #We read in the first and last files, determine the ranges from these 
+    #We read in the first and last files, determine the ranges from these
 
     dims=getdims(nprocs)
     print("Number of processes in x and y are", dims)
-    
+
 
     for i in [0,nprocs-1]:#range(nprocs):
         fname = "grids_%05d_%05d.dat"%(i,fnumber)
@@ -193,14 +193,14 @@ if __name__ == "__main__":
     print("ymin=",ymin[0])
     print("ymax=",ymax[1])
 
-    
+
 
     xrange=[xmin[0],xmax[1]]
     yrange=[ymin[0],ymax[1]]
 
-    
 
-    
+
+
 
     #figure out the global size. We assume that the grid spacing is constant
     dx = (xmax[0]-xmin[0])/(nx[0]-1)
@@ -230,9 +230,9 @@ if __name__ == "__main__":
         istart = p%dims[0]*nx[0]
         istop = (p%dims[0]+1)*nx[0]-1
         irange.append([istart,istop])
-        
-        jstart = (p/dims[0])*ny[0]
-        jstop =  (p/dims[0]+1)*ny[0] -1
+
+        jstart = int(p/dims[0])*ny[0]
+        jstop =  int(p/dims[0]+1)*ny[0] -1
         jrange.append([jstart,jstop])
 
         kstart=0
@@ -244,15 +244,15 @@ if __name__ == "__main__":
     #print("irange = ",irange)
     #print("jrange = ",jrange)
     #print("krange = ",krange)
-    
+
     print("Done!")
 
     img = np.zeros((nyg,nzg))
 
     icut = int(np.round(xcut/dx))
-    
 
-    
+
+
 
     print("Now reading in the required files...")
 
