@@ -135,7 +135,7 @@ contains
           ffte_check_factors(current_state%global_grid%size(Y_INDEX)))) then
         stop "NX and/or NY are the wrong sizes for FFTE"
       endif
-      if (omp_get_max_threads() .ne. 1) stop "ffte at present can only be used in single threaded mode"
+      ! if (omp_get_max_threads() .ne. 1) stop "ffte at present can only be used in single threaded mode"
     else
       if (current_state%parallel%my_rank .eq. 0) print *, "Using FFTW for FFTs"
     endif
@@ -561,17 +561,25 @@ contains
     tstart = MPI_Wtime()
 
     if (ffte) then !use FFTE for the FFTs
-      !print *, "FFTE"
 
+      !$OMP SINGLE
       call ffte_init(row_size)
-
+      !$OMP END SINGLE
+      
+      !$OMP DO private(j)
       do i=1,size(source_data,3)
         do j=1,size(source_data,2)
           call ffte_r2c(source_data(:,j,i),transformed_data(:,j,i),row_size)
         enddo
       enddo
-
+      !$OMP END DO
+      
+      !make sure all the threads have completed the above do loops before finalising
+      !$OMP BARRIER
+      
+      !$OMP SINGLE
       call ffte_finalise()
+      !$OMP END SINGLE
 
     else !use FFTW for FFTs
       !print *, "FFTW"
@@ -592,9 +600,11 @@ contains
     endif
 
     tstop = mpi_wtime()
-
+    
+    !$OMP SINGLE
     nforward = nforward +1
     tforward = tforward + (tstop-tstart)
+    !$OMP END SINGLE
     
 
   end subroutine perform_r2c_fft
@@ -615,17 +625,25 @@ contains
     tstart = MPI_Wtime()
 
     if (ffte) then !use FFTE for FFTs
-      !print *, "FFTE"
-
+      
+      !$OMP SINGLE
       call ffte_init(row_size)
-
+      !$OMP END SINGLE
+      
+      !$OMP DO private(j)
       do i=1,size(source_data,3)
         do j=1,size(source_data,2)
           call ffte_c2r(source_data(:,j,i),transformed_data(:,j,i),row_size)
         enddo
       enddo
+      !$OMP END DO
+      
+      !make sure all the threads have completed the above do loops before finalising
+      !$OMP BARRIER
 
+      !$OMP SINGLE
       call ffte_finalise()
+      !$OMP END SINGLE
 
     else !use FFTW for FFTs
 
@@ -649,9 +667,11 @@ contains
     endif
 
     tstop = mpi_wtime()
-
+    
+    !$OMP SINGLE
     nback = nback +1
     tback = tback + (tstop-tstart)
+    !$OMP END SINGLE
   
   end subroutine perform_c2r_fft
 
