@@ -7,7 +7,6 @@ mpiexec -n 2 monc --config=config.mcf
 Dependencies:
 
 * MPI
-* FFTW
 
 Compilers tested:
 
