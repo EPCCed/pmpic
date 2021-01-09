@@ -1,4 +1,4 @@
-!> This Pencil FFT performs 3D forward and backwards FFTs using pencil decomposition. It uses FFTW for the actual FFT kernel
+!> This Pencil FFT performs 3D forward and backwards FFTs using pencil decomposition. It uses FFTE for the actual FFT kernel
 !! and this module contains all the data decomposition around this. There is no FFT required in Z, so this performs FFTs in
 !! Y and X (in that order forward and reversed backwards.) The data decomposition is the complex aspect, there is the concept of
 !! forward and backwards transformations. Forward transformations will go from pencil Z to Y to X and the backwards transformations
@@ -6,15 +6,15 @@
 !! Note that we use quite a lot of buffer space here, this could be cut down if Y=X dimensions so some optimisation on memory
 !! could be done there in that case
 module pencil_fft_mod
+  use, intrinsic :: iso_c_binding
   use datadefn_mod, only : DEFAULT_PRECISION, PRECISION_TYPE
   use grids_mod, only : X_INDEX, Y_INDEX, Z_INDEX, global_grid_type
   use state_mod, only : model_state_type
-  use fftw_mod, only : C_DOUBLE_COMPLEX, C_PTR, FFTW_BACKWARD, FFTW_FORWARD, FFTW_ESTIMATE, fftw_plan_many_dft_r2c, &
-       fftw_plan_many_dft_c2r, fftw_execute_dft_c2r, fftw_execute_dft_r2c, fftw_destroy_plan, fftw_init_threads, &
-       fftw_plan_with_nthreads
   use mpi, only : MPI_DOUBLE_COMPLEX, MPI_INT, MPI_COMM_SELF, mpi_wtime
   use timer_mod, only: register_routine_for_timing, timer_start, timer_stop
   use omp_lib
+  use ffte_mod, only: ffte_r2c, ffte_c2r, ffte_init, ffte_finalise, ffte_check_factors
+  use optionsdatabase_mod, only: options_get_logical
   implicit none
 
 #ifndef TEST_MODE
@@ -22,7 +22,7 @@ module pencil_fft_mod
 #endif
 
   integer :: ffthandle=-1, iffthandle=-1
-  integer :: fftwhandle=-1,real2comhandle=-1,transposehandle=-1
+  integer :: fftehandle=-1,real2comhandle=-1,transposehandle=-1
 
   !> Describes a specific pencil transposition, from one pencil decomposition to another
   type pencil_transposition
@@ -42,11 +42,11 @@ module pencil_fft_mod
        fft_in_y_buffer , fft_in_x_buffer
   complex(C_DOUBLE_COMPLEX), dimension(:,:,:), contiguous, pointer :: buffer1, buffer2
 
-  ! Pointers to FFTW plans and whether these have been initialised (only initialised once)
-  type(C_PTR) :: fftw_plan(4)
-  logical :: fftw_plan_initialised(4)=.false.
-
   logical :: initialised = .false.
+
+  !counters for number of times the fft routines are called and the time spent in them
+  integer :: nforward, nback
+  double precision :: tforward, tback
 
   public initialise_pencil_fft, finalise_pencil_fft, perform_forward_3dfft, perform_backwards_3dfft
 contains
@@ -103,18 +103,24 @@ contains
 
     if (iffthandle .eq. -1) call register_routine_for_timing("fft_inv_tot", iffthandle, current_state)
     if (ffthandle .eq. -1)  call register_routine_for_timing("fft_fwd_tot", ffthandle, current_state)
-    if (fftwhandle .eq. -1)  call register_routine_for_timing("fft_fftw", fftwhandle, current_state)
+    if (fftehandle .eq. -1)  call register_routine_for_timing("fft_ffte", fftehandle, current_state)
     if (real2comhandle .eq. -1)  call register_routine_for_timing("fft_r2c", real2comhandle, current_state)
     if (transposehandle .eq. -1)  call register_routine_for_timing("fft_transp", transposehandle, current_state)
 
-    ierr=fftw_init_threads()
-    call fftw_plan_with_nthreads(1)
-
-    if (current_state%parallel%my_rank .eq. 0) then    
-      print *, "Initialised FFT libraries to use", 1, " threads"
-    endif
 
     initialised = .true.
+    
+    !make sure problem size is valid for FFTE (factor of 2, 3 and/or 5)
+    if (.not. (ffte_check_factors(current_state%global_grid%size(X_INDEX)) .and. &
+        ffte_check_factors(current_state%global_grid%size(Y_INDEX)))) then
+      stop "NX and/or NY are the wrong sizes for FFTE"
+    endif
+    
+    nforward = 0
+    nback = 0
+
+    tforward = 0.d0
+    tback = 0d0
 
   end function initialise_pencil_fft
 
@@ -123,11 +129,12 @@ contains
     integer, intent(in) :: monc_communicator
     integer :: ierr, i
 
-    do i=1,size(fftw_plan_initialised)
-      if (fftw_plan_initialised(i)) then
-        call fftw_destroy_plan(fftw_plan(i))
-      end if
-    end do
+
+    call MPI_Comm_rank(monc_communicator,i,ierr)
+    if (i .eq. 0) then
+      print *, "Total time in forward FFT =",tforward
+      print *, "Total time in reverse FFT =", tback
+    endif
 
     if (dim_y_comm .ne. MPI_COMM_SELF .and. dim_y_comm .ne. monc_communicator) call mpi_comm_free(dim_y_comm, ierr)
     if (dim_x_comm .ne. MPI_COMM_SELF .and. dim_x_comm .ne. monc_communicator) call mpi_comm_free(dim_x_comm, ierr)
@@ -154,13 +161,9 @@ contains
 
     st=mpi_wtime()
     call transpose_and_forward_fft_in_y(current_state, source_data, buffer1, real_buffer1)
-    !$OMP WORKSHARE
-    real_buffer1=real_buffer1/current_state%global_grid%size(Y_INDEX)
-    !$OMP END WORKSHARE
+
     call transpose_and_forward_fft_in_x(current_state, real_buffer1, buffer2, real_buffer2)
-    !$OMP WORKSHARE
-    real_buffer2=real_buffer2/current_state%global_grid%size(X_INDEX)
-    !$OMP END WORKSHARE
+  
 
     call transpose_to_pencil(y_from_x_transposition, (/X_INDEX, Z_INDEX, Y_INDEX/), dim_x_comm, BACKWARD, &
          real_buffer2, real_buffer3)
@@ -510,20 +513,38 @@ contains
     real(kind=DEFAULT_PRECISION), dimension(:,:,:), contiguous, pointer, intent(inout) :: source_data
     complex(C_DOUBLE_COMPLEX), dimension(:,:,:), contiguous, pointer, intent(inout) :: transformed_data
     integer, intent(in) :: row_size, num_rows, plan_id
-    !fftw not OpenMP'd
-    !$OMP SINGLE
-    call timer_start(fftwhandle)
+    integer :: i, j
+    double precision :: tstart, tstop
 
-    if (.not. fftw_plan_initialised(plan_id)) then
-      fftw_plan(plan_id) = fftw_plan_many_dft_r2c(1, (/row_size/), num_rows, source_data, (/row_size/), 1, row_size, &
-           transformed_data, (/row_size/), 1, row_size/2+1, FFTW_ESTIMATE)
-      fftw_plan_initialised(plan_id)=.true.
-    end if
+    tstart = MPI_Wtime()
 
-    call fftw_execute_dft_r2c(fftw_plan(plan_id), source_data, transformed_data)
+    ! if (ffte) then !use FFTE for the FFTs
 
-    call timer_stop(fftwhandle)
-    !$OMP END SINGLE
+      !$OMP SINGLE
+      call timer_start(fftehandle)
+      call ffte_init(row_size)
+      !$OMP END SINGLE
+      
+      !$OMP DO private(j)
+      do i=1,size(source_data,3)
+        do j=1,size(source_data,2)
+          call ffte_r2c(source_data(:,j,i),transformed_data(:,j,i),row_size)
+        enddo
+      enddo
+      !$OMP END DO
+      
+      !make sure all the threads have completed the above do loops before finalising
+      !$OMP BARRIER
+      
+      !$OMP SINGLE
+      call ffte_finalise()
+      call timer_stop(fftehandle)
+     
+      tstop = mpi_wtime()
+      
+      nforward = nforward +1
+      tforward = tforward + (tstop-tstart)
+      !$OMP END SINGLE
     
 
   end subroutine perform_r2c_fft
@@ -538,21 +559,35 @@ contains
     complex(C_DOUBLE_COMPLEX), dimension(:,:,:), contiguous, pointer, intent(inout) :: source_data
     real(kind=DEFAULT_PRECISION), dimension(:,:,:), contiguous, pointer, intent(inout) :: transformed_data
     integer, intent(in) :: row_size, num_rows, plan_id
+    integer :: i,j
+    double precision :: tstart, tstop
 
-    !fftw not OpenMP'd
+    tstart = MPI_Wtime()
+
     !$OMP SINGLE
-    call timer_start(fftwhandle)
+    call timer_start(fftehandle)
+    call ffte_init(row_size)
+    !$OMP END SINGLE
+    
+    !$OMP DO private(j)
+    do i=1,size(source_data,3)
+      do j=1,size(source_data,2)
+        call ffte_c2r(source_data(:,j,i),transformed_data(:,j,i),row_size)
+      enddo
+    enddo
+    !$OMP END DO
+    
+    !make sure all the threads have completed the above do loops before finalising
+    !$OMP BARRIER
 
-    if (.not. fftw_plan_initialised(plan_id)) then
-      ! n is the size of the FFT (in real, not complex->real coords.) There are row_size/2+1 between entries for the input
-      ! (complex) data and row_size between entries for the output data
-      fftw_plan(plan_id) = fftw_plan_many_dft_c2r(1, (/row_size/), num_rows, source_data, (/row_size/2+1/), 1, row_size/2+1, &
-           transformed_data, (/row_size/), 1, row_size, FFTW_ESTIMATE)
-      fftw_plan_initialised(plan_id)=.true.
-    end if
-    call fftw_execute_dft_c2r(fftw_plan(plan_id), source_data, transformed_data)
-    call timer_stop(fftwhandle)
+    !$OMP SINGLE
+    call ffte_finalise()
+    call timer_stop(fftehandle)
 
+    tstop = mpi_wtime()
+    
+    nback = nback +1
+    tback = tback + (tstop-tstart)
     !$OMP END SINGLE
   
   end subroutine perform_c2r_fft
@@ -829,7 +864,7 @@ contains
   end subroutine convert_complex_to_real
 
   !> Converts reals into their complex representation, this is called for backwards FFTs as we need to feed in complex numbers
-  !! to force FFTW to do a backwards. It is a relatively simple transformation, as n goes into n/2 complex numbers and as this
+  !! to force FFTE to do a backwards. It is a relatively simple transformation, as n goes into n/2 complex numbers and as this
   !! is the result of the `convert_complex_to_real` procedure, n always divides evenly.
   !! This is always applied to the first dimension of the real data
   !! @param real_data The source real data to pack into the complex data, it is oriented Z,Y,X
@@ -845,7 +880,7 @@ contains
     !$OMP END SINGLE
 
     !$OMP WORKSHARE
-    complex_data=cmplx(0.0d0, 0.0d0, kind=C_DOUBLE_COMPLEX)
+    complex_data(:,:,:)=cmplx(0.0d0, 0.0d0, kind=C_DOUBLE_COMPLEX)
     !$OMP END WORKSHARE
 
     !$OMP DO

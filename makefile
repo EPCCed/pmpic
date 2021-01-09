@@ -24,9 +24,7 @@ endif
 ifndef HDF5_DIR
 	export HDF5_DIR=$(HDF5_ROOT)
 endif
-ifndef FFTW_DIR
-	export FFTW_DIR=$(FFTW_ROOT)
-endif
+
 ifndef CASIM_DIR
 	export CASIM_DIR=$(CASIM_ROOT)
 endif
@@ -50,13 +48,13 @@ else
 	PETSC_LIBS=-lpetsc
 endif
 
-COMPILERFFLAGS=-fopenmp -ffpe-trap=invalid,overflow,zero -O3
+COMPILERFFLAGS=-fopenmp -O3 #
 COMPILERRECURSIVE=
 ACTIVE=-DU_ACTIVE -DV_ACTIVE -DW_ACTIVE -DUSE_MAKE
 DEBUG_FLAGS=-g -fopenmp -fcheck=all -fbacktrace -DDEBUG_MODE -ffpe-trap=invalid,overflow,zero
 
 FFLAGS=-I $(CORE_DIR)/$(BUILD_DIR) -I $(COMPONENTS_DIR)/$(BUILD_DIR) -I $(TESTCASE_DIR)/$(BUILD_DIR) -I $(NETCDF_DIR)/include -I /usr/include $(COMPILERFFLAGS)
-LFLAGS=$(shell $(NETCDF_ROOT)/bin/nf-config --flibs)  -lfftw3 -lfftw3_omp
+LFLAGS=$(shell $(NETCDF_ROOT)/bin/nf-config --flibs)
 EXEC_NAME=monc
 
 local: FTN=mpif90
@@ -71,7 +69,7 @@ debug: local
 endif
 
 nonetcdf: FFLAGS =-I $(CORE_DIR)/$(BUILD_DIR) -I $(COMPONENTS_DIR)/$(BUILD_DIR) -I $(TESTCASE_DIR)/$(BUILD_DIR) -I /usr/include $(COMPILERFFLAGS)
-nonetcdf: LFLAGS= -lfftw3 -lfftw3_omp
+nonetcdf: LFLAGS=
 nonetcdf: NONETCDF=TRUE
 ifdef CRAYOS_VERSION
 nonetcdf: GNU
@@ -82,7 +80,7 @@ endif
 nonetcdf-debug: COMPILERFFLAGS = $(DEBUG_FLAGS)
 nonetcdf-debug: OPT=$(ACTIVE)
 nonetcdf-debug: FFLAGS =-I $(CORE_DIR)/$(BUILD_DIR) -I $(COMPONENTS_DIR)/$(BUILD_DIR) -I $(TESTCASE_DIR)/$(BUILD_DIR) -I /usr/include $(COMPILERFFLAGS)
-nonetcdf-debug: LFLAGS= -lfftw3 -lfftw3_omp
+nonetcdf-debug: LFLAGS= 
 nonetcdf-debug: NONETCDF=TRUE
 ifdef CRAYOS_VERSION
 nonetcdf-debug: GNU
@@ -125,7 +123,6 @@ buildmonc: check-vars create-build-dirs compile-model_core compile-components co
 check-vars:
 	$(call check_defined, NETCDF_DIR, Need the path to the NetCDF installation directory as an environment variable - export this before running make)
 	$(call check_defined, HDF5_DIR, Need the path to the HDF5 installation directory as an environment variable - export this before running make)
-	$(call check_defined, FFTW_DIR, Need the path to the FFTW installation directory as an environment variable - export this before running make)
 
 create-build-dirs:
 	mkdir -p $(BUILD_DIR)

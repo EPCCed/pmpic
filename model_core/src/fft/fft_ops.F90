@@ -12,7 +12,6 @@
 ! - laplinv - invert laplacian using tridiagonal method
 ! - spectral_filter - filter spectral data according to the 2/3 rule
 module fftops_mod
-  use fftw_mod
   use state_mod
   use datadefn_mod, only: DEFAULT_PRECISION, PRECISION_TYPE
   use timer_mod, only: register_routine_for_timing, timer_start, timer_stop
