@@ -14,8 +14,8 @@ n_parcels=38
 sizeof=8
 
 #default values (can be overridden)
-ppn=24 #processes per node
-mpn=64 #memory per node (GB)
+ppn=128 #processes per node
+mpn=256 #memory per node (GB)
 
 #parse an input value of the form "quantity=number" to return the number
 def getvalue(arg):
