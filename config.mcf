@@ -40,9 +40,9 @@ termination_time=8
 
 
 #grid properties
-nx=32
-ny=32
-nz=32
+nx=1024
+ny=1024
+nz=1024
 xmin=0
 xmax=6.28
 ymin=0
@@ -51,7 +51,7 @@ zmin=0
 zmax=6.28
 
 #Maximum parcels per process (you can determine this value using the planner.py script)
-max_parcels=1000000
+max_parcels=50000000
 
 #readfromfile options (only relevant if the readfromfile_parcelsetup component is enabled)
 restart_num=50
@@ -71,8 +71,8 @@ e_values=0.3, -0.4 ,0.5
 
 
 #integrator properties
-dtm=0.1
-dtmax=0.1
+dtm=0.003125
+dtmax=0.003125
 timestep_prefactor=0.5
 
 #velocity profile properties
@@ -80,7 +80,7 @@ velocity_profile=9
 
 #writebinary properties
 # can choose between "time" (write files every dt time intervals) "step" (after every n steps) or "none" (essentially disable component)
-writebinary_mode="time"
+writebinary_mode="none"
 parcel_step_write_frequency=10
 grid_step_write_frequency = 5
 parcel_time_write_frequency = 1.
@@ -89,7 +89,7 @@ grid_time_write_frequency = 1.
 writenetcdf_mode="time"
 parcel_step_write_netcdf_frequency=10
 grid_step_write_netcdf_frequency = 5
-parcel_time_write_netcdf_frequency = 1.
+parcel_time_write_netcdf_frequency = 2.
 grid_time_write_netcdf_frequency = 1.
 parcel_netcdf_deflate_level=0
 
