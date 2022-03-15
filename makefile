@@ -57,7 +57,7 @@ FFLAGS=-I $(CORE_DIR)/$(BUILD_DIR) -I $(COMPONENTS_DIR)/$(BUILD_DIR) -I $(TESTCA
 LFLAGS=$(shell $(NETCDF_ROOT)/bin/nf-config --flibs)
 EXEC_NAME=monc
 
-local: FTN=mpif90
+local: FTN=ftn
 local: GNU
 
 debug: COMPILERFFLAGS = $(DEBUG_FLAGS)
