@@ -51,7 +51,7 @@ contains
     allocate(npercell(nz-1,ny-1,nx-1))
     allocate(vres(nz,ny,nx),bres(nz,ny,nx),hres(nz,ny,nx),pres(nz,ny,nx),qres(nz,ny,nx),rres(nz,ny,nx))
 
-    vmin = dx*dy*dz/6./6./6.
+    vmin = dx*dy*dz/4./4./4.
 
     if (state%parallel%my_rank .eq. 0) then
       if (omp_get_max_threads() .gt. 1) then
