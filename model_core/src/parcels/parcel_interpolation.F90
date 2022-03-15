@@ -227,14 +227,23 @@ contains
       endif
 
       !get the fractional position in the cell (from the lower left corner) that the parcel is at
-      delx= ((xp-xmin)-(i-1)*dx)/dx
-      dely= ((yp-ymin)-(j-1)*dy)/dy
-      delz= ((zp-zmin)-(k-1)*dz)/dz
+      delx= ((xp-xmin)/dx-(i-1))
+      dely= ((yp-ymin)/dy-(j-1))
+      delz= ((zp-zmin)/dz-(k-1))
 
-
-      if (delx .gt. 1. .or. delx .lt. 0) error stop "delx wrong size"
-      if (dely .gt. 1. .or. dely .lt. 0) error stop "dely wrong size"
-      if (delz .gt. 1. .or. delz .lt. 0) error stop "delz wrong size"
+      if (delx .gt. 1. .or. delx .lt. 0.) then
+              write(*,*) "xp,xmin,xmax,i,dx,delx"
+              write(*,*) xp,xmin,xmax,i,dx,delx
+              error stop "delx wrong size"
+      else if (dely .gt. 1. .or. dely .lt. 0.) then
+              write(*,*) "yp,ymin,ymax,j,dy,dely"
+              write(*,*) yp,ymin,ymax,j,dy,dely
+              error stop "dely wrong size"
+      else if (delz .gt. 1. .or. delz .lt. 0.) then
+              write(*,*) "zp,zmin,zmax,k,dz,delz"
+              write(*,*) zp,zmin,zmax,k,dz,delz
+              error stop "delz wrong size"
+      end if
 
       !cache these values
       is(n) = i
