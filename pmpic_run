@@ -1,0 +1,75 @@
+#!/bin/bash
+#SBATCH --job-name=PMPIC
+#SBATCH --output=%x.o%j
+  # %x gives job-name (SLURM_JOB_NAME)
+  # %j gives jobid (individual SLURM_JOB_ID)
+  # %A gives jobid (master     SLURM_ARRAY_JOB_ID)
+  # %a gives array task id number
+  #  https://slurm.schedmd.com/sbatch.html
+#SBATCH --open-mode=append
+#SBATCH --nodes=64
+#SBATCH --ntasks-per-node=32
+#SBATCH --ntasks=2048
+#SBATCH --cpus-per-task=4
+#SBATCH --time=48:00:00
+#SBATCH --account=e710
+#SBATCH --partition=standard
+#SBATCH --qos=long
+
+echo Starting job
+
+compiler=gnu
+#compiler=cray
+export OMP_NUM_THREADS=4
+export OMP_PLACES=cores
+
+# set up default ARCHER2 job environment
+module purge
+module use --append /work/y07/shared/archer2-modules/modulefiles-cse-pyvenvs
+module use --append /work/y07/shared/archer2-modules/modulefiles-cse-pymods
+module use --append /work/y07/shared/archer2-modules/modulefiles-cse-utils
+module use --append /work/y07/shared/archer2-modules/modulefiles-cse-libs
+module use --append /work/y07/shared/archer2-modules/modulefiles-cse-apps
+module use --append /opt/cray/pe/perftools/20.10.0/modulefiles
+module use --append /opt/cray/pe/perftools/20.09.0/modulefiles
+module use --append /opt/cray/pe/craype/2.7.0/modulefiles
+module use --append /usr/local/Modules/modulefiles
+module use --append /opt/cray/pe/cpe-prgenv/7.0.0
+module use --append /opt/cray/pe/modulefiles
+module use --append /opt/cray/pe/craype-targets/default/modulefiles
+module use --append /opt/modulefiles
+module use --append /opt/cray/modulefiles
+module load PrgEnv-gnu
+module load gcc/9.3.0
+module load craype
+module load craype-x86-rome
+module load --notuasked libfabric
+module load craype-network-ofi
+module load cray-dsmml
+module load perftools-base
+module load xpmem
+module load cray-mpich
+module load cray-libsci
+module load load-epcc-module
+module load epcc-setup-env
+module load bolt
+module load cray-netcdf-hdf5parallel
+module load cray-hdf5-parallel
+module load cray-fftw/3.3.8.9
+module load petsc
+module load atp
+export ATP_ENABLED=1
+export OMP_NUM_THREADS=1
+ulimit -c unlimited
+
+module list
+export FI_OFI_RXM_SAR_LIMIT=64K
+
+if [ ! -d checkpoint_files ]; then mkdir checkpoint_files; fi
+if [ ! -d monc_stdout ]; then mkdir monc_stdout; fi
+if [ ! -d diagnostic_files ]; then mkdir diagnostic_files; fi
+
+# set env variables for submission command
+config_path='config.mcf'
+
+srun --unbuffered --distribution=block:block --hint=nomultithread monc --config=$config_path
