@@ -57,12 +57,12 @@ contains
 
   subroutine initialisation_callback(state)
     type(model_state_type), intent(inout), target :: state
-    real(kind=DEFAULT_PRECISION) :: lambda, rhb, z_c, mu, z_d, z_m, r_plume, e_values(3)
+    real(kind=DEFAULT_PRECISION) :: lambda, rhb, z_c, mu, z_d, z_m, r_plume, r_smooth_frac, e_values(3)
     real(kind=DEFAULT_PRECISION) :: h_pl, h_bg, z_b, dbdz, b_pl
     logical :: master
     real(kind=DEFAULT_PRECISION) :: xmin_local, xmax_local, ymin_local, ymax_local, zmin_local, zmax_local
     integer :: nx, ny, nz
-    real(kind=DEFAULT_PRECISION) :: x_c_pl, y_c_pl, z_c_pl !x, y and z centres of plume
+    real(kind=DEFAULT_PRECISION) :: x_c_pl, y_c_pl, z_c_pl, r_edge !x, y and z centres of plume
     real(kind=DEFAULT_PRECISION) :: dx, dy, dz
     real(kind=DEFAULT_PRECISION) :: dxplume, dyplume, dzplume
     real(kind=DEFAULT_PRECISION) :: dxbg, dybg, dzbg
@@ -126,6 +126,18 @@ contains
     r_plume=options_get_real(state%options_database,"r_plume")
     if (2.*r_plume .gt. z_b) then
       if (master) write(*,"('Error: Plume radius is too big. At most it can be ',f7.5)") z_b/2.
+      call MPI_Finalize(ierr)
+      stop
+    endif
+
+    r_smooth_frac=options_get_real(state%options_database,"r_smooth_frac")
+    if (r_smooth_frac .gt. 1.0) then
+      if (master) write(*,*)"Error: Plume radius for smoothing is too big. At most it can be 1.0"
+      call MPI_Finalize(ierr)
+      stop
+    endif
+    if (r_smooth_frac .lt. 0.0) then
+      if (master) write(*,*) "Error: Plume radius for smoothing is too small. At least it must be 0.0"
       call MPI_Finalize(ierr)
       stop
     endif
@@ -213,7 +225,7 @@ contains
             do k=1,ceiling(2.*r_plume/dzplume)
               zp=z-z_c_pl
               !print *, x, y, z
-              if (zp*zp + xp*xp + yp*yp .le. r_plume*r_plume) then
+              if (zp*zp + xp*xp + yp*yp .le. r_smooth_frac*r_smooth_frac*r_plume*r_plume) then
                 n=n+1
                 if (n .gt. state%parcels%maxparcels_local) then
                   print *, "Error! Maxparcels reached in plume_parcelsetup"
@@ -226,6 +238,20 @@ contains
                 state%parcels%h(n) = h_pl
                 state%parcels%vol(n) = vol
 !                write(10+state%parallel%my_rank,*) x, y, z, state%parcels%b(n)
+              elseif(zp*zp + xp*xp + yp*yp .le. r_plume*r_plume) then
+                n=n+1
+                if (n .gt. state%parcels%maxparcels_local) then
+                  print *, "Error! Maxparcels reached in plume_parcelsetup"
+                  error stop "Maxparcels reached"
+                endif
+                r_edge=(sqrt(zp*zp + xp*xp + yp*yp)-r_plume*r_smooth_frac)/(r_plume*(1.0-r_smooth_frac))
+                state%parcels%x(n) = x
+                state%parcels%y(n) = y
+                state%parcels%z(n) = z
+                state%parcels%b(n) = b_pl*(1.0 + e_values(1)*xp*yp +e_values(2)*xp*zp + e_values(3)*yp*zp)&
+                                     *(6.0*r_edge**5-15.0*r_edge**4+10.*r_edge**3)
+                state%parcels%h(n) = h_pl*(1.0+(mu-1.0)*(6.0*r_edge**5-15.0*r_edge**4+10.*r_edge**3))
+                state%parcels%vol(n) = vol
               endif
               z=z+dzplume
             enddo
