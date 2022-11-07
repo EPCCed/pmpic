@@ -249,7 +249,7 @@ contains
                 state%parcels%y(n) = y
                 state%parcels%z(n) = z
                 state%parcels%b(n) = b_pl*(1.0 + e_values(1)*xp*yp +e_values(2)*xp*zp + e_values(3)*yp*zp)&
-                                     *(6.0*r_edge**5-15.0*r_edge**4+10.*r_edge**3)
+                                     *(1.0-(6.0*r_edge**5-15.0*r_edge**4+10.*r_edge**3))
                 state%parcels%h(n) = h_pl*(1.0+(mu-1.0)*(6.0*r_edge**5-15.0*r_edge**4+10.*r_edge**3))
                 state%parcels%vol(n) = vol
               endif
