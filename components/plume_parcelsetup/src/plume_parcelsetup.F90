@@ -43,7 +43,7 @@ REAL(KIND=DEFAULT_PRECISION),parameter:: gravity=1./fdthetal0
 REAL(KIND=DEFAULT_PRECISION),parameter:: glat=gravity*latent
 
 
-integer, parameter :: n_per_cell_dir_plume = 4
+integer, parameter :: n_per_cell_dir_plume = 2
 integer, parameter :: n_per_cell_dir_bg = 2
 
 contains

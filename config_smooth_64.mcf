@@ -36,7 +36,7 @@ parcel_mixing_enabled=.true.
 
 # Control configuration
 display_synopsis_frequency=10
-termination_time=8
+termination_time=10
 
 
 #grid properties
@@ -72,8 +72,8 @@ e_values=0.3, -0.4 ,0.5
 
 
 #integrator properties
-dtm=0.003125
-dtmax=0.003125
+dtm=0.05
+dtmax=0.05
 timestep_prefactor=0.5
 
 #velocity profile properties

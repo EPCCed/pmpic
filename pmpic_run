@@ -7,14 +7,14 @@
   # %a gives array task id number
   #  https://slurm.schedmd.com/sbatch.html
 #SBATCH --open-mode=append
-#SBATCH --nodes=64
-#SBATCH --ntasks-per-node=32
-#SBATCH --ntasks=2048
-#SBATCH --cpus-per-task=4
-#SBATCH --time=48:00:00
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=128
+#SBATCH --ntasks=128
+#SBATCH --cpus-per-task=1
+#SBATCH --time=00:20:00
 #SBATCH --account=e710
 #SBATCH --partition=standard
-#SBATCH --qos=long
+#SBATCH --qos=short
 
 echo Starting job
 
@@ -70,6 +70,6 @@ if [ ! -d monc_stdout ]; then mkdir monc_stdout; fi
 if [ ! -d diagnostic_files ]; then mkdir diagnostic_files; fi
 
 # set env variables for submission command
-config_path='config.mcf'
+config_path='config_smooth_64.mcf'
 
 srun --unbuffered --distribution=block:block --hint=nomultithread monc --config=$config_path
